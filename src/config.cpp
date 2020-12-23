@@ -32,13 +32,37 @@ void Config::save() const
     file.close();
 }
 
-Config::Program::Program(uint8_t number, JsonObject doc) : SubConfig(doc), _number(number)
+void Config::Program::init(uint8_t number, const JsonObject& doc)
 {
-    uint8_t num_switches = numFootswitches();
-    for (uint8_t i = 0; i < num_switches; ++i)
+    _number = number;
+    _available = !doc.isNull();
+    if (!_available)
     {
-        footswitch(i).initState();
+        return;
     }
+
+    _name = doc["name"];
+    _num_switches = doc["fs"].size();
+
+    for (uint8_t i = 0; i < _num_switches; ++i)
+    {
+        _switches[i].init(i, doc["fs"][i].as<JsonObject>());
+    }
+}
+
+void Config::Footswitch::init(uint8_t number, const JsonObject& doc) 
+{
+    _available = !doc.isNull();
+    if (!_available)
+    {
+        return;
+    }
+
+    _number = number;
+    strncpy(_name, doc["name"], sizeof(_name));
+    _name[kMaxNameSize] = '\0';
+    _enabled = doc["on"].as<bool>();
+    _actions = doc["actions"].as<JsonArray>();
 }
 
 }

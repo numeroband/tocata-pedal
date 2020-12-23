@@ -3,7 +3,7 @@
 namespace tocata {
 
 Controller::Controller(const Buttons6::InArray& in_gpios, const Buttons6::OutArray& out_gpios) 
-    : _buttons(in_gpios, out_gpios), _midi(kHostname), _program(_config.program(0)) {}
+    : _buttons(in_gpios, out_gpios), _midi(kHostname) {}
 
 void Controller::begin() 
 {
@@ -18,7 +18,7 @@ void Controller::begin()
         Serial.println("Config not loaded");
     }
 
-    _program = _config.program(1);
+    _program = _config.program(0);
     _display.setProgram(_program);
     _midi.setOnConnect(std::bind(&Controller::midiConnected, this));
     _midi.setOnDisconnect(std::bind(&Controller::midiDisconnected, this));

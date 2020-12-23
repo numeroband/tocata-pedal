@@ -12,7 +12,7 @@ void Display::begin()
 void Display::setProgram(Config::Program& program)
 {
 	_program = &program;
-	utoa(program.number(), _program_str, 10);
+	utoa(program.number() + 1, _program_str, 10);
 	_scroll.name = _program->available() ? _program->name() : "<EMPTY>";
 	_scroll.letter = 0;
 	_scroll.pixel = 0;
