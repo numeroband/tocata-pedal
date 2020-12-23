@@ -12,8 +12,8 @@ template<std::size_t INS, std::size_t OUTS>
 class Buttons
 {
 public:
-    using ButtonsMask = std::bitset<INS * OUTS>;
-    using ButtonsCallback = std::function<void(ButtonsMask status, ButtonsMask modified)>;
+    using Mask = std::bitset<INS * OUTS>;
+    using Callback = std::function<void(Mask status, Mask modified)>;
     using InArray = std::array<uint8_t, INS>;
     using OutArray = std::array<uint8_t, OUTS>;
 
@@ -35,7 +35,7 @@ public:
         }
     }
 
-    void setCallback(ButtonsCallback callback) { _callback = callback; }
+    void setCallback(Callback callback) { _callback = callback; }
 
     void loop() 
     {
@@ -45,13 +45,13 @@ public:
             return;
         }
 
-        ButtonsMask gpios = readGpios();
+        Mask gpios = readGpios();
         if (gpios == _last_state)
         {
             return;    
         }
 
-        ButtonsMask debounce;        
+        Mask debounce;        
         do {
             debounce = gpios;
             delay(kDebounceMs);
@@ -70,9 +70,9 @@ public:
 private:
     static constexpr int kDebounceMs = 50;
 
-    ButtonsMask readGpios()
+    Mask readGpios()
     {
-        ButtonsMask gpios;
+        Mask gpios;
         for (int out = 0; out < _out_gpios.size(); ++out)
         {
             pinMode(_out_gpios[out], OUTPUT);
@@ -92,8 +92,8 @@ private:
 
     InArray _in_gpios;
     OutArray _out_gpios;
-    ButtonsMask _last_state;
-    ButtonsCallback _callback;
+    Mask _last_state;
+    Callback _callback;
 };
 
 }

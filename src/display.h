@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config.h"
+
 #include <U8g2lib.h>
 
 namespace tocata {
@@ -11,15 +13,27 @@ public:
 	void begin();
 	void loop();
 	void setConnected(bool connected) { _connected = connected; }
-	void setProgram(uint8_t program);
+	void setProgram(Config::Program& program);
 	
 private:
-	void drawSwitch(int idx, const char* text, bool enabled);
+	void drawFootswitch(const Config::Footswitch& footswitch);
+	void drawScroll();
 
 	U8G2_SH1106_128X64_NONAME_F_HW_I2C _u8g2;
 	bool _connected = false;
-	int _program = 0;
 	bool _dirty = true;
+	Config::Program* _program = nullptr;
+	char _program_str[3];
+	struct {
+		const char* name;
+		uint8_t letter;
+		uint8_t pixel;
+		uint8_t size;
+		uint8_t delay;
+	} _scroll;
+	const char* _program_name;
+
+
 };
 
 }

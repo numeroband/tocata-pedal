@@ -32,4 +32,13 @@ void Config::save() const
     file.close();
 }
 
+Config::Program::Program(uint8_t number, JsonObject doc) : SubConfig(doc), _number(number)
+{
+    uint8_t num_switches = numFootswitches();
+    for (uint8_t i = 0; i < num_switches; ++i)
+    {
+        footswitch(i).initState();
+    }
+}
+
 }
