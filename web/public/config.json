@@ -1,0 +1,74 @@
+{
+  "wifi": {
+    "ssid": "MOVISTAR_7F78",
+    "key": "q97tdr7PD6W72iQUQq2R"
+  },
+  "programs": [
+    {
+      "name": "Fell On Black Days",
+      "fs": [
+        {
+          "name": "REVRB",
+          "on": true
+        },
+        {
+          "name": "DELAY"
+        },
+        {
+          "name": "DISTR"
+        },
+        {
+          "name": "CHORS"
+        },
+        null,
+        {
+          "name": "EQ"
+        }
+      ]
+    },
+    {
+      "name": "Like A Stone",
+      "fs": [
+        {
+          "name": "DISTR"
+        },
+        {
+          "name": "REVRB"
+        },
+        {
+          "name": "DELAY"
+        }
+      ]
+    },
+    null,
+    {
+      "name": "The Warmth",
+      "fs": [
+        {
+          "name": "REVRB",
+          "on": true
+        },
+        {
+          "name": "DELAY",
+          "on": true
+        },
+        {
+          "name": "DISTR",
+          "on": true
+        },
+        {
+          "name": "CHORS",
+          "on": true
+        },
+        {
+          "name": "PHASR",
+          "on": true
+        },
+        {
+          "name": "EQ",
+          "on": true
+        }
+      ]
+    }
+  ]
+}
