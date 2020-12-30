@@ -9,20 +9,25 @@
       "fs": [
         {
           "name": "REVRB",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
-          "name": "DELAY"
+          "name": "DELAY",
+          "color": "green"
         },
         {
-          "name": "DISTR"
+          "name": "DISTR",
+          "color": "yellow"
         },
         {
-          "name": "CHORS"
+          "name": "CHORS",
+          "color": "blue"
         },
         null,
         {
-          "name": "EQ"
+          "name": "EQ",
+          "color": "purple"
         }
       ]
     },
@@ -30,13 +35,16 @@
       "name": "Like A Stone",
       "fs": [
         {
-          "name": "DISTR"
+          "name": "DISTR",
+          "color": "red"
         },
         {
-          "name": "REVRB"
+          "name": "REVRB",
+          "color": "red"
         },
         {
-          "name": "DELAY"
+          "name": "DELAY",
+          "color": "red"
         }
       ]
     },
@@ -46,27 +54,33 @@
       "fs": [
         {
           "name": "REVRB",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
           "name": "DELAY",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
           "name": "DISTR",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
           "name": "CHORS",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
           "name": "PHASR",
-          "on": true
+          "on": true,
+          "color": "red"
         },
         {
           "name": "EQ",
-          "on": true
+          "on": true,
+          "color": "red"
         }
       ]
     }
