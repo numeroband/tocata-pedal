@@ -2,7 +2,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import MenuItem from '@material-ui/core/MenuItem';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Footswitches from './Footswitches'
 
 const NUM_PROGRAMS = 99;
@@ -17,18 +17,26 @@ const useStyles = makeStyles((theme) => ({
 function Program(props) {
   const { id, program, save, remove } = props
   const classes = useStyles();
-  const [name, setName] = useState('')
-  const [footswitches, setFootswitches] = useState([])
+  const defaultProgram = useMemo(() => ({
+    name: '',
+    actions: [],
+    fs: [],
+  }), [])
+  const [state, setState] = useState({ ...defaultProgram, ...program })
 
   useEffect(() => {
-    setName(program ? program.name : '');
-    setFootswitches((program && program.fs) ? program.fs : []);
-  }, [id, program]) 
+    setState({ ...defaultProgram, ...program })
+  }, [program, defaultProgram])
 
   function saveProgram() {
-    save(id, {
-      name: name
-    })
+    const program = { ...state }
+    if (program.fs.length === 0) {
+      delete program.fs
+    }
+    if (program.actions.length === 0) {
+      delete program.actions
+    }
+    save(id, program)
   }
 
   function removeProgram() {
@@ -41,27 +49,27 @@ function Program(props) {
         <TextField
           label="Program name"
           className={classes.root}
-          value={name}
-          onChange={event => setName(event.target.value)}
+          value={state.name}
+          onChange={e => setState({ ...state, name: e.target.value })}
         ></TextField>
       </div>
-      <Footswitches footswitches={footswitches}/>
-      <Button 
-        variant="contained" 
-        color="primary" 
+      <Footswitches footswitches={state.fs} setFootswitches={fs => setState({ ...state, fs: fs })} />
+      <Button
+        variant="contained"
+        color="primary"
         className={classes.root}
         onClick={saveProgram}
-        disabled={!name}
+        disabled={!state.name}
       >Save</Button>
-      <Button 
-        variant="contained" 
-        color="secondary" 
+      <Button
+        variant="contained"
+        color="secondary"
         className={classes.root}
         onClick={removeProgram}
-        disabled={!name || !program}
+        disabled={!state.name || !program}
       >Remove</Button>
     </div>
-    )
+  )
 }
 
 export default function Programs(props) {
@@ -75,7 +83,7 @@ export default function Programs(props) {
     for (let i = programs.length + 1; i <= NUM_PROGRAMS; ++i) {
       programNames.push(`${i} - <EMPTY>`);
     }
-    return programNames;  
+    return programNames;
   }
 
   const handleChange = (event) => {
@@ -84,7 +92,6 @@ export default function Programs(props) {
   };
 
   function saveProgram(id, program) {
-    console.log('saveProgram', id, program)
     programs[id] = program
     setProgramNames(createNames(programs))
     save(programs)
@@ -102,7 +109,7 @@ export default function Programs(props) {
 
   return (
     <div>
-      <TextField 
+      <TextField
         label="Program"
         className={classes.root}
         select
@@ -115,7 +122,12 @@ export default function Programs(props) {
           </MenuItem>
         ))}
       </TextField>
-      <Program id={programId} program={programs[programId]} save={saveProgram} remove={removeProgram}/>
-   </div>
-    )
+      <Program
+        id={programId}
+        program={JSON.parse(JSON.stringify(programs[programId]))}
+        save={saveProgram}
+        remove={removeProgram}
+      />
+    </div>
+  )
 }

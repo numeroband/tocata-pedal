@@ -1,17 +1,18 @@
-import { makeStyles } from '@material-ui/core/styles';
-import { 
-  FormControlLabel, 
+import {
+  FormControlLabel,
   FormGroup,
   Switch,
   MenuItem,
   TextField,
   Grid,
- } from '@material-ui/core';
-import { useState, useEffect } from 'react';
+} from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
+import { useState, useEffect, useMemo } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
 const NUM_SWITCHES = 6
 const colors = ['blue', 'purple', 'red', 'yellow', 'green', 'turquoise']
+
 const useStyles = makeStyles((theme) => {
   const styles = {
     root: {
@@ -37,17 +38,31 @@ const useStyles = makeStyles((theme) => {
 function Footswitch(props) {
   const { id, footswitch, setFootswitch } = props
   const classes = useStyles();
-  const [name, setName] = useState('')
-  const [color, setColor] = useState(colors[0])
-  const [momentary, setMomentary] = useState(false)
-  const [enabled, setEnabled] = useState(false)
+  const defaultFS = useMemo(() => ({
+    name: '',
+    color: colors[0],
+    enabled: false,
+    momentary: false,
+    onActions: [],
+    offActions: [],
+  }), [])
+  const [state, setState] = useState({ ...defaultFS, ...footswitch })
 
   useEffect(() => {
-    setName(footswitch ? footswitch.name : '')
-    setColor(footswitch ? footswitch.color : colors[0])
-  }, [id, footswitch])
+    setState({ ...defaultFS, ...footswitch })
+  }, [footswitch, defaultFS])
 
-  // useEffect(() => setFootswitch(id, {name, color, momentary, enabled}))
+  function updateText(event) {
+    const newState = { ...state, [event.target.name]: event.target.value }
+    setState(newState);
+    setFootswitch(id, newState.name ? newState : null);
+  };
+
+  function updateSwitch(event) {
+    const newState = { ...state, [event.target.name]: event.target.checked }
+    setState(newState);
+    setFootswitch(id, newState.name ? newState : null);
+  };
 
   return (
     <Grid
@@ -58,27 +73,35 @@ function Footswitch(props) {
       <TextField
         label="Footswitch name"
         className={classes.root}
-        value={name}
-        onChange={e => setName(e.target.value)}
+        name="name"
+        value={state.name}
+        onChange={updateText}
       ></TextField>
       <TextField
         label="Color"
         select
-        value={color}
+        name="color"
+        value={state.color}
         className={classes.color}
-        onChange={event => {
-          setColor(event.target.value)
-        }}
+        onChange={updateText}
       >
         {colors.map((color, index) => <MenuItem key={index} value={color}><div className={classes[color]} /></MenuItem>)}
       </TextField>
       <FormGroup row className={classes.root}>
         <FormControlLabel
-          control={<Switch checked={enabled} onChange={e => setEnabled(e.target.checked)} />}
+          control={<Switch
+            checked={state.enabled}
+            name="enabled"
+            onChange={updateSwitch}
+          />}
           label="Default On"
         />
         <FormControlLabel
-          control={<Switch checked={momentary} onChange={e => setMomentary(e.target.checked)} />}
+          control={<Switch
+            checked={state.momentary}
+            name="momentary"
+            onChange={updateSwitch}
+          />}
           label="Momentary"
         />
       </FormGroup>
@@ -100,18 +123,30 @@ export default function Footswitches(props) {
     return footswitchNames;
   }
 
-  function setFootswitch(id, footswitch) {
+  function setFootswitch(id, newFS) {    
+    const footswitch = newFS ? {...newFS} : null
+    if (footswitch) {
+      if (!footswitch.enabled) {
+        delete footswitch.enabled
+      }
+      if (!footswitch.momentary) {
+        delete footswitch.momentary
+      }
+      if (footswitch.onActions.length === 0) {
+        delete footswitch.onActions
+      }
+      if (footswitch.offActions.length === 0) {
+        delete footswitch.offActions
+      }  
+    }
+    
     footswitches[id] = footswitch
     while (footswitches.length > 0 && !footswitches[footswitches.length - 1]) {
       footswitches.pop()
     }
-    console.log(footswitches)
-  }
-
-  useEffect(() => {
+    setFootswitches(footswitches)
     setFootswitchNames(createNames(footswitches))
-    setFootswitchId(0)
-  }, [footswitches]);
+  }
 
   useEffect(() => {
     setFootswitchNames(createNames(footswitches))
@@ -138,7 +173,7 @@ export default function Footswitches(props) {
           </MenuItem>
         ))}
       </TextField>
-      <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch}/>
+      <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
     </Grid>
   )
 }
