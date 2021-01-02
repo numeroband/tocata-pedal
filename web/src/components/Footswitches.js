@@ -10,30 +10,33 @@ import { makeStyles } from '@material-ui/core/styles';
 import { useState, useEffect, useMemo } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
-const NUM_SWITCHES = 6
 const colors = ['blue', 'purple', 'red', 'yellow', 'green', 'turquoise']
 
-const useStyles = makeStyles((theme) => {
-  const styles = {
-    root: {
-      margin: theme.spacing(1),
-      minWidth: 120,
-    },
-    color: {
-      margin: theme.spacing(1)
-    }
-  }
-  colors.forEach(c => styles[c] = {
-    width: 17,
-    height: 17,
+const useStyles = makeStyles((theme) => ({
+  root: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  led: {
+    margin: theme.spacing(1),
+  },
+  fsEntry: {
+    float: 'left',
+    width: 90,
+  },
+}));
+
+function Led({color}) {
+  return (<div style={{
+    width: 15,
+    height: 15,
     borderWidth: 1,
     borderStyle: 'solid',
     borderRadius: '50%',
-    backgroundColor: c,
-    margin: 'auto',
-  })
-  return styles
-});
+    backgroundColor: color,
+    float: 'left',
+  }}/>);
+}
 
 function Footswitch(props) {
   const { id, footswitch, setFootswitch } = props
@@ -76,16 +79,19 @@ function Footswitch(props) {
         name="name"
         value={state.name}
         onChange={updateText}
+        inputProps={{
+          maxLength: 5,
+        }}
       ></TextField>
       <TextField
         label="Color"
         select
         name="color"
         value={state.color}
-        className={classes.color}
+        className={classes.led}
         onChange={updateText}
       >
-        {colors.map((color, index) => <MenuItem key={index} value={color}><div className={classes[color]} /></MenuItem>)}
+        {colors.map((color, index) => <MenuItem key={index} value={color}><Led color={color}/></MenuItem>)}
       </TextField>
       <FormGroup row className={classes.root}>
         <FormControlLabel
@@ -116,11 +122,12 @@ export default function Footswitches(props) {
   const [footswitchNames, setFootswitchNames] = useState(createNames(footswitches))
 
   function createNames(footswitches) {
-    const footswitchNames = footswitches.map((fs, index) => `${String.fromCharCode(ACode + index)} - ${fs ? fs.name : '<EMPTY>'}`);
+    const NUM_SWITCHES = 6
+    const names = footswitches.map(fs => fs ? {name: fs.name, color: fs.color} : null)
     for (let i = footswitches.length; i < NUM_SWITCHES; ++i) {
-      footswitchNames.push(`${String.fromCharCode(ACode + i)} - <EMPTY>`);
+      names.push(null)
     }
-    return footswitchNames;
+    return names
   }
 
   function setFootswitch(id, newFS) {    
@@ -139,7 +146,7 @@ export default function Footswitches(props) {
         delete footswitch.offActions
       }  
     }
-    
+
     footswitches[id] = footswitch
     while (footswitches.length > 0 && !footswitches[footswitches.length - 1]) {
       footswitches.pop()
@@ -167,9 +174,12 @@ export default function Footswitches(props) {
         value={footswitchId}
         onChange={handleChange}
       >
-        {footswitchNames.map((prg, index) => (
+        {footswitchNames.map((fs, index) => (          
           <MenuItem key={index} value={index}>
-            {prg}
+            <div>
+              <div className={classes.fsEntry}>{`${String.fromCharCode(ACode + index)} - ${fs ? fs.name : '<EMPTY>'}`}</div>
+              {fs ? <Led color={fs.color}/> : <div/>}
+            </div>
           </MenuItem>
         ))}
       </TextField>
