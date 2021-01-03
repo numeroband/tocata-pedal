@@ -14,8 +14,13 @@ import MenuIcon from '@material-ui/icons/Menu';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
-import { Route, MemoryRouter, Switch } from 'react-router';
-import { Link as RouterLink } from 'react-router-dom';
+import { 
+  Link as RouterLink, 
+  BrowserRouter,
+  Route, 
+  Switch, 
+  Redirect,
+ } from 'react-router-dom';
 
 const drawerWidth = 240;
 
@@ -98,11 +103,15 @@ function Navigation(props) {
     </div>
   );
 
-  const getTitle = ({ location }) => navigation.filter(({ path }) => path === location.pathname)[0].title
+  function getTitle({location}) {
+    const currentRoute = navigation.filter(({ path }) => location.pathname.startsWith(path))
+    return currentRoute.length > 0 ? currentRoute[0].title : 'TocataPedal'
+  }
+
   const container = window !== undefined ? () => window().document.body : undefined;
 
   return (
-    <MemoryRouter initialEntries={navigation.map(({ path }) => path)} initialIndex={0}>
+    <BrowserRouter>
       <div className={classes.root}>
         <CssBaseline />
         <AppBar position="fixed" className={classes.appBar}>
@@ -116,9 +125,7 @@ function Navigation(props) {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap>
-              <Route>{getTitle}</Route>
-            </Typography>
+            <Typography variant="h6" noWrap><Route>{getTitle}</Route></Typography>
           </Toolbar>
         </AppBar>
         <nav className={classes.drawer} aria-label="mailbox folders">
@@ -156,14 +163,15 @@ function Navigation(props) {
           <div className={classes.toolbar} />
           <Switch>
             {navigation.map(({ path, content }, index) => (
-              <Route path={path} key={index}>
+              <Route path={path}>
                 {config ? content(config) : <Typography>Loading...</Typography>}
               </Route>
             ))}
+            <Redirect to="/programs"/>
           </Switch>
         </main>
       </div>
-    </MemoryRouter>
+    </BrowserRouter>
   );
 }
 

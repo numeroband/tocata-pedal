@@ -1,3 +1,4 @@
+import Actions from './Actions';
 import {
   FormControlLabel,
   FormGroup,
@@ -7,6 +8,14 @@ import {
   Grid,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
+import {
+  Switch as RouteSwitch,
+  Route,
+  Redirect,
+  useRouteMatch,
+  useParams,
+  useHistory,
+} from "react-router-dom";
 import { useState, useEffect, useMemo } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
@@ -67,6 +76,8 @@ function Footswitch(props) {
     setFootswitch(id, newState.name ? newState : null);
   };
 
+  const [onActions, setOnActions] = useState(0)
+
   return (
     <Grid
       container
@@ -111,14 +122,20 @@ function Footswitch(props) {
           label="Momentary"
         />
       </FormGroup>
+      <div>
+        <Actions>On Actions</Actions>
+        <Actions>Off Actions</Actions>
+      </div>
     </Grid>
   )
 }
 
-export default function Footswitches(props) {
+function FootswitchesSelect(props) {
   const { footswitches, setFootswitches } = props
   const classes = useStyles();
-  const [footswitchId, setFootswitchId] = useState(0);
+  const {programId, footswitchId} = useParams()
+  const history = useHistory();
+  // const [footswitchId, setFootswitchId] = useState(0);
   const [footswitchNames, setFootswitchNames] = useState(createNames(footswitches))
 
   function createNames(footswitches) {
@@ -155,14 +172,15 @@ export default function Footswitches(props) {
     setFootswitchNames(createNames(footswitches))
   }
 
-  useEffect(() => {
-    setFootswitchNames(createNames(footswitches))
-    setFootswitchId(0)
-  }, [footswitches]);
+  // useEffect(() => {
+  //   setFootswitchNames(createNames(footswitches))
+  //   setFootswitchId(0)
+  // }, [footswitches]);
 
   const handleChange = (event) => {
     const index = event.target.value;
-    setFootswitchId(index);
+    history.push(`/programs/${programId}/${index}`)
+    // setFootswitchId(index);
   };
 
   return (
@@ -186,4 +204,18 @@ export default function Footswitches(props) {
       <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
     </Grid>
   )
+}
+
+export default function Footswitches(props) {
+  const {footswitches, setFootswitches} = props;
+  const { path } = useRouteMatch();
+
+  return (
+    <RouteSwitch>
+      <Redirect exact from={path} to={`${path}/0/0`}/>
+      <Route path={`${path}/:footswitchId`}>
+        <FootswitchesSelect footswitches={footswitches} setFootswitches={setFootswitches}/>
+      </Route>
+    </RouteSwitch>
+  );
 }

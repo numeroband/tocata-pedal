@@ -1,9 +1,19 @@
+import Actions from './Actions';
+import Footswitches from './Footswitches'
+
 import { makeStyles } from '@material-ui/core/styles';
 import MenuItem from '@material-ui/core/MenuItem';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import { useState, useEffect, useMemo } from 'react';
-import Footswitches from './Footswitches'
+import {
+  Switch,
+  Route,
+  Redirect,
+  useRouteMatch,
+  useParams,
+  useHistory,
+} from "react-router-dom";
 
 const NUM_PROGRAMS = 99;
 
@@ -53,6 +63,7 @@ function Program(props) {
           onChange={e => setState({ ...state, name: e.target.value })}
         ></TextField>
       </div>
+      <Actions>Actions</Actions>
       <Footswitches footswitches={state.fs} setFootswitches={fs => setState({ ...state, fs: fs })} />
       <Button
         variant="contained"
@@ -72,12 +83,13 @@ function Program(props) {
   )
 }
 
-export default function Programs(props) {
+function ProgramSelect(props) {
   const { programs, save } = props
   const classes = useStyles();
-  const [programId, setProgramId] = useState(0);
+  const {programId} = useParams()
+  const history = useHistory();
+  // const [programId, setProgramId] = useState(params.programId ? params.programId : 0);
   const [programNames, setProgramNames] = useState(createNames(programs))
-
   function createNames(programs) {
     const programNames = programs.map((prg, index) => `${index + 1} - ${prg ? prg.name : '<EMPTY>'}`);
     for (let i = programs.length + 1; i <= NUM_PROGRAMS; ++i) {
@@ -88,7 +100,8 @@ export default function Programs(props) {
 
   const handleChange = (event) => {
     const index = event.target.value;
-    setProgramId(index);
+    history.push(`/programs/${index}/0`)
+    // setProgramId(index);
   };
 
   function saveProgram(id, program) {
@@ -130,4 +143,18 @@ export default function Programs(props) {
       />
     </div>
   )
+}
+
+export default function Programs(props) {
+  const {programs, save} = props;
+  const { path } = useRouteMatch();
+
+  return (
+    <Switch>
+      <Redirect exact from={path} to={`${path}/0/0`}/>
+      <Route path={`${path}/:programId`}>
+        <ProgramSelect programs={programs} save={save}/>
+      </Route>
+    </Switch>
+  );
 }
