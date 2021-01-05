@@ -6,6 +6,10 @@
   "programs": [
     {
       "name": "Fell On Black Days",
+      "actions": [{
+        "type": "PC",
+        "program": 13
+      }],
       "fs": [
         {
           "name": "REVRB",

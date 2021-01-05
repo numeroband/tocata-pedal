@@ -35,7 +35,11 @@ export default function App() {
       'path' : '/programs',
       'name' : 'Programs',
       'title' : 'Programs',
-      'content' : config => <Programs programs={config.programs} save={savePrograms}/>
+      'content' : config => <Programs 
+        programs={config.programs} 
+        setPrograms={programs => config.programs = programs} 
+        save={savePrograms}
+      />
     },
     {
       'path' : '/config',
@@ -47,7 +51,7 @@ export default function App() {
       'path' : '/backup',
       'name' : 'Backup',
       'title' : 'Backup / Restore',
-      'content' : config => <Backup config={config}/>
+      'content' : config => <Backup config={config} setConfig={setConfig}/>
     },
     {
       'path' : '/firmware',
@@ -62,7 +66,7 @@ export default function App() {
       config.programs = programs
       return config
     })
-    console.log('Save config', config)
+    console.log('Save programs', config)
   }
 
   function saveConfig(wifi, midi) {

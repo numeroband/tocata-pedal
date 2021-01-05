@@ -163,7 +163,7 @@ function Navigation(props) {
           <div className={classes.toolbar} />
           <Switch>
             {navigation.map(({ path, content }, index) => (
-              <Route path={path}>
+              <Route path={path} key={index}>
                 {config ? content(config) : <Typography>Loading...</Typography>}
               </Route>
             ))}

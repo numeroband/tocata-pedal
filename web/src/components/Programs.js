@@ -1,11 +1,22 @@
 import Actions from './Actions';
 import Footswitches from './Footswitches'
-
 import { makeStyles } from '@material-ui/core/styles';
-import MenuItem from '@material-ui/core/MenuItem';
-import TextField from '@material-ui/core/TextField';
-import Button from '@material-ui/core/Button';
 import { useState, useEffect, useMemo } from 'react';
+import EditIcon from '@material-ui/icons/Edit';
+import DeleteIcon from '@material-ui/icons/Delete';
+
+import {
+  MenuItem,
+  TextField,
+  Button,
+  Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+} from '@material-ui/core';
+
 import {
   Switch,
   Route,
@@ -22,11 +33,56 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(1),
     minWidth: 120,
   },
+  icon: {
+    margin: theme.spacing(2, 0, 0, 1),
+  },
 }));
 
-function Program(props) {
-  const { id, program, save, remove } = props
+function ProgramDialog(props) {
+  const { id, program, setProgram, onClose, open } = props
   const classes = useStyles();
+  const defaultProgram = useMemo(() => ({
+    name: '',
+    actions: [],
+    fs: [],
+  }), [])
+  const [state, setState] = useState({ ...defaultProgram, ...program })
+  useEffect(() => setState({ ...defaultProgram, ...program }), [program, defaultProgram])
+
+  function updateText(event) {
+    const newState = { ...state, [event.target.name]: event.target.value }
+    setState(newState);
+  }
+
+  function update() {
+    setProgram(id, state);
+    onClose();
+  }
+
+  return (
+    <Dialog onClose={onClose} aria-labelledby="simple-dialog-title" open={open}>
+      <DialogTitle id="simple-dialog-title">{`PROGRAM ${Number(id) + 1}`}</DialogTitle>
+      <DialogContent>
+        <TextField
+          label="Name"
+          name="name"
+          className={classes.root}
+          value={state.name}
+          onChange={updateText}
+        ></TextField>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" color="primary" onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="primary" onClick={update} disabled={!state.name}>Update
+      </Button>
+      </DialogActions>
+
+    </Dialog>
+  )
+}
+
+function Program(props) {
+  const { id, program, setProgram } = props
   const defaultProgram = useMemo(() => ({
     name: '',
     actions: [],
@@ -38,58 +94,41 @@ function Program(props) {
     setState({ ...defaultProgram, ...program })
   }, [program, defaultProgram])
 
-  function saveProgram() {
-    const program = { ...state }
-    if (program.fs.length === 0) {
-      delete program.fs
-    }
-    if (program.actions.length === 0) {
-      delete program.actions
-    }
-    save(id, program)
+  function setFootswitches(fs) {
+    const newProgram = { ...state, fs: fs }
+    setState(newProgram)
+    setProgram(newProgram)
   }
 
-  function removeProgram() {
-    remove(id)
-  }
-
-  return (
+  return !program ? <div /> : (
     <div>
-      <div>
-        <TextField
-          label="Program name"
-          className={classes.root}
-          value={state.name}
-          onChange={e => setState({ ...state, name: e.target.value })}
-        ></TextField>
-      </div>
-      <Actions>Actions</Actions>
-      <Footswitches footswitches={state.fs} setFootswitches={fs => setState({ ...state, fs: fs })} />
-      <Button
-        variant="contained"
-        color="primary"
-        className={classes.root}
-        onClick={saveProgram}
-        disabled={!state.name}
-      >Save</Button>
-      <Button
-        variant="contained"
-        color="secondary"
-        className={classes.root}
-        onClick={removeProgram}
-        disabled={!state.name || !program}
-      >Remove</Button>
+      <Grid
+        container
+        direction="column"
+        alignItems="flex-start"
+      >
+        <Actions
+          actions={program ? program.actions : null}
+          setActions={actions => setProgram(id, { ...program, actions: actions })}
+          title="Program actions" />
+      </Grid>
+      <Footswitches footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
     </div>
   )
 }
 
 function ProgramSelect(props) {
-  const { programs, save } = props
+  const { path, programs, setPrograms } = props
   const classes = useStyles();
-  const {programId} = useParams()
+  let { programId } = useParams();
   const history = useHistory();
-  // const [programId, setProgramId] = useState(params.programId ? params.programId : 0);
   const [programNames, setProgramNames] = useState(createNames(programs))
+  const [editProgram, setEditProgram] = useState(false);
+
+  if (programId >= programs.length) {
+    programId = programs.length - 1
+  }
+
   function createNames(programs) {
     const programNames = programs.map((prg, index) => `${index + 1} - ${prg ? prg.name : '<EMPTY>'}`);
     for (let i = programs.length + 1; i <= NUM_PROGRAMS; ++i) {
@@ -100,60 +139,99 @@ function ProgramSelect(props) {
 
   const handleChange = (event) => {
     const index = event.target.value;
-    history.push(`/programs/${index}/0`)
-    // setProgramId(index);
+    history.push(`${path}/${index}/0`)
   };
 
-  function saveProgram(id, program) {
-    programs[id] = program
-    setProgramNames(createNames(programs))
-    save(programs)
+  function cleanProgram(program) {
+    if (!program) {
+      return null;
+    }
+    if (program.fs && program.fs.length === 0) {
+      delete program.fs
+    }
+    if (program.actions && program.actions.length === 0) {
+      delete program.actions
+    }
+    return program;
   }
 
-  function removeProgram(id) {
-    console.log('removeProgram', id, programs.length)
-    programs[id] = null
+  function setProgram(id, program) {
+    programs[id] = cleanProgram(program);
     while (programs.length > 0 && !programs[programs.length - 1]) {
       programs.pop()
     }
+    setPrograms(programs)
     setProgramNames(createNames(programs))
-    save(programs)
+  }
+
+  function deleteProgram() {
+    setProgram(programId, null)
+    if (programId >= programs.length) {
+      programId = programs.length - 1
+    }
   }
 
   return (
     <div>
-      <TextField
-        label="Program"
-        className={classes.root}
-        select
-        value={programId}
-        onChange={handleChange}
-      >
-        {programNames.map((prg, index) => (
-          <MenuItem key={index} value={index}>
-            {prg}
-          </MenuItem>
-        ))}
-      </TextField>
+      <div>
+        <TextField
+          label="Program"
+          className={classes.root}
+          select
+          value={programId}
+          onChange={handleChange}
+        >
+          {programNames.map((prg, index) => (
+            <MenuItem key={index} value={index}>
+              {prg}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Fab
+          className={classes.icon}
+          size="small"
+          color="primary"
+          aria-label="edit"
+          onClick={() => setEditProgram(true)}
+        >
+          <EditIcon />
+        </Fab>
+        <Fab
+          className={classes.icon}
+          size="small"
+          color="secondary"
+          aria-label="delete"
+          onClick={deleteProgram}
+        >
+          <DeleteIcon />
+        </Fab>
+        <ProgramDialog id={programId} program={programs[programId]} setProgram={setProgram} open={editProgram} onClose={() => setEditProgram(false)} />
+      </div>
       <Program
         id={programId}
-        program={JSON.parse(JSON.stringify(programs[programId]))}
-        save={saveProgram}
-        remove={removeProgram}
+        program={programs[programId]}
+        setProgram={setProgram}
       />
     </div>
   )
 }
 
 export default function Programs(props) {
-  const {programs, save} = props;
+  const { programs, setPrograms, save } = props;
   const { path } = useRouteMatch();
+  const classes = useStyles();
 
   return (
     <Switch>
-      <Redirect exact from={path} to={`${path}/0/0`}/>
+      <Redirect exact from={path} to={`${path}/0/0`} />
       <Route path={`${path}/:programId`}>
-        <ProgramSelect programs={programs} save={save}/>
+        <ProgramSelect path={path} programs={programs} setPrograms={setPrograms} />
+        <Button
+          color="primary"
+          variant="contained"
+          className={classes.root}
+          onClick={() => save(programs)}
+        >Save All</Button>
       </Route>
     </Switch>
   );
