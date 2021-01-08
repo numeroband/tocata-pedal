@@ -1,4 +1,3 @@
-import 'fontsource-roboto';
 import './App.css';
 import Navigation from './components/Navigation';
 import Programs from './components/Programs';
