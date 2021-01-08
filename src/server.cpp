@@ -40,12 +40,19 @@ void Server::startWifi(Config& config)
 
 void Server::startHttp()
 {
-   _server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html"); 
-   _server.serveStatic("/static/js", SPIFFS, "/"); 
-   _server.serveStatic("/static/css", SPIFFS, "/"); 
-   _server.onNotFound([](AsyncWebServerRequest *request) {
-      request->send(400, "text/plain", "Not found");
-   });
+    _server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html"); 
+    _server.serveStatic("/static/js", SPIFFS, "/"); 
+    _server.serveStatic("/static/css", SPIFFS, "/"); 
+    _server.onNotFound([](AsyncWebServerRequest *request) {
+        if (request->url().lastIndexOf('.') < 0) 
+        {
+            request->send(SPIFFS, "/index.html", String());
+        }
+        else
+        {
+            request->send(404, "text/plain", "Not found");
+        }
+    });
  
    _server.begin();
     MDNS.begin(_hostname);

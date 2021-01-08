@@ -75,7 +75,7 @@ public:
 
 private:
     static constexpr const char* kConfigFile = "/config.json";
-    DynamicJsonDocument _doc{1024};
+    StaticJsonDocument<30 * 1024> _doc;
 };
 
 }
