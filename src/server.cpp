@@ -5,6 +5,11 @@
 
 namespace tocata {
 
+extern const uint8_t index_html_gz_start[] asm("_binary_data_index_html_gz_start");
+extern const uint8_t index_html_gz_end[] asm("_binary_data_index_html_gz_end");
+static const size_t index_html_len = index_html_gz_end - index_html_gz_start;
+static const uint8_t* index_html = index_html_gz_start;
+
 Server* Server::_singleton;
 
 void Server::begin(Config& config)
@@ -40,13 +45,26 @@ void Server::startWifi(Config& config)
 
 void Server::startHttp()
 {
-    _server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html"); 
-    _server.serveStatic("/static/js", SPIFFS, "/"); 
-    _server.serveStatic("/static/css", SPIFFS, "/"); 
+    _server.on("/config.json", [](AsyncWebServerRequest *request) {
+       request->send(SPIFFS, "/config.json", String());
+    });
     _server.onNotFound([](AsyncWebServerRequest *request) {
         if (request->url().lastIndexOf('.') < 0) 
         {
-            request->send(SPIFFS, "/index.html", String());
+            AsyncWebServerResponse *response = request->beginResponse(
+                String("text/html"),
+                index_html_len,
+                [](uint8_t *buffer, size_t max_len, size_t already_sent) {
+                    size_t remaining = index_html_len - already_sent;
+                    size_t to_send = std::min(remaining, max_len);
+                    memcpy(buffer, index_html + already_sent, to_send);
+
+                    return to_send;
+                }
+            );
+            response->addHeader("Content-Encoding", "gzip");
+            response->addHeader("Content-Disposition", "inline; filename=\"index.html\"");
+            request->send(response);  
         }
         else
         {

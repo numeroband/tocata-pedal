@@ -1,4 +1,3 @@
-import './App.css';
 import Navigation from './components/Navigation';
 import Programs from './components/Programs';
 import Config from './components/Config';
