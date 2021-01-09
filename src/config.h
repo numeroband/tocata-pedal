@@ -65,7 +65,7 @@ public:
         std::array<Footswitch, kNumSwitches> _switches;
         bool _available = false;
         uint8_t _number = 0;
-        uint8_t _num_switches;
+        uint8_t _num_switches = 0;
     };
 
     bool load();
@@ -76,6 +76,8 @@ public:
 private:
     static constexpr const char* kConfigFile = "/config.json";
     StaticJsonDocument<30 * 1024> _doc;
+
+    void clear();
 };
 
 }

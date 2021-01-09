@@ -27,14 +27,14 @@ private:
     void buttonsChanged(Buttons6::Mask status, Buttons6::Mask modified);
     void midiConnected();
     void midiDisconnected();
-
+    void updateConfig();
 
     Buttons6 _buttons;
     FsMidi _midi;
     Display _display;
     Config _config;
     Config::Program _program;
-    Server _server{kHostname};
+    Server _server;
     uint8_t _counter = 0;
 };
 

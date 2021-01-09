@@ -176,7 +176,7 @@ function FootswitchesSelect(props) {
 
   function createNames(footswitches) {
     const NUM_SWITCHES = 6
-    const names = footswitches ? footswitches.map(fs => fs ? { name: fs.name, color: fs.color } : null) : []
+    const names = footswitches.map(fs => fs ? { name: fs.name, color: fs.color } : null);
     for (let i = names.length; i < NUM_SWITCHES; ++i) {
       names.push(null)
     }

@@ -45,8 +45,55 @@ void Server::startWifi(Config& config)
 
 void Server::startHttp()
 {
-    _server.on("/config.json", [](AsyncWebServerRequest *request) {
+    _server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request) {
        request->send(SPIFFS, "/config.json", String());
+    });
+    _server.onFileUpload([this](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+        if (request->url() != "/config.json")
+        {
+            request->send(404, "text/plain", "Not found");
+            return;
+        }
+
+        // handle upload and update
+        if (!index)
+        {            
+            Serial.printf("Updating config: %s\n", filename.c_str());
+            request->_tempFile = SPIFFS.open("/config.json", "w");
+            
+            if (!request->_tempFile)
+            {
+                Serial.print("ERROR opening /config.json");
+                request->send(500, "text/plain", "Internal error");
+                return;
+            }
+        }
+
+        if (len)
+        {
+            size_t remaining = len;
+            while (remaining) 
+            {
+                size_t written = request->_tempFile.write(data, remaining);
+                if (written == 0)
+                {
+                    Serial.print("ERROR writing /config.json");
+                    request->_tempFile.close();
+                    request->send(500, "text/plain", "Internal error");
+                    return;
+                }
+                remaining -= written;
+                data += written;
+            }
+        }
+
+        if (final)
+        {
+            request->_tempFile.close();
+            request->send(200, "text/plain", "Config updated");
+            Serial.println("Config updated");
+            _config_updated();
+        }
     });
     _server.onNotFound([](AsyncWebServerRequest *request) {
         if (request->url().lastIndexOf('.') < 0) 

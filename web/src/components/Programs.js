@@ -97,7 +97,7 @@ function Program(props) {
   function setFootswitches(fs) {
     const newProgram = { ...state, fs: fs }
     setState(newProgram)
-    setProgram(newProgram)
+    setProgram(id, newProgram)
   }
 
   return !program ? <div /> : (
@@ -124,10 +124,6 @@ function ProgramSelect(props) {
   const history = useHistory();
   const [programNames, setProgramNames] = useState(createNames(programs))
   const [editProgram, setEditProgram] = useState(false);
-
-  if (programId >= programs.length) {
-    programId = programs.length - 1
-  }
 
   function createNames(programs) {
     const programNames = programs.map((prg, index) => `${index + 1} - ${prg ? prg.name : '<EMPTY>'}`);
@@ -166,9 +162,6 @@ function ProgramSelect(props) {
 
   function deleteProgram() {
     setProgram(programId, null)
-    if (programId >= programs.length) {
-      programId = programs.length - 1
-    }
   }
 
   return (

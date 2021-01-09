@@ -9,6 +9,7 @@ bool Config::load()
     if (!file.available())
     {
         Serial.println("config file not available");
+        clear();
         return false;
     }
 
@@ -18,11 +19,17 @@ bool Config::load()
     {
         Serial.print("Deserialization failed with code ");
         Serial.println(error.code());
-        _doc.clear();
+        clear();
         return false;
     }
 
     return true;
+}
+
+void Config::clear()
+{
+    _doc.clear();
+    _doc.createNestedArray("programs");
 }
 
 void Config::save() const
