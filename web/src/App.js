@@ -8,6 +8,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useMediaQuery } from '@material-ui/core';
 import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
 
+const client = new WebSocket("ws://" + window.location.host + "/ws");
+
 export default function App() {
   const [config, setConfig] = useState(null)
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -23,10 +25,18 @@ export default function App() {
   );
 
   useEffect(() => {
+    client.onopen = () => {
+      console.log('WebSocket Client Connected');
+    };
+    client.onmessage = (event) => {
+      console.log('received', event)
+    };
+    client.onerror = error => console.error(error);
+
     fetch('/config.json')
-    .then(response => response.json())
-    .then(setConfig)
-  }, [])
+      .then(response => response.json())
+      .then(setConfig);
+  }, []);
 
   const navigation = [
     {
@@ -63,21 +73,30 @@ export default function App() {
     return saveConfig({ ...config, programs });
   }
 
-  function saveConfig(config) {
+  async function saveConfig(config) {
     setConfig(config);
-    const str = JSON.stringify(config);
-    const bytes = new TextEncoder().encode(str);
-    const blob = new Blob([bytes], {
-      type: "application/json;charset=utf-8"
-    });
-    const formData = new FormData();
-    formData.append("config", blob, "config.json");
-    return fetch('/config.json', { 
-      method: 'POST',
-      body: formData,
-    })
-    .then(response => console.log(response))
-    .catch(error => console.error(error));
+    try {
+      console.log('Restore');
+      await fetch('/api/restore', { 
+        method: 'POST',
+      })
+      for (const id in config.programs) {
+        const prg = config.programs[id];
+        if (!prg) {
+          continue;
+        }
+        console.log('Sending program', id, prg);
+        await fetch(`/api/programs?id=${id}`, { 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(prg),          
+        })
+      }
+    } catch (e) {
+      console.error('Cannot send program', e);
+    }
   }
 
   function saveSystem(wifi, midi) {
