@@ -5,8 +5,8 @@
 
 namespace tocata {
 
-extern const uint8_t index_html_gz_start[] asm("_binary_data_index_html_gz_start");
-extern const uint8_t index_html_gz_end[] asm("_binary_data_index_html_gz_end");
+extern const uint8_t index_html_gz_start[] asm("_binary_html_index_html_gz_start");
+extern const uint8_t index_html_gz_end[] asm("_binary_html_index_html_gz_end");
 static const size_t index_html_len = index_html_gz_end - index_html_gz_start;
 static const uint8_t* index_html = index_html_gz_start;
 
@@ -45,11 +45,47 @@ void Server::startWifi(Config& config)
 
 void Server::startHttp()
 {
-    _server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request) {
-       request->send(SPIFFS, "/config.json", String());
+    _server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) 
+    {
+        if (SPIFFS.exists(Config::configPath())) 
+        {
+            request->send(SPIFFS, Config::configPath(), String());
+        }
+        else
+        {
+            request->send(404, "application/json", "{}");
+        }
+    });
+    _server.on("/api/programs", HTTP_GET, [](AsyncWebServerRequest *request) 
+    {
+        size_t num_params = request->params();
+        if (num_params == 0)
+        {
+            request->send(SPIFFS, "/names.txt", String());
+            return;
+        }
+
+        AsyncWebParameter* p = request->getParam(0);
+        if (p->name() != "id")
+        {
+            request->send(500, "text/plain", "Invalid query");
+            return;
+        }
+
+        uint8_t id = static_cast<uint8_t>(p->value().toInt());
+        char path[16];
+        Config::Program::copyPath(id, path, sizeof(path));
+        if (SPIFFS.exists(path)) 
+        {
+            request->send(SPIFFS, path, String());
+        }
+        else
+        {
+            request->send(404, "application/json", "{}");
+        }
     });
     _server.onFileUpload([this](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-        if (request->url() != "/config.json")
+        if (request->url() != "/api/firmware")
         {
             request->send(404, "text/plain", "Not found");
             return;

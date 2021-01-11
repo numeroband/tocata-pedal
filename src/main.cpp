@@ -8,9 +8,8 @@ static tocata::Controller controller{
 };
 
 void setup() {
-  delay(1000);
   Serial.begin(115200);
-	SPIFFS.begin();
+	SPIFFS.begin(true);
   controller.begin();
 }
 

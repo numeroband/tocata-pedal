@@ -9,5 +9,5 @@ gulp.task('default', () => {
         .pipe(replace('rel="stylesheet">', 'rel="stylesheet" inline />'))
         .pipe(inlinesource())
         .pipe(gzip())
-        .pipe(gulp.dest('../data'))
+        .pipe(gulp.dest('../html'))
 });

@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useMediaQuery } from '@material-ui/core';
 import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
 
-const client = new WebSocket("ws://" + window.location.host + "/ws");
+// const client = new WebSocket("ws://" + window.location.host + "/ws");
 
 export default function App() {
   const [config, setConfig] = useState(null)
@@ -24,15 +24,15 @@ export default function App() {
     [prefersDarkMode],
   );
 
-  useEffect(() => {
-    client.onopen = () => {
-      console.log('WebSocket Client Connected');
-    };
-    client.onmessage = (event) => {
-      console.log('received', event)
-    };
-    client.onerror = error => console.error(error);
-  }, []);
+  // useEffect(() => {
+  //   client.onopen = () => {
+  //     console.log('WebSocket Client Connected');
+  //   };
+  //   client.onmessage = (event) => {
+  //     console.log('received', event)
+  //   };
+  //   client.onerror = error => console.error(error);
+  // }, []);
 
   const navigation = [
     {

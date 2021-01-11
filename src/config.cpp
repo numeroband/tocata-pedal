@@ -3,52 +3,79 @@
 #include <SPIFFS.h>
 
 namespace tocata {
-bool Config::load()
+
+void Config::begin()
 {
-    File file = SPIFFS.open(kConfigFile);
-    if (!file.available())
+    if (!SPIFFS.exists(namesPath()))
     {
-        Serial.println("config file not available");
-        clear();
-        return false;
+        restore();
     }
 
+}
+
+void Config::restore()
+{
+    Serial.println("Initializing file system");
+    SPIFFS.format();    
+    uint8_t emptyName[Program::kMaxNameLength];
+    memset(emptyName, ' ', sizeof(emptyName));
+    File names = SPIFFS.open(namesPath(), FILE_WRITE);
+    for (uint8_t i = 0; i < kMaxPrograms; ++i)
+    {
+        names.write(emptyName, sizeof(emptyName));
+    }    
+}
+
+Config::Wifi::Wifi()
+{
+    if (!SPIFFS.exists(configPath()))
+    {
+        return;
+    }
+    File file = SPIFFS.open(configPath());
     DeserializationError error = deserializeJson(_doc, file);
     file.close();
     if (error != DeserializationError::Ok)
     {
-        Serial.print("Deserialization failed with code ");
-        Serial.println(error.code());
-        clear();
-        return false;
+        Serial.print("Config deserialization failed with code ");
+        Serial.println(error.code());   
+        return;
+    }
+}
+
+Config::Program::Program(uint8_t number) : _number(number)
+{
+    if (number > kMaxPrograms)
+    {
+        return;
     }
 
-    return true;
-}
+    char path[16];
+    copyPath(number, path, sizeof(path));
 
-void Config::clear()
-{
-    _doc.clear();
-    _doc.createNestedArray("programs");
-}
-
-void Config::save() const
-{
-    File file = SPIFFS.open(kConfigFile, FILE_WRITE);
-    serializeJson(_doc, file);
+    if (!SPIFFS.exists(path))
+    {
+        return;
+    }
+    File file = SPIFFS.open(path);
+    DynamicJsonDocument doc{512};
+    DeserializationError error = deserializeJson(doc, file);
     file.close();
-}
+    if (error != DeserializationError::Ok)
+    {
+        Serial.print("Program deserialization failed with code ");
+        Serial.println(error.code());   
+        return;
+    }
 
-void Config::Program::init(uint8_t number, const JsonObject& doc)
-{
-    _number = number;
     _available = !doc.isNull();
     if (!_available)
     {
         return;
     }
 
-    _name = doc["name"];
+    strncpy(_name, doc["name"], sizeof(_name));
+    _name[kMaxNameLength] = '\0';
     _num_switches = doc["fs"].size();
 
     for (uint8_t i = 0; i < _num_switches; ++i)
@@ -68,8 +95,7 @@ void Config::Footswitch::init(uint8_t number, const JsonObject& doc)
     _number = number;
     strncpy(_name, doc["name"], sizeof(_name));
     _name[kMaxNameSize] = '\0';
-    _enabled = doc["on"].as<bool>();
-    _actions = doc["actions"].as<JsonArray>();
+    _enabled = doc["enabled"].as<bool>();
 }
 
 }

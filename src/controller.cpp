@@ -3,13 +3,14 @@
 namespace tocata {
 
 Controller::Controller(const Buttons6::InArray& in_gpios, const Buttons6::OutArray& out_gpios) 
-    : _buttons(in_gpios, out_gpios), _midi(kHostname), _server(kHostname, [this]{ updateConfig();}) {}
+    : _buttons(in_gpios, out_gpios), _midi(kHostname), _server(kHostname, [this]{ updateProgram(_program.number());}) {}
 
 void Controller::begin() 
 {
+    _config.begin();
     _display.begin();
     
-    updateConfig();
+    updateProgram(0);
 
     _midi.setOnConnect(std::bind(&Controller::midiConnected, this));
     _midi.setOnDisconnect(std::bind(&Controller::midiDisconnected, this));
@@ -39,6 +40,7 @@ void Controller::buttonsChanged(Buttons6::Mask status, Buttons6::Mask modified)
     auto activated = status & modified;
     if (activated.any())
     {
+        updateProgram((_program.number() + 1) % 4);
         toggle = !toggle;
         _midi.sendControl(55, toggle ? 127 : 0);
     }
@@ -54,18 +56,9 @@ void Controller::midiDisconnected()
     _display.setConnected(false);
 }
 
-void Controller::updateConfig()
+void Controller::updateProgram(uint8_t number)
 {
-    if (_config.load())
-    {
-        Serial.println("Config loaded");
-    }
-    else
-    {
-        Serial.println("Config couldn't be loaded");
-        _config.save();
-    }
-    _program = _config.program(_program.number());
+    _program = _config.program(number);
     _display.setProgram(_program);
 }
 

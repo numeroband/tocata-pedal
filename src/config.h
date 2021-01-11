@@ -12,19 +12,18 @@ class Config
 {
 public:
     static constexpr size_t kNumSwitches = 6;
+    static constexpr uint8_t kMaxPrograms = 99;
 
     class Wifi
     {
     public:
-        Wifi(const JsonObject& doc) : _available(!doc.isNull()), _ssid(doc["ssid"]), _key(doc["key"]) {}
-        const char* ssid() const { return _ssid; }
-        const char* key() const { return _key; }
-        bool available() const { return _available; }
+        Wifi();
+        const char* ssid() const { return _doc["wifi"]["ssid"]; }
+        const char* key() const { return _doc["wifi"]["key"]; }
+        bool available() const { return ssid() && key(); }
 
     private:
-        bool _available;
-        const char* _ssid;
-        const char* _key;
+        DynamicJsonDocument _doc{128};
     };
 
     class Footswitch
@@ -41,7 +40,6 @@ public:
         bool available() const { return _available; }
 
     private:
-        JsonArray _actions;
         char _name[kMaxNameSize + 1];
         bool _available = false;
         bool _enabled;
@@ -51,9 +49,13 @@ public:
     class Program
     {
     public:
-        Program() {}
-        Program(uint8_t number, const JsonObject& doc) { init(number, doc); }
-        void init(uint8_t number, const JsonObject& doc);
+        static constexpr uint8_t kMaxNameLength = 30;
+
+        static bool copyPath(uint8_t id, char* path, size_t size) { 
+            return snprintf_P(path, size, PSTR("/prg.%u.json"), id) == size;
+        }
+
+        Program(uint8_t number);
         Footswitch& footswitch(uint8_t number) { return _switches[number]; }
         uint8_t numFootswitches() const { return _num_switches; }
         const char* name() const { return _name; }
@@ -61,23 +63,20 @@ public:
         bool available() const { return _available; }
 
     private:
-        const char* _name;
         std::array<Footswitch, kNumSwitches> _switches;
+        char _name[kMaxNameLength + 1];
         bool _available = false;
         uint8_t _number = 0;
         uint8_t _num_switches = 0;
     };
 
-    bool load();
-    void save() const;
-    Wifi wifi() { return {_doc["wifi"].as<JsonObject>()}; }
-    Program program(uint8_t number) { return {number, _doc["programs"][number].as<JsonObject>()}; };
+    void begin();
+    void restore();
+    static const char* namesPath() { return "/names.txt"; };
+    static const char* configPath() { return "/config.json"; };
 
-private:
-    static constexpr const char* kConfigFile = "/config.json";
-    StaticJsonDocument<30 * 1024> _doc;
-
-    void clear();
+    Wifi wifi() { return {}; }
+    Program program(uint8_t number) { return {number}; };
 };
 
 }
