@@ -1,7 +1,9 @@
 import { makeStyles } from '@material-ui/core/styles';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { readConfig, updateConfig } from './Api';
+import { LinearProgress } from '@material-ui/core';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -11,15 +13,32 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function Config(props) {
-  const { wifi, midi, save } = props
   const classes = useStyles();
-  const [ssid, setSsid] = useState(wifi ? wifi.ssid : '')
-  const [key, setKey] = useState(wifi ? wifi.key : '')
+  const [config, setConfig] = useState(null);
+  const [updating, setUpdating] = useState(false);
 
-  function sendSave() {
-    wifi.ssid = ssid
-    wifi.key = key
-    save(wifi, midi)
+  useEffect(() => {
+    async function fetchConfig() {
+      setConfig(null);
+      setConfig(await readConfig());
+    }
+
+    fetchConfig();
+  }, []);
+
+  async function save() {
+    setUpdating(true);
+    await updateConfig(config);
+    setUpdating(false);
+  }
+
+  function updateText(event) {
+    const [group, value] = event.target.name.split('.');
+    setConfig({ ...config, [group]: {...config[group], [value]: event.target.value} });
+  };
+
+  if (!config) {
+    return <LinearProgress />;
   }
 
   return (
@@ -28,21 +47,24 @@ export default function Config(props) {
         <TextField
           label="SSID"
           className={classes.root}
-          value={ssid}
-          onChange={event => setSsid(event.target.value)}
+          name="wifi.ssid"
+          value={config.wifi.ssid}
+          onChange={updateText}
         ></TextField>
         <TextField
           label="Key"
           className={classes.root}
-          value={key}
-          onChange={event => setKey(event.target.value)}
+          name="wifi.key"
+          value={config.wifi.key}
+          onChange={updateText}
         ></TextField>
       </div>
       <Button
         variant="contained"
         color="primary"
         className={classes.root}
-        onClick={sendSave}
+        onClick={save}
+        disabled={updating}
       >Save</Button>
     </div>
   )

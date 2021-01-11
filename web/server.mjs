@@ -2,10 +2,15 @@ import express from 'express';
 import http from 'http';
 import WebSocket from 'ws';
 import fs from 'fs'
+import child_process from 'child_process';
 
 const MAX_NAME_LENGTH = 30;
-const MAX_PROGRAMS = 100;
-const EMPTY_NAME = '<EMPTY>';
+const MAX_PROGRAMS = 99;
+const EMPTY_NAME = '';
+
+function sleep(sec) {
+  child_process.execSync(`sleep ${sec}`);
+}
 
 class Api {
   constructor(dir) {
@@ -13,8 +18,12 @@ class Api {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(this.dir);
     }
-    if (!fs.existsSync(this.namesPath)) {
-      this.createEmptyNames();
+    this.createEmptyNames();
+    for (let id = 0; id < MAX_PROGRAMS; ++id) {
+      if (fs.existsSync(this.programPath(id))) {
+        const prg = JSON.parse(fs.readFileSync(this.programPath(id), 'utf-8'));
+        this.updateNames(id, prg.name);
+      }
     }
   }
 
@@ -26,11 +35,31 @@ class Api {
     return `${this.dir}/names.txt`;
   }
 
+  get configPath() {
+    return `${this.dir}/config.json`;
+  }
+
   createEmptyNames() {
     fs.writeFileSync(this.namesPath, EMPTY_NAME.padEnd(MAX_NAME_LENGTH).repeat(MAX_PROGRAMS));
   }
 
+  getConfig(res) {
+    console.log('getConfig');
+    sleep(1);
+    return res.sendFile(this.configPath);
+  } 
+
+  setConfig(config, res) {
+    console.log('setConfig', config);
+    sleep(1);
+    const data = JSON.stringify(config);
+    fs.writeFileSync(this.configPath, data);
+    return res.json(true);
+  }
+
   getProgram(id, res) {
+    console.log('getProgram', id);
+    sleep(1);
     const fileName = this.programPath(id);
     if (fs.existsSync(fileName)) {
       return res.sendFile(fileName);
@@ -40,6 +69,8 @@ class Api {
   }
 
   getPrograms(res) {
+    console.log('getPrograms');
+    sleep(1);
     return res.sendFile(this.namesPath);
   }
 
@@ -51,6 +82,8 @@ class Api {
   }
 
   setProgram(id, prg, res) {
+    console.log('setProgram', id, prg);
+    sleep(1);
     const fileName = this.programPath(id);
     const data = JSON.stringify(prg);
     fs.writeFileSync(fileName, data);
@@ -60,6 +93,8 @@ class Api {
   }
 
   delProgram(id, res) {
+    console.log('delProgram', id);
+    sleep(1);
     const fileName = this.programPath(id);
     fs.rmSync(fileName);
     this.updateNames(id, EMPTY_NAME)
@@ -67,6 +102,8 @@ class Api {
   }
 
   restore(res) {
+    console.log('restore');
+    sleep(1);
     fs.rmdirSync(this.dir, { recursive: true });
     fs.mkdirSync(this.dir);
     this.createEmptyNames();
@@ -100,6 +137,20 @@ wss.on('connection', (ws) => {
 
 app.use(express.json());
 
+app.get('/api/config', (req, res) => {
+  return api.getConfig(res);
+});
+
+app.post('/api/config', (req, res) => {
+  const config = req.body;
+
+  if (!config) {
+    return res.status(500).send('Invalid body');
+  }
+
+  return api.setConfig(config, res);
+});
+
 app.get('/api/programs', (req, res) => {
   const id = req.query.id;
   return (id === undefined) ? api.getPrograms(res) : api.getProgram(id, res);
@@ -107,7 +158,6 @@ app.get('/api/programs', (req, res) => {
 
 app.post('/api/programs', (req, res) => {
   const id = req.query.id;
-  console.log('post programs', id, req.body);
   const prg = req.body;
 
   if (id === undefined) {

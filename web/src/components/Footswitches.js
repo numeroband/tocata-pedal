@@ -18,7 +18,6 @@ import DeleteIcon from '@material-ui/icons/Delete';
 import {
   Switch as RouteSwitch,
   Route,
-  Redirect,
   useRouteMatch,
   useParams,
   useHistory,
@@ -263,7 +262,6 @@ export default function Footswitches(props) {
 
   return (
     <RouteSwitch>
-      <Redirect exact from={path} to={`${path}/0/0`} />
       <Route path={`${path}/:footswitchId`}>
         <FootswitchesSelect footswitches={footswitches} setFootswitches={setFootswitches} />
       </Route>

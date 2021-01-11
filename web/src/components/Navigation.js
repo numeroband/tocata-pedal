@@ -58,7 +58,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function ListItemLink(props) {
-  const { icon, primary, to, index } = props;
+  const { icon, primary, to, index, onClick } = props;
 
   const renderLink = React.useMemo(
     () => React.forwardRef((itemProps, ref) => <RouterLink to={to} ref={ref} {...itemProps} />),
@@ -67,7 +67,7 @@ function ListItemLink(props) {
 
   return (
     <li key={index}>
-      <ListItem button component={renderLink}>
+      <ListItem button component={renderLink} onClick={onClick}>
         {icon ? <ListItemIcon>{icon}</ListItemIcon> : null}
         <ListItemText primary={primary} />
       </ListItem>
@@ -88,6 +88,7 @@ function Navigation(props) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleDrawerToggle = () => {
+    console.log('handleDrawerToggle', mobileOpen)
     setMobileOpen(!mobileOpen);
   };
 
@@ -97,7 +98,7 @@ function Navigation(props) {
       <Divider />
       <List>
         {navigation.map(({ path, name }, index) => (
-          <ListItemLink key={index} to={path} primary={name} />
+          <ListItemLink key={index} to={path} primary={name} onClick={() => setMobileOpen(false)} />
         ))}
       </List>
     </div>
@@ -164,7 +165,7 @@ function Navigation(props) {
           <Switch>
             {navigation.map(({ path, content }, index) => (
               <Route path={path} key={index}>
-                {config ? content(config) : <Typography>Loading...</Typography>}
+                {content(config)}
               </Route>
             ))}
             <Redirect to="/programs"/>

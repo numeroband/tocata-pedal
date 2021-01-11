@@ -32,10 +32,6 @@ export default function App() {
       console.log('received', event)
     };
     client.onerror = error => console.error(error);
-
-    fetch('/config.json')
-      .then(response => response.json())
-      .then(setConfig);
   }, []);
 
   const navigation = [
@@ -44,8 +40,8 @@ export default function App() {
       'name' : 'Programs',
       'title' : 'Programs',
       'content' : config => <Programs 
-        programs={config.programs ? config.programs : []} 
-        setPrograms={programs => config.programs = programs} 
+        programs={[]} 
+        setPrograms={programs => null} 
         save={savePrograms}
       />
     },
@@ -53,7 +49,7 @@ export default function App() {
       'path' : '/config',
       'name' : 'Configuration',
       'title' : 'System configuration',
-      'content' : config => <Config wifi={config.wifi} midi={config.midi} save={saveSystem}/>
+      'content' : config => <Config wifi={null} midi={null} save={saveSystem}/>
     },
     {
       'path' : '/backup',

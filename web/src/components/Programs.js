@@ -4,6 +4,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import { useState, useEffect, useMemo } from 'react';
 import EditIcon from '@material-ui/icons/Edit';
 import DeleteIcon from '@material-ui/icons/Delete';
+import { readProgram, readProgramNames, updateProgram } from './Api';
 
 import {
   MenuItem,
@@ -15,6 +16,7 @@ import {
   DialogContent,
   DialogActions,
   Grid,
+  LinearProgress,
 } from '@material-ui/core';
 
 import {
@@ -26,8 +28,6 @@ import {
   useHistory,
 } from "react-router-dom";
 
-const NUM_PROGRAMS = 99;
-
 const useStyles = makeStyles((theme) => ({
   root: {
     margin: theme.spacing(1),
@@ -37,6 +37,8 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(2, 0, 0, 1),
   },
 }));
+
+const nameEntry = (name, index) => `${Number(index) + 1} - ${name ? name : '<EMPTY>'}`
 
 function ProgramDialog(props) {
   const { id, program, setProgram, onClose, open } = props
@@ -100,7 +102,7 @@ function Program(props) {
     setProgram(id, newProgram)
   }
 
-  return !program ? <div /> : (
+  return !program.name ? <div /> : (
     <div>
       <Grid
         container
@@ -108,7 +110,7 @@ function Program(props) {
         alignItems="flex-start"
       >
         <Actions
-          actions={program ? program.actions : null}
+          actions={program.actions}
           setActions={actions => setProgram(id, { ...program, actions: actions })}
           title="Program actions" />
       </Grid>
@@ -118,20 +120,32 @@ function Program(props) {
 }
 
 function ProgramSelect(props) {
-  const { path, programs, setPrograms } = props
+  const { path } = props
   const classes = useStyles();
   let { programId } = useParams();
   const history = useHistory();
-  const [programNames, setProgramNames] = useState(createNames(programs))
+  const [programNames, setProgramNames] = useState(null);
   const [editProgram, setEditProgram] = useState(false);
+  const [program, setProgramState] = useState(null);
 
-  function createNames(programs) {
-    const programNames = programs.map((prg, index) => `${index + 1} - ${prg ? prg.name : '<EMPTY>'}`);
-    for (let i = programs.length + 1; i <= NUM_PROGRAMS; ++i) {
-      programNames.push(`${i} - <EMPTY>`);
+  useEffect(() => {
+    async function fetchPrograms() {
+      setProgramNames(null);
+      const names = await readProgramNames();
+      setProgramNames(names.map(nameEntry));
     }
-    return programNames;
-  }
+
+    fetchPrograms();
+  }, []);
+
+  useEffect(() => {
+    async function fetchProgram(id) {
+      setProgramState(null);
+      setProgramState(await readProgram(id));
+    }
+
+    fetchProgram(programId);
+  }, [programId]);
 
   const handleChange = (event) => {
     const index = event.target.value;
@@ -152,16 +166,24 @@ function ProgramSelect(props) {
   }
 
   function setProgram(id, program) {
-    programs[id] = cleanProgram(program);
-    while (programs.length > 0 && !programs[programs.length - 1]) {
-      programs.pop()
+    if (program) {
+      updateProgram(id, cleanProgram(program));
+    } else {
+      deleteProgram(id);
     }
-    setPrograms(programs)
-    setProgramNames(createNames(programs))
+
+    const names = [...programNames];
+    names[id] = nameEntry(program ? program.name : null, id);
+    setProgramNames(names);
+    setProgramState(program ? program : {});
   }
 
   function deleteProgram() {
     setProgram(programId, null)
+  }
+
+  if (!programNames) {
+    return <LinearProgress />;
   }
 
   return (
@@ -185,6 +207,7 @@ function ProgramSelect(props) {
           size="small"
           color="primary"
           aria-label="edit"
+          disabled={!program}
           onClick={() => setEditProgram(true)}
         >
           <EditIcon />
@@ -194,37 +217,33 @@ function ProgramSelect(props) {
           size="small"
           color="secondary"
           aria-label="delete"
+          disabled={!program}
           onClick={deleteProgram}
         >
           <DeleteIcon />
         </Fab>
-        <ProgramDialog id={programId} program={programs[programId]} setProgram={setProgram} open={editProgram} onClose={() => setEditProgram(false)} />
+        <ProgramDialog id={programId} program={program} setProgram={setProgram} open={editProgram} onClose={() => setEditProgram(false)} />
       </div>
-      <Program
-        id={programId}
-        program={programs[programId]}
-        setProgram={setProgram}
-      />
+      {program ?
+        <Program
+          id={programId}
+          program={program}
+          setProgram={setProgram}
+        /> :
+        <LinearProgress />
+      }
     </div>
   )
 }
 
 export default function Programs(props) {
-  const { programs, setPrograms, save } = props;
   const { path } = useRouteMatch();
-  const classes = useStyles();
 
   return (
     <Switch>
       <Redirect exact from={path} to={`${path}/0/0`} />
       <Route path={`${path}/:programId`}>
-        <ProgramSelect path={path} programs={programs} setPrograms={setPrograms} />
-        <Button
-          color="primary"
-          variant="contained"
-          className={classes.root}
-          onClick={() => save(programs)}
-        >Save All</Button>
+        <ProgramSelect path={path} />
       </Route>
     </Switch>
   );
