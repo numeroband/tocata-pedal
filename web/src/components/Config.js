@@ -48,14 +48,14 @@ export default function Config(props) {
           label="SSID"
           className={classes.root}
           name="wifi.ssid"
-          value={config.wifi.ssid}
+          value={config.wifi ? config.wifi.ssid : ''}
           onChange={updateText}
         ></TextField>
         <TextField
           label="Key"
           className={classes.root}
           name="wifi.key"
-          value={config.wifi.key}
+          value={config.wifi ? config.wifi.key : ''}
           onChange={updateText}
         ></TextField>
       </div>

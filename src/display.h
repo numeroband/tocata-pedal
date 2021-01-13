@@ -13,16 +13,16 @@ public:
 	void begin();
 	void loop();
 	void setConnected(bool connected) { _connected = connected; }
-	void setProgram(Config::Program& program);
+	void setProgram(Program& program);
 	
 private:
-	void drawFootswitch(const Config::Footswitch& footswitch);
+	void drawFootswitch(const Program::Footswitch& footswitch);
 	void drawScroll();
 
 	U8G2_SH1106_128X64_NONAME_F_HW_I2C _u8g2;
 	bool _connected = false;
 	bool _dirty = true;
-	Config::Program* _program = nullptr;
+	Program* _program = nullptr;
 	char _program_str[3];
 	struct {
 		const char* name;

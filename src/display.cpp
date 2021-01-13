@@ -7,12 +7,15 @@ Display::Display() : _u8g2(U8G2_R0) {}
 void Display::begin()
 {
   	_u8g2.begin();
+	_u8g2.setFont(u8g2_font_10x20_tf);
+	_u8g2.drawStr(10, 30, "Tocata Pedal");
+    _u8g2.sendBuffer();
 }
 
-void Display::setProgram(Config::Program& program)
+void Display::setProgram(Program& program)
 {
 	_program = &program;
-	utoa(program.number() + 1, _program_str, 10);
+	utoa(program.id() + 1, _program_str, 10);
 	_scroll.name = _program->available() ? _program->name() : "<EMPTY>";
 	_scroll.letter = 0;
 	_scroll.pixel = 0;
@@ -91,7 +94,7 @@ void Display::drawScroll()
 	}
 }
 
-void Display::drawFootswitch(const Config::Footswitch& footswitch)
+void Display::drawFootswitch(const Program::Footswitch& footswitch)
 {
   static constexpr uint8_t screen_height = 64;
   static constexpr uint8_t x_padding = 3;
@@ -110,7 +113,7 @@ void Display::drawFootswitch(const Config::Footswitch& footswitch)
 	  return;
   }
 
-  uint8_t idx = footswitch.number();
+  uint8_t idx = footswitch.id();
   uint8_t x = block_width_padded * (idx % 3);
   uint8_t y = block_height_padded * (1 - (idx / 3));
 

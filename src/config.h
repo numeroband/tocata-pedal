@@ -11,72 +11,112 @@ namespace tocata {
 class Config
 {
 public:
-    static constexpr size_t kNumSwitches = 6;
-    static constexpr uint8_t kMaxPrograms = 99;
+    static constexpr size_t kMaxJsonSize = 256;
 
     class Wifi
     {
     public:
-        Wifi();
-        const char* ssid() const { return _doc["wifi"]["ssid"]; }
-        const char* key() const { return _doc["wifi"]["key"]; }
-        bool available() const { return ssid() && key(); }
+        bool parse(const JsonObjectConst& obj);
+        const char* ssid() const { return _ssid; }
+        const char* key() const { return _key; }
+        bool available() const { return _available; }
+        void serialize(JsonObject& obj) const;
 
     private:
-        DynamicJsonDocument _doc{128};
+        char _ssid[64];
+        char _key[64];
+        bool _available = false;
     };
+
+    static void remove();
+
+    Config() { load(); };
+    Config(const JsonObjectConst& obj) { parse(obj); }
+
+    bool load();
+    bool parse(const JsonObjectConst& obj);
+    bool available() const { return _available; }
+    const Wifi& wifi() const { return _wifi; }
+    void serialize(JsonObject& obj) const;
+    void save() const;
+
+private:
+    static constexpr const char* kPath = "/config.json";
+
+    Wifi _wifi;
+    bool _available;
+};
+
+class Program
+{
+public:
+    static constexpr size_t kNumSwitches = 6;
+    static constexpr uint8_t kMaxNameLength = 30;
+    static constexpr uint8_t kMaxPrograms = 99;
+    static constexpr size_t kMaxJsonSize = 512;
+    static constexpr size_t kMaxPathSize = 16;
+    static constexpr uint8_t kInvalidId = 255;
 
     class Footswitch
     {
     public:
+        enum Color : uint8_t
+        {
+            kBlue, 
+            kPurple, 
+            kRed, 
+            kYellow, 
+            kGreen, 
+            kTurquoise,
+        };
+
         static constexpr size_t kMaxNameSize = 5;
 
-        void init(uint8_t number, const JsonObject& doc);
+        void parse(uint8_t id, const JsonObjectConst& doc);
         const char* name() const { return _name; }
         bool enabled() const { return _enabled; }
         void enable(bool value) { _enabled = value; }
         void toggle() { _enabled = !_enabled; }
-        uint8_t number() const { return _number; }
+        uint8_t id() const { return _id; }
         bool available() const { return _available; }
+        void serialize(JsonObject& obj) const;
 
     private:
         char _name[kMaxNameSize + 1];
+        Color _color;
         bool _available = false;
         bool _enabled;
-        uint8_t _number;
+        bool _momentary;
+        uint8_t _id;
     };
 
-    class Program
-    {
-    public:
-        static constexpr uint8_t kMaxNameLength = 30;
+    static void remove(uint8_t id);
 
-        static bool copyPath(uint8_t id, char* path, size_t size) { 
-            return snprintf_P(path, size, PSTR("/prg.%u.json"), id) == size;
-        }
+    Program() : _available(false), _id(kInvalidId) {}
+    Program(uint8_t id) { load(id); }
+    Program(uint8_t id, const JsonObjectConst& obj) { parse(id, obj); };
 
-        Program(uint8_t number);
-        Footswitch& footswitch(uint8_t number) { return _switches[number]; }
-        uint8_t numFootswitches() const { return _num_switches; }
-        const char* name() const { return _name; }
-        uint8_t number() const { return _number; }
-        bool available() const { return _available; }
+    bool load(uint8_t id);
+    bool parse(uint8_t id, const JsonObjectConst& obj);
 
-    private:
-        std::array<Footswitch, kNumSwitches> _switches;
-        char _name[kMaxNameLength + 1];
-        bool _available = false;
-        uint8_t _number = 0;
-        uint8_t _num_switches = 0;
-    };
+    Footswitch& footswitch(uint8_t id) { return _switches[id]; }
+    uint8_t numFootswitches() const { return _num_switches; }
+    const char* name() const { return _name; }
+    uint8_t id() const { return _id; }
+    bool available() const { return _available; }
+    void serialize(JsonObject& obj) const;
+    void save() const;
 
-    void begin();
-    void restore();
-    static const char* namesPath() { return "/names.txt"; };
-    static const char* configPath() { return "/config.json"; };
+private:
+    static void copyPath(uint8_t id, char* path) { 
+        snprintf_P(path, kMaxPathSize, PSTR("/prg.%u.json"), id);
+    }
 
-    Wifi wifi() { return {}; }
-    Program program(uint8_t number) { return {number}; };
+    std::array<Footswitch, kNumSwitches> _switches;
+    char _name[kMaxNameLength + 1];
+    bool _available;
+    uint8_t _id;
+    uint8_t _num_switches = 0;
 };
 
 }

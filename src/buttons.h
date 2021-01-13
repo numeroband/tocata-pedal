@@ -22,14 +22,14 @@ public:
     {
         for (int i = 0; i < _in_gpios.size(); ++i)
         {
-            Serial.print("Configuring input ");
+            Serial.print(F("Configuring input "));
             Serial.println(_in_gpios[i]);
             pinMode(_in_gpios[i], INPUT | PULLUP);
         }
 
         for (int i = 0; i < _out_gpios.size(); ++i)
         {
-            Serial.print("Configuring output ");
+            Serial.print(F("Configuring output "));
             Serial.println(_out_gpios[i]);
             pinMode(_out_gpios[i], INPUT);
         }
@@ -41,7 +41,7 @@ public:
     {
         if (!_callback)
         {
-            Serial.println("No buttons callback");
+            Serial.println(F("No buttons callback"));
             return;
         }
 

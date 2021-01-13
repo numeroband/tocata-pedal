@@ -90,6 +90,7 @@ export async function updateAll({wifi, programs}, progress) {
   }
   
   console.log('start updateAll');
+  // await restore();
   updateProgress(5);
   if (wifi) {
     await updateConfig({wifi});
