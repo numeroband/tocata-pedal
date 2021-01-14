@@ -148,17 +148,17 @@ function Footswitch(props) {
   return !footswitch ? <div/> : (
     <Grid
       container
-      direction="column"
+      direction="row"
       alignItems="flex-start"
     >
               <Actions 
           actions={footswitch ? footswitch.onActions : null} 
           setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
-          title="Footswitch On"/>
+          title="On MIDI"/>
               <Actions 
           actions={footswitch ? footswitch.offActions : null} 
           setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
-          title="Footswitch Off"/>
+          title="Off MIDI"/>
     </Grid>
   )
 }

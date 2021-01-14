@@ -15,7 +15,7 @@ import {
   MenuItem,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -27,34 +27,57 @@ const useStyles = makeStyles((theme) => ({
   },
   card: {
     padding: theme.spacing(1, 2),
-  }
+  },
 }));
 
 function actionDescription(action) {
-  switch (action.type) {
-    case 'PC':
-      return action.program
-    case 'CC':
-      return action.control
-    default:
-      return 'Unknown';
-  }
+  return action[scheme[action.type].values[0].field];
 }
 
-const actionTypes = {
-  'PC': 'Program Change',
-  'CC': 'Control Change',
+const scheme = {
+  'PC': {
+    name: 'Program Change',
+    values: [
+      {
+        name: 'Program',
+        field: 'program',
+        min: 1,
+      },
+    ],
+  },
+  'CC': {
+    name: 'Control Change',
+    values: [
+      {
+        name: 'Control',
+        field: 'control',
+        min: 1,
+      },
+      {
+        name: 'Value',
+        field: 'value',
+      },
+    ],
+  },
+}
+
+function initAction(actionType = 'PC') {
+  return scheme[actionType].values.reduce(
+    (previous, current) => ({...previous, [current.field]: (current.min || 0)}), 
+    {'type': actionType}
+  )
 }
 
 function ActionDialog(props) {
   const { id, action, setAction, onClose, open } = props;
   const classes = useStyles();
-  const defaultAction = useMemo(() => ({
-    type: 'PC',
-    program: 1,
-  }), [])
-  const [state, setState] = useState({ ...defaultAction, ...action });
-  useEffect(() => setState({...defaultAction, ...action}), [action, defaultAction])
+  const [state, setState] = useState(action || initAction('PC'));
+  useEffect(() => setState(action || initAction('PC')), [action, open])
+
+  function updateSelect(event) {
+    const actionType = event.target.value;
+    setState((action && action.type === actionType) ? action : initAction(actionType));
+  };
 
   function updateText(event) {
     setState({ ...state, [event.target.name]: event.target.value });
@@ -63,6 +86,23 @@ function ActionDialog(props) {
   function update() {
     setAction(id, state);
     onClose();
+  }
+
+  function valueField(id) {
+    const value = scheme[state.type].values[id];
+    return value &&
+      <TextField
+        type="number"
+        label={value.name}
+        className={classes.root}
+        name={value.field}
+        value={state[value.field] === undefined ? value.min : state[value.field]}
+        onChange={updateText}
+        inputProps={{
+          min: value.min === undefined ? 0 : value.min,
+          max: value.max === undefined ? 127 : value.max,
+        }}
+      ></TextField>;
   }
 
   return (
@@ -81,22 +121,12 @@ function ActionDialog(props) {
             name="type"
             value={state.type}
             className={classes.led}
-            onChange={updateText}
+            onChange={updateSelect}
           >
-            {Object.keys(actionTypes).map((actionType, index) => <MenuItem key={index} value={actionType}>{actionTypes[actionType]}</MenuItem>)}
+            {Object.keys(scheme).map((actionType, index) => <MenuItem key={index} value={actionType}>{scheme[actionType].name}</MenuItem>)}
           </TextField>
-          <TextField
-            type="number"
-            label="Value"
-            className={classes.root}
-            name="program"
-            value={state.program}
-            onChange={updateText}
-            inputProps={{
-              min: 0,
-              max: 127,
-            }}
-          ></TextField>
+          {valueField(0)}
+          {valueField(1)}
         </Grid>
       </DialogContent>
       <DialogActions>
@@ -139,33 +169,31 @@ export default function Actions(props) {
   }
 
   return (
-    <div>
-      <Card className={classes.root}>
-        <CardHeader className={classes.card} title={title} titleTypographyProps={{ variant: 'subtitle1' }} />
-        <CardContent className={classes.card}>
-          <Grid
-            container
-            direction="column"
-            alignItems="flex-start"
-          >
-            {actions && actions.length > 0 ? actions.map((action, index) =>
-              <Chip
-                key={index}
-                className={classes.chip}
-                avatar={<Avatar>{action.type}</Avatar>}
-                variant="outlined"
-                label={actionDescription(action)}
-                clickable
-                onClick={() => edit(index)}
-                onDelete={() => del(index)}
-              />) : "No actions"}
-          </Grid>
-        </CardContent>
-        <CardActions>
-          <Button color="primary" variant="contained" size="small" onClick={add}>Add</Button>
-        </CardActions>
-      </Card>
+    <Card className={classes.root}>
+      <CardHeader className={classes.card} title={title} titleTypographyProps={{ variant: 'subtitle1' }} />
+      <CardContent className={classes.card}>
+        <Grid
+          container
+          direction="column"
+          alignItems="flex-start"
+        >
+          {actions && actions.length > 0 ? actions.map((action, index) =>
+            <Chip
+              key={index}
+              className={classes.chip}
+              avatar={<Avatar>{action.type}</Avatar>}
+              variant="outlined"
+              label={actionDescription(action)}
+              clickable
+              onClick={() => edit(index)}
+              onDelete={() => del(index)}
+            />) : "No actions"}
+        </Grid>
+      </CardContent>
+      <CardActions>
+        <Button color="primary" variant="contained" size="small" onClick={add}>Add</Button>
+      </CardActions>
       <ActionDialog id={state.id} action={state.action} setAction={setAction} open={editAction} onClose={() => setEditAction(false)} />
-    </div>
+    </Card>
   )
 }

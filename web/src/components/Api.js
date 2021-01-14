@@ -1,5 +1,6 @@
 const MAX_NAME_LENGTH = 30;
 const EMPTY_NAME = ' '.repeat(MAX_NAME_LENGTH);
+const NUM_PROGRAMS = 99;
 
 export async function readConfig() {
   console.log('readConfig');
@@ -15,6 +16,13 @@ export async function updateConfig(config) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(config),
+  })
+}
+
+export async function deleteConfig() {
+  console.log('deleteConfig');
+  await fetch('/api/config', {
+    method: 'DELETE'
   })
 }
 
@@ -50,9 +58,9 @@ export async function deleteProgram(id) {
   })
 }
 
-export async function restore() {
-  console.log('restore');
-  await fetch('/api/restore', {
+async function sendRestart() {
+  console.log('restart');
+  await fetch('/api/restart', {
     method: 'POST'
   })
 }
@@ -82,7 +90,7 @@ export async function readAll(progress) {
   return { wifi, programs };
 }
 
-export async function updateAll({wifi, programs}, progress) {
+export async function updateAll({wifi, programs = []}, progress) {
   let currentProgress = 0;
   function updateProgress(value) {
     currentProgress += value;
@@ -90,20 +98,65 @@ export async function updateAll({wifi, programs}, progress) {
   }
   
   console.log('start updateAll');
-  // await restore();
-  updateProgress(5);
-  if (wifi) {
-    await updateConfig({wifi});
+
+  const programProgress = 99 / NUM_PROGRAMS;
+  for (let id = 0; id < NUM_PROGRAMS; ++id)
+  {
+    const program = programs[id];
+    await (program ? updateProgram(id, program) : deleteProgram(id));
+    updateProgress(programProgress);
   }
-  updateProgress(5);
-  if (programs) {
-    const programIds = programs.reduce((ids, name, index) => name ? [...ids, index] : ids, [])
-    const programProgress = (100 - currentProgress) / programIds.length;
-    for (const index in programIds) {
-      const id = programIds[index];
-      await updateProgram(id, programs[id]);
-      updateProgress(programProgress);
-    }
-  }
+
+  await (wifi ? updateConfig({wifi}) : deleteConfig());
+  updateProgress(1);
+
   console.log('end updateAll');
+}
+
+export async function restore(progress) {
+  let currentProgress = 0;
+  function updateProgress(value) {
+    currentProgress += value;
+    progress && progress(currentProgress);
+  }
+  
+  console.log('start restore');
+  const programProgress = 99 / NUM_PROGRAMS;
+  for (let id = 0; id < NUM_PROGRAMS; ++id)
+  {
+    await deleteProgram(id);
+    updateProgress(programProgress);
+  }
+  await deleteConfig();
+  updateProgress(1);
+  console.log('end restore');
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function restart(progress) {
+  let currentProgress = 0;
+  function updateProgress(value) {
+    currentProgress += value;
+    progress && progress(currentProgress);
+  }
+  
+  console.log('start restart');
+  await sendRestart();
+  updateProgress(5);
+
+  const restartDelay = 5000;
+  const progressUpdateMs = 500;
+  const progressUpdate = (100 - currentProgress) / (restartDelay / progressUpdateMs);
+  console.log(`waiting ${restartDelay / 1000} seconds`);
+  let waited = 0;
+  while (waited < restartDelay)
+  {
+    await wait(progressUpdateMs);
+    waited += progressUpdateMs;
+    updateProgress(progressUpdate);
+  }
+  console.log('end restart');
 }

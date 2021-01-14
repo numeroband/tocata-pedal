@@ -31,10 +31,13 @@ void Display::loop()
 	_u8g2.setFontDirection(0);
 	_u8g2.setFontMode(0);  
 	_u8g2.setFont(u8g2_font_7x13_mf);
-	uint8_t num_switches = _program->numFootswitches();
-	for (uint8_t i = 0; i < num_switches; ++i)
+	if (_program->available())
 	{
-		drawFootswitch(_program->footswitch(i));
+		uint8_t num_switches = _program->numFootswitches();
+		for (uint8_t i = 0; i < num_switches; ++i)
+		{
+			drawFootswitch(_program->footswitch(i));
+		}
 	}
 
 	_u8g2.setDrawColor(1);

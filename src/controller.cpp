@@ -64,6 +64,10 @@ void Controller::loadProgram(uint8_t id)
 {    
     _program.load(id);
     _display.setProgram(_program);
+    if (_program.available())
+    {
+        _program.run(_midi);
+    }
 }
 
 void Controller::updateProgram(uint8_t id)

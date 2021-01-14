@@ -32,20 +32,6 @@ void Server::begin()
     assert(!_singleton);    
     _singleton = this;
 
-    auto start = millis();
-    memset(_names, ' ', sizeof(_names));
-    Program program;
-    for (uint8_t id = 0; id < Program::kMaxPrograms; ++id)
-    {
-        if (program.load(id))
-        {
-            memcpy(_names + (id * Program::kMaxNameLength), program.name(), strlen(program.name()));
-        }
-    }
-    auto end = millis();
-    Serial.print(F("Names cached: "));
-    Serial.println(end - start);
-
     startWifi();
 }
 
@@ -57,7 +43,7 @@ void Server::startWifi()
 {
     Config config{};
     auto wifi_config = config.wifi();
-    _ap = !wifi_config.available();
+    _ap = !config.available() || !wifi_config.available();
     if (_ap)
     {
         Serial.println(F("No wifi config"));
@@ -175,10 +161,24 @@ void Server::getPrograms(AsyncWebServerRequest *request)
         return;
     }
 
-    request->send("text/plain", sizeof(_names), [this](uint8_t *buffer, size_t max_len, size_t already_sent)
+    request->send("text/plain", Program::kMaxNameLength * Program::kMaxPrograms, 
+        [this](uint8_t *buffer, size_t max_len, size_t already_sent)
     {
-        memcpy(buffer, _names + already_sent, max_len);
-        return max_len;
+        size_t sent = 0;
+        uint8_t id = already_sent / Program::kMaxNameLength;        
+        while ((sent + Program::kMaxNameLength) <= max_len)
+        {
+            Program program{id++};
+            uint8_t name_len = 0;
+            if (program.available())
+            {
+                name_len = strlen(program.name());
+                memcpy(buffer + sent, program.name(), name_len);
+            }
+            memset(buffer + sent + name_len, ' ', Program::kMaxNameLength - name_len);
+            sent += Program::kMaxNameLength;
+        }
+        return sent;
     });
 }
 
@@ -209,7 +209,6 @@ void Server::updateProgram(AsyncWebServerRequest *request, JsonVariant &json)
         return;
     }
     program.save();
-    addProgramName(program);
     request->send(200, "application/json", "true");
     _program_updated(id);
 }
@@ -223,7 +222,6 @@ void Server::removeProgram(AsyncWebServerRequest *request)
     }
 
     Program::remove(id);
-    removeProgramName(id);
     request->send(200, "application/json", "true");
     _program_updated(id);
 }
@@ -279,20 +277,6 @@ void Server::firmwareUpload(AsyncWebServerRequest *request, const String& filena
         delay(1000);
         ESP.restart();
     }
-}
-
-void Server::addProgramName(const Program& program)
-{
-    uint8_t* name = _names + (program.id() * Program::kMaxNameLength);
-    size_t name_len = strnlen(program.name(), Program::kMaxNameLength);
-    memcpy(name, program.name(), name_len);
-    memset(name + name_len, ' ', Program::kMaxNameLength - name_len);
-}
-
-void Server::removeProgramName(uint8_t id)
-{
-    uint8_t* name = _names + (id * Program::kMaxNameLength);
-    memset(name, ' ', Program::kMaxNameLength);
 }
 
 bool Server::getProgramId(AsyncWebServerRequest *request, uint8_t* id, bool noParamValid)

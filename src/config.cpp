@@ -87,6 +87,92 @@ void Config::save() const
     file.close();
 }
 
+void Action::run(FsMidi& midi) const
+{
+    switch (_type)
+    {
+    case kProgramChange:
+        midi.sendProgram(_value1);
+        break;
+    case kControlChange:
+        midi.sendControl(_value1, _value2);
+        break;
+    default:
+        break;
+    }
+}
+
+bool Action::parse(const JsonObjectConst& obj)
+{
+    const String& type = obj["type"];
+    if (type == "PC")
+    {
+        _value1 = obj["program"].as<uint8_t>();
+    }
+    else if (type == "CC")
+    {
+        _value1 = obj["control"].as<uint8_t>();
+        _value2 = obj["value"].as<uint8_t>();
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+void Action::serialize(JsonObject& obj) const
+{
+    switch (_type)
+    {
+    case kProgramChange:
+        obj["type"] = "PC";
+        obj["program"] = _value1;
+        break;
+    case kControlChange:
+        obj["type"] = "CC";
+        obj["control"] = _value1;
+        obj["value"] = _value2;
+        break;
+    default:
+        break;
+    }
+}
+
+void Actions::run(FsMidi& midi) const
+{
+    for (uint8_t i = 0; i < _num_actions; ++i)
+    {
+        _actions[i].run(midi);
+    }
+}
+
+uint8_t Actions::parse(const JsonArrayConst& array)
+{    
+    _num_actions = 0;
+    auto array_size = array.size();
+
+    for (uint8_t i = 0; i < array_size; ++i)
+    {
+        if (_num_actions < kMaxActions &&
+            _actions[_num_actions].parse(array[i].as<JsonObjectConst>()))
+        {
+            ++_num_actions;
+        }
+    }
+
+    return _num_actions;
+}
+
+void Actions::serialize(JsonArray& array) const
+{
+    for (uint8_t i = 0; i < _num_actions; ++i)
+    {
+        JsonObject obj = array[i].to<JsonObject>();
+        _actions[i].serialize(obj);
+    }
+}
+
 bool Config::Wifi::parse(const JsonObjectConst& obj)
 {
     _available = false;
@@ -120,6 +206,19 @@ void Config::Wifi::serialize(JsonObject& obj) const
 {
     obj["ssid"] = _ssid;
     obj["key"] = _key;
+}
+
+void Program::run(FsMidi& midi) const
+{
+    _actions.run(midi);
+    for (uint8_t i = 0; i < _num_switches; ++i)
+    {
+        const Footswitch& fs = _switches[i];
+        if (fs.available())
+        {
+            fs.run(midi);
+        }
+    }
 }
 
 void Program::remove(uint8_t id)
@@ -212,6 +311,8 @@ bool Program::parse(uint8_t id, const JsonObjectConst& obj)
         const JsonArrayConst& switches = obj["fs"];
         _switches[i].parse(i, switches[i].as<JsonObjectConst>());
     }
+
+    _actions.parse(obj["actions"].as<JsonArrayConst>());
     
     _available = true;
 
@@ -236,6 +337,9 @@ void Program::serialize(JsonObject& obj) const
             fs.serialize(fs_doc);
         }
     }
+
+    JsonArray actions = obj["actions"].to<JsonArray>();
+    _actions.serialize(actions);
 }
 
 void Program::save() const
@@ -262,6 +366,18 @@ void Program::save() const
     file.close();
 }
 
+void Program::Footswitch::run(FsMidi& midi) const
+{
+    if (_enabled)
+    {
+        _on_actions.run(midi);
+    }    
+    else
+    {
+        _off_actions.run(midi);
+    }    
+} 
+
 void Program::Footswitch::parse(uint8_t id, const JsonObjectConst& obj) 
 {
     _available = false;
@@ -285,7 +401,8 @@ void Program::Footswitch::parse(uint8_t id, const JsonObjectConst& obj)
     }
     name.toCharArray(_name, sizeof(_name));
 
-    _enabled = obj["enabled"].as<bool>();
+    _default = obj["enabled"].as<bool>();
+    _enabled = _default;
     _momentary = obj["momentary"].as<bool>();
 
     const String& color = obj["color"].as<String>();
@@ -296,6 +413,9 @@ void Program::Footswitch::parse(uint8_t id, const JsonObjectConst& obj)
     else if (color == "green") { _color = kGreen; } 
     else if (color == "turquoise") { _color = kTurquoise; }
     else { return; }
+
+    _on_actions.parse(obj["onActions"].as<JsonArrayConst>());
+    _off_actions.parse(obj["offActions"].as<JsonArrayConst>());
 
     _available = true;
 }
@@ -327,7 +447,7 @@ void Program::Footswitch::serialize(JsonObject& obj) const
             break;
     }
 
-    if (_enabled)
+    if (_default)
     {
         obj["enabled"] = true;
     }
@@ -336,6 +456,11 @@ void Program::Footswitch::serialize(JsonObject& obj) const
     {
         obj["momentary"] = true;
     }
+
+    JsonArray actions = obj["onActions"].to<JsonArray>();
+    _on_actions.serialize(actions);
+    actions = obj["offActions"].to<JsonArray>();
+    _on_actions.serialize(actions);
 }
 
 }

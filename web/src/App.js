@@ -4,7 +4,7 @@ import Config from './components/Config';
 import Backup from './components/Backup';
 import Firmware from './components/Firmware';
 import CssBaseline from '@material-ui/core/CssBaseline';
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useMediaQuery } from '@material-ui/core';
 import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
 

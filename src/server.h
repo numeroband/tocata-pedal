@@ -36,15 +36,12 @@ private:
     void getConfig(AsyncWebServerRequest *request);
     void updateConfig(AsyncWebServerRequest *request, JsonVariant &json);
     void removeConfig(AsyncWebServerRequest *request);
-    void addProgramName(const Program& program);
-    void removeProgramName(uint8_t id);
     void sendIndex(AsyncWebServerRequest *request);
     void restart(AsyncWebServerRequest *request);
     bool getProgramId(AsyncWebServerRequest *request, uint8_t* id, bool noParamValid = false);
 
     AsyncWebServer _server{80};
     const char* _hostname;
-    uint8_t _names[Program::kMaxNameLength * Program::kMaxPrograms];
     ConfigUpdated _config_updated;
     ProgramUpdated _program_updated;
     AsyncCallbackJsonWebHandler _program_handler;

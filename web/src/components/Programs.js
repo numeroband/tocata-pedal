@@ -4,7 +4,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import { useState, useEffect, useMemo } from 'react';
 import EditIcon from '@material-ui/icons/Edit';
 import DeleteIcon from '@material-ui/icons/Delete';
-import { readProgram, readProgramNames, updateProgram } from './Api';
+import { readProgram, readProgramNames, updateProgram, deleteProgram } from './Api';
 
 import {
   MenuItem,
@@ -103,19 +103,17 @@ function Program(props) {
   }
 
   return !program.name ? <div /> : (
-    <div>
-      <Grid
-        container
-        direction="column"
-        alignItems="flex-start"
-      >
-        <Actions
-          actions={program.actions}
-          setActions={actions => setProgram(id, { ...program, actions: actions })}
-          title="Program actions" />
-      </Grid>
+    <Grid
+      container
+      direction="column"
+      alignItems="flex-start"
+    >
+      <Actions
+        actions={program.actions}
+        setActions={actions => setProgram(id, { ...program, actions: actions })}
+        title="Program MIDI" />
       <Footswitches footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
-    </div>
+    </Grid>
   )
 }
 
@@ -178,10 +176,6 @@ function ProgramSelect(props) {
     setProgramState(program ? program : {});
   }
 
-  function deleteProgram() {
-    setProgram(programId, null)
-  }
-
   if (!programNames) {
     return <LinearProgress />;
   }
@@ -218,7 +212,7 @@ function ProgramSelect(props) {
           color="secondary"
           aria-label="delete"
           disabled={!program}
-          onClick={deleteProgram}
+          onClick={() => setProgram(programId, null)}
         >
           <DeleteIcon />
         </Fab>

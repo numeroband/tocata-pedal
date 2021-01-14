@@ -7,9 +7,10 @@ import child_process from 'child_process';
 const MAX_NAME_LENGTH = 30;
 const MAX_PROGRAMS = 99;
 const EMPTY_NAME = '';
+const DELAY = .2;
 
 function sleep(sec) {
-  child_process.execSync(`sleep ${sec}`);
+  sec && child_process.execSync(`sleep ${sec}`);
 }
 
 class Api {
@@ -45,32 +46,39 @@ class Api {
 
   getConfig(res) {
     console.log('getConfig');
-    sleep(1);
-    return res.sendFile(this.configPath);
+    sleep(DELAY);
+    return fs.existsSync(this.configPath) ? res.sendFile(this.configPath) : res.json({});
   } 
 
   setConfig(config, res) {
     console.log('setConfig', config);
-    sleep(1);
+    sleep(DELAY);
     const data = JSON.stringify(config);
     fs.writeFileSync(this.configPath, data);
     return res.json(true);
   }
 
+  delConfig(res) {
+    console.log('delConfig');
+    sleep(DELAY);
+    fs.rmSync(this.configPath, {force: true});
+    return res.json(true);
+  }
+
   getProgram(id, res) {
     console.log('getProgram', id);
-    sleep(1);
+    sleep(DELAY);
     const fileName = this.programPath(id);
     if (fs.existsSync(fileName)) {
       return res.sendFile(fileName);
     } else {
-      return res.status(404).json({});
+      return res.json({});
     }
   }
 
   getPrograms(res) {
     console.log('getPrograms');
-    sleep(1);
+    sleep(DELAY);
     return res.sendFile(this.namesPath);
   }
 
@@ -83,7 +91,7 @@ class Api {
 
   setProgram(id, prg, res) {
     console.log('setProgram', id, prg);
-    sleep(1);
+    sleep(DELAY);
     const fileName = this.programPath(id);
     const data = JSON.stringify(prg);
     fs.writeFileSync(fileName, data);
@@ -94,19 +102,25 @@ class Api {
 
   delProgram(id, res) {
     console.log('delProgram', id);
-    sleep(1);
+    sleep(DELAY);
     const fileName = this.programPath(id);
-    fs.rmSync(fileName);
+    fs.rmSync(fileName, {force: true});
     this.updateNames(id, EMPTY_NAME)
     return res.json(true);
   }
 
   restore(res) {
     console.log('restore');
-    sleep(1);
+    sleep(DELAY);
     fs.rmdirSync(this.dir, { recursive: true });
     fs.mkdirSync(this.dir);
     this.createEmptyNames();
+    return res.json(true);
+  }
+
+  restart(res) {
+    console.log('restart');
+    sleep(DELAY);
     return res.json(true);
   }
 }
@@ -145,10 +159,14 @@ app.post('/api/config', (req, res) => {
   const config = req.body;
 
   if (!config) {
-    return res.status(500).send('Invalid body');
+    return res.status(400).send('Invalid body');
   }
 
   return api.setConfig(config, res);
+});
+
+app.delete('/api/config', (req, res) => {
+  return api.delConfig(res);
 });
 
 app.get('/api/programs', (req, res) => {
@@ -161,11 +179,11 @@ app.post('/api/programs', (req, res) => {
   const prg = req.body;
 
   if (id === undefined) {
-    return res.status(500).send('Invalid id');
+    return res.status(400).send('Invalid id');
   }
 
   if (!prg) {
-    return res.status(500).send('Invalid body');
+    return res.status(400).send('Invalid body');
   }
 
   return api.setProgram(id, prg, res);
@@ -178,6 +196,10 @@ app.delete('/api/programs', (req, res) => {
 
 app.post('/api/restore', (req, res) => {
   return api.restore(res);
+});
+
+app.post('/api/restart', (req, res) => {
+  return api.restart(res);
 });
 
 //start our server
