@@ -1,7 +1,6 @@
 #include "server.h"
 
 #include <ESPmDNS.h>
-#include <SPIFFS.h>
 #include <Update.h>
 
 namespace tocata {
@@ -168,13 +167,7 @@ void Server::getPrograms(AsyncWebServerRequest *request)
         uint8_t id = already_sent / Program::kMaxNameLength;        
         while ((sent + Program::kMaxNameLength) <= max_len)
         {
-            Program program{id++};
-            uint8_t name_len = 0;
-            if (program.available())
-            {
-                name_len = strlen(program.name());
-                memcpy(buffer + sent, program.name(), name_len);
-            }
+            uint8_t name_len = Program::copyName(id++, (char*)buffer + sent);
             memset(buffer + sent + name_len, ' ', Program::kMaxNameLength - name_len);
             sent += Program::kMaxNameLength;
         }

@@ -11,8 +11,9 @@ Controller::Controller(const Buttons6::InArray& in_gpios, const Buttons6::OutArr
 
 void Controller::begin() 
 {
-    _display.begin();
-    
+    _display.begin();    
+    Storage::begin();
+
     loadProgram(0);
 
     _midi.setOnConnect(std::bind(&Controller::midiConnected, this));
@@ -53,6 +54,7 @@ void Controller::buttonsChanged(Buttons6::Mask status, Buttons6::Mask modified)
 void Controller::midiConnected()
 {
     _display.setConnected(true);
+    _program.run(_midi);
 }
 
 void Controller::midiDisconnected()

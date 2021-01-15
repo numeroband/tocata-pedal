@@ -4,11 +4,16 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <SPIFFS.h>
 
 #include <string>
 
 namespace tocata {
+
+class Storage
+{
+public:
+    static void begin();
+};
 
 class Config
 {
@@ -23,6 +28,7 @@ public:
         const char* key() const { return _key; }
         bool available() const { return _available; }
         void serialize(JsonObject& obj) const;
+        bool operator==(const Wifi& other);
 
     private:
         char _ssid[64];
@@ -30,7 +36,7 @@ public:
         bool _available = false;
     };
 
-    static void remove();
+    static void remove() { remove(true); };
 
     Config() { load(); };
     Config(const JsonObjectConst& obj) { parse(obj); }
@@ -41,34 +47,19 @@ public:
     const Wifi& wifi() const { return _wifi; }
     void serialize(JsonObject& obj) const;
     void save() const;
+    bool operator==(const Config& other);
+
+protected:
+    friend class Storage;
+    static bool init();
 
 private:
-    static constexpr const char* kPath = "/config.json";
+    static constexpr const char* kPath = "/config";
+
+    static void remove(bool check);
 
     Wifi _wifi;
     bool _available;
-};
-
-class Action
-{
-public:
-    enum Type : uint8_t
-    {
-        kNone,
-        kProgramChange,
-        kControlChange,
-        kNoteOn,
-        kNoteOff,
-    };
-
-    void run(FsMidi& midi) const;
-    bool parse(const JsonObjectConst& obj);
-    void serialize(JsonObject& obj) const;
-
-private:
-    Type _type = kNone;
-    uint8_t _value1;
-    uint8_t _value2;
 };
 
 class Actions
@@ -79,9 +70,32 @@ public:
     void run(FsMidi& midi) const;
     uint8_t parse(const JsonArrayConst& array);
     void serialize(JsonArray& array) const;
+    bool operator==(const Actions& other);
+
+    class Action
+    {
+    public:
+        enum Type : uint8_t
+        {
+            kNone,
+            kProgramChange,
+            kControlChange,
+            kNoteOn,
+            kNoteOff,
+        };
+
+        void run(FsMidi& midi) const;
+        bool parse(const JsonObjectConst& obj);
+        void serialize(JsonObject& obj) const;
+        bool operator==(const Action& other);
+
+    private:
+        Type _type = kNone;
+        uint8_t _values[2];
+    };
 
 private:
-    std::array<Action, kMaxActions> _actions;
+    Action _actions[kMaxActions];
     uint8_t _num_actions;
 };
 
@@ -91,8 +105,8 @@ public:
     static constexpr size_t kNumSwitches = 6;
     static constexpr uint8_t kMaxNameLength = 30;
     static constexpr uint8_t kMaxPrograms = 99;
-    static constexpr size_t kMaxJsonSize = 512;
-    static constexpr size_t kMaxPathSize = 16;
+    static constexpr size_t kMaxJsonSize = 1024;
+    static constexpr size_t kMaxPathSize = 4;
     static constexpr uint8_t kInvalidId = 255;
 
     class Footswitch
@@ -120,6 +134,8 @@ public:
         bool available() const { return _available; }
         void serialize(JsonObject& obj) const;
         void run(FsMidi& midi) const;
+        void reset() { _enabled = _default; }
+        bool operator==(const Footswitch& other);
 
     private:
         Actions _on_actions;
@@ -133,7 +149,8 @@ public:
         uint8_t _id;
     };
 
-    static void remove(uint8_t id);
+    static uint8_t copyName(uint8_t id, char* name);
+    static void remove(uint8_t id) { remove(id, true); };
 
     Program() : _available(false), _id(kInvalidId) {}
     Program(uint8_t id) { load(id); }
@@ -150,18 +167,28 @@ public:
     bool available() const { return _available; }
     void serialize(JsonObject& obj) const;
     void save() const;
+    bool operator==(const Program& other);
+
+protected:
+    friend class Storage;
+    static void initAll();
 
 private:
-    static void copyPath(uint8_t id, char* path) { 
-        snprintf_P(path, kMaxPathSize, PSTR("/prg.%u.json"), id);
+    static void remove(uint8_t id, bool check);
+    static void copyPath(uint8_t id, char* path) 
+    { 
+        path[0] = '/';
+        path[1] = '0' + (id / 10);
+        path[2] = '0' + (id % 10);
+        path[3] = '\0';
     }
 
-    std::array<Footswitch, kNumSwitches> _switches;
-    Actions _actions;
     char _name[kMaxNameLength + 1];
+    Footswitch _switches[kNumSwitches];
+    Actions _actions;
     bool _available;
     uint8_t _id;
-    uint8_t _num_switches = 0;
+    uint8_t _num_switches;
 };
 
 }

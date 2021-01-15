@@ -48,12 +48,18 @@ void FsMidi::loop()
 
 void FsMidi::sendProgram(uint8_t program)
 {
-	_impl->ble_midi_iface.sendProgramChange(program, 1);
+	if (_connected)
+	{
+		_impl->ble_midi_iface.sendProgramChange(program, 1);
+	}
 }
 
 void FsMidi::sendControl(uint8_t control, uint8_t value)
 {
-	_impl->ble_midi_iface.sendControlChange(control, value, 1);
+	if (_connected)
+	{
+		_impl->ble_midi_iface.sendControlChange(control, value, 1);
+	}
 }
 
 } // namespace tocata

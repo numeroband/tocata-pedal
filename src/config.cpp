@@ -4,39 +4,92 @@
 
 namespace tocata {
 
-void Config::remove()
+void Storage::begin()
+{
+    auto start = millis();
+
+    SPIFFS.begin(true);
+
+    if (Config::init())
+    {
+        Program::initAll();
+    }
+
+    auto end = millis();
+    Serial.print(F("Storage init in ms: "));
+    Serial.println(end - start);
+    Serial.print(F("Usage: "));
+    Serial.print(SPIFFS.usedBytes());
+    Serial.print('/');
+    Serial.println(SPIFFS.totalBytes());
+    Serial.print(F("Config size: "));
+    Serial.print(sizeof(Config));
+    Serial.print(F(", Program size: "));
+    Serial.print(sizeof(Program));
+    Serial.print(F(", Footswitch size: "));
+    Serial.print(sizeof(Program::Footswitch));
+    Serial.print(F(", Actions size: "));
+    Serial.print(sizeof(Actions));
+    Serial.print(F(", Action size: "));
+    Serial.println(sizeof(Actions::Action));
+}
+
+bool Config::init()
 {
     if (SPIFFS.exists(kPath))
     {
-        SPIFFS.remove(kPath);
+        return false;
+    }
+    else
+    {
+        remove(false);
+        return true;
+    }
+}
+
+void Config::remove(bool check)
+{
+    if (check)
+    {
+        Config current{};
+        if (!current.available())
+        {
+            return;
+        }
+    }
+
+    static const uint8_t zeros[sizeof(Config)] = {};
+
+    File file = SPIFFS.open(kPath, FILE_WRITE);
+    if (!file)
+    {
+        Serial.println(F("Cannot open config file to init"));
+        return;
+    }
+
+    size_t written = file.write(zeros, sizeof(zeros));
+    file.close();
+
+    if (written != sizeof(zeros))
+    {
+        Serial.println(F("Cannot write config to init"));
     }
 }
 
 bool Config::load()
-{
-    if (!SPIFFS.exists(kPath))
-    {
-        return false;
-    }
+{    
+    _available = false;
 
-    DynamicJsonDocument doc{kMaxJsonSize};
     File file = SPIFFS.open(kPath, FILE_READ);
-    if (!file)
-    {
-        Serial.println(F("Cannot open config file to read"));
-        return false;
-    }
-
-    DeserializationError error = deserializeJson(doc, file);
+    size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
     file.close();
-    if (error != DeserializationError::Ok)
+    if (bytes_read != sizeof(*this))
     {
-        Serial.print(F("Config deserialization failed with code "));
-        Serial.println(error.code());   
-        return false;
+        Serial.println(F("Invalid config file"));
+        _available = false;
     }
 
-    return parse(doc.as<JsonObjectConst>());
+    return _available;
 }
 
 bool Config::parse(const JsonObjectConst& obj)
@@ -74,45 +127,68 @@ void Config::save() const
         return;
     }
 
-    DynamicJsonDocument doc{kMaxJsonSize};
-    JsonObject obj = doc.to<JsonObject>();
-    serialize(obj);
+    Config current{};
+    if (current == *this)
+    {
+        return;
+    }
+
     File file = SPIFFS.open(kPath, FILE_WRITE);
     if (!file)
     {
         Serial.println(F("Cannot open config file to write"));
         return;
     }
-    serializeJson(doc, file);
+
+    size_t written = file.write((uint8_t*)this, sizeof(*this));
     file.close();
+
+    if (written != sizeof(*this))
+    {
+        Serial.println(F("Cannot write config to file"));
+        SPIFFS.remove(kPath);
+    }
 }
 
-void Action::run(FsMidi& midi) const
+bool Config::operator==(const Config& other)
+{
+    return (true
+        && _available == other._available
+        && _wifi == other._wifi
+    );
+}
+
+void Actions::Action::run(FsMidi& midi) const
 {
     switch (_type)
     {
     case kProgramChange:
-        midi.sendProgram(_value1);
+        midi.sendProgram(_values[0]);
         break;
     case kControlChange:
-        midi.sendControl(_value1, _value2);
+        midi.sendControl(_values[0], _values[1]);
         break;
     default:
         break;
     }
 }
 
-bool Action::parse(const JsonObjectConst& obj)
+bool Actions::Action::parse(const JsonObjectConst& obj)
 {
+    _type = kNone;
+    memset(_values, 0, sizeof(_values));
+
     const String& type = obj["type"];
     if (type == "PC")
     {
-        _value1 = obj["program"].as<uint8_t>();
+        _type = kProgramChange;
+        _values[0] = obj["program"].as<uint8_t>();
     }
     else if (type == "CC")
     {
-        _value1 = obj["control"].as<uint8_t>();
-        _value2 = obj["value"].as<uint8_t>();
+        _type = kControlChange;
+        _values[0] = obj["control"].as<uint8_t>();
+        _values[1] = obj["value"].as<uint8_t>();
     }
     else
     {
@@ -121,22 +197,30 @@ bool Action::parse(const JsonObjectConst& obj)
     return true;
 }
 
-void Action::serialize(JsonObject& obj) const
+void Actions::Action::serialize(JsonObject& obj) const
 {
     switch (_type)
     {
     case kProgramChange:
         obj["type"] = "PC";
-        obj["program"] = _value1;
+        obj["program"] = _values[0];
         break;
     case kControlChange:
         obj["type"] = "CC";
-        obj["control"] = _value1;
-        obj["value"] = _value2;
+        obj["control"] = _values[0];
+        obj["value"] = _values[1];
         break;
     default:
         break;
     }
+}
+
+bool Actions::Action::operator==(const Actions::Action& other)
+{
+    return (true
+        && _type == other._type
+        && memcmp(_values, other._values, sizeof(_values)) == 0
+    );
 }
 
 void Actions::run(FsMidi& midi) const
@@ -150,6 +234,12 @@ void Actions::run(FsMidi& midi) const
 uint8_t Actions::parse(const JsonArrayConst& array)
 {    
     _num_actions = 0;
+
+    if (array.isNull())
+    {
+        return _num_actions;
+    }
+
     auto array_size = array.size();
 
     for (uint8_t i = 0; i < array_size; ++i)
@@ -171,6 +261,24 @@ void Actions::serialize(JsonArray& array) const
         JsonObject obj = array[i].to<JsonObject>();
         _actions[i].serialize(obj);
     }
+}
+
+bool Actions::operator==(const Actions& other)
+{
+    if (_num_actions != other._num_actions)
+    {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < _num_actions; ++i)
+    {
+        if (!(_actions[i] == other._actions[i]))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool Config::Wifi::parse(const JsonObjectConst& obj)
@@ -208,6 +316,23 @@ void Config::Wifi::serialize(JsonObject& obj) const
     obj["key"] = _key;
 }
 
+bool Config::Wifi::operator==(const Config::Wifi& other)
+{
+    return (true
+        && _available == other._available
+        && strncmp(_ssid, other._ssid, sizeof(_ssid)) == 0
+        && strncmp(_key, other._key, sizeof(_key)) == 0
+    );
+}
+
+void Program::initAll()
+{
+    for (uint32_t id = 0; id < kMaxPrograms; ++id)
+    {
+        remove(id, false);
+    }
+}
+
 void Program::run(FsMidi& midi) const
 {
     _actions.run(midi);
@@ -221,55 +346,105 @@ void Program::run(FsMidi& midi) const
     }
 }
 
-void Program::remove(uint8_t id)
+uint8_t Program::copyName(uint8_t id, char* name)
+{
+    char path[kMaxPathSize];
+    copyPath(id, path);
+
+    File file = SPIFFS.open(path, FILE_READ);
+    size_t bytes_read = file.read((uint8_t*)name, kMaxNameLength);
+    file.close();
+    if (bytes_read != kMaxNameLength)
+    {
+        Serial.println(F("Invalid program file"));
+        return 0;
+    }
+
+    return strnlen(name, kMaxNameLength);
+}
+
+void Program::remove(uint8_t id, bool check)
 {
     if (id >= kMaxPrograms)
     {
+        Serial.print(F("Invalid program to remove "));
+        Serial.println(id);
         return;
     }
 
-    char path[kMaxPathSize];
-    copyPath(id, path);
-    if (SPIFFS.exists(path))
+    if (check)
     {
-        SPIFFS.remove(path);
+        Program current{id};
+        if (!current.available())
+        {
+            return;
+        }
+    }
+
+    char path[kMaxPathSize];
+    static const uint8_t zeros[sizeof(Program)] = {};
+    copyPath(id, path);
+
+    File file = SPIFFS.open(path, FILE_WRITE);
+    if (!file)
+    {
+        Serial.println(F("Cannot open program file to init"));
+        return;
+    }
+
+    size_t written = file.write(zeros, sizeof(zeros));
+    file.close();
+
+    if (written != sizeof(zeros))
+    {
+        Serial.println(F("Cannot write program to init"));
     }
 }
 
 bool Program::load(uint8_t id)
 {
-    _available = false;
-    _id = id;
-
     if (id > kMaxPrograms)
     {
+        _available = false;
+        _id = id;
+
+        Serial.print(F("Invalid program to load "));
+        Serial.println(_id);
+
         return false;
     }
 
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    if (!SPIFFS.exists(path))
-    {
-        return false;
-    }
     File file = SPIFFS.open(path, FILE_READ);
-    if (!file)
-    {
-        Serial.println(F("Cannot open program file to read"));
-        return false;
-    }
-    DynamicJsonDocument doc{kMaxJsonSize};
-    DeserializationError error = deserializeJson(doc, file);
+    size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
     file.close();
-    if (error != DeserializationError::Ok)
+
+    _id = id;
+
+    if (bytes_read != sizeof(*this))
     {
-        Serial.print(F("Program deserialization failed with code "));
-        Serial.println(error.code());   
+        Serial.println(F("Invalid program file"));
+        _available = false;
         return false;
     }
 
-    return parse(id, doc.as<JsonObjectConst>());
+    if (!_available)
+    {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < _num_switches; ++i)
+    {
+        Footswitch& fs = _switches[i];
+        if (fs.available())
+        {
+            fs.reset();
+        }
+    }
+
+    return true;
 }
 
 bool Program::parse(uint8_t id, const JsonObjectConst& obj)
@@ -348,10 +523,12 @@ void Program::save() const
     {
         return;
     }
-    
-    DynamicJsonDocument doc{kMaxJsonSize};
-    JsonObject obj = doc.to<JsonObject>();
-    serialize(obj);
+
+    Program current{_id};
+    if (current == *this)
+    {
+        return;
+    }
 
     char path[kMaxPathSize];
     copyPath(_id, path);
@@ -362,8 +539,34 @@ void Program::save() const
         return;
     }
 
-    serializeJson(doc, file);
+    size_t written = file.write((uint8_t*)this, sizeof(*this));
     file.close();
+
+    if (written != sizeof(*this))
+    {
+        Serial.println(F("Cannot write program to file"));
+    }
+}
+
+bool Program::operator==(const Program& other)
+{
+    if (!(true
+        && _available == other._available
+        && _id == other._id
+        && _num_switches == other._num_switches
+        && strncmp(_name, other._name, sizeof(_name)) == 0
+        && _actions == other._actions
+    )) return false;
+
+    for (uint32_t i = 0; i < _num_switches; ++i)
+    {
+        if (!(_switches[i] == other._switches[i]))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void Program::Footswitch::run(FsMidi& midi) const
@@ -457,10 +660,24 @@ void Program::Footswitch::serialize(JsonObject& obj) const
         obj["momentary"] = true;
     }
 
-    JsonArray actions = obj["onActions"].to<JsonArray>();
-    _on_actions.serialize(actions);
-    actions = obj["offActions"].to<JsonArray>();
-    _on_actions.serialize(actions);
+    JsonArray on_actions = obj["onActions"].to<JsonArray>();
+    _on_actions.serialize(on_actions);
+    JsonArray off_actions = obj["offActions"].to<JsonArray>();
+    _off_actions.serialize(off_actions);
+}
+
+bool Program::Footswitch::operator==(const Program::Footswitch& other)
+{
+    return ((!_available && !other._available) || (true
+        && _available == other._available
+        && _id == other._id
+        && _color == other._color
+        && _default == other._default
+        && _momentary == other._momentary
+        && _on_actions == other._on_actions
+        && _off_actions == other._off_actions
+        && strncmp(_name, other._name, sizeof(_name)) == 0
+    ));
 }
 
 }
