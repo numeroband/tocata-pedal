@@ -24,12 +24,14 @@ import {
   Switch,
   Route,
   Redirect,
+  Prompt,
   useRouteMatch,
   useParams,
   useHistory,
 } from "react-router-dom";
 
 const MAX_NAME_LENGTH = 30;
+const DISCARD_PROMPT = 'Are you sure you want to discard the changes made to this program?';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -104,24 +106,6 @@ function ProgramDialog(props) {
   )
 }
 
-function DiscardDialog(props) {
-  const { discard, onClose, open } = props
-
-  return (
-    <Dialog onClose={onClose} aria-labelledby="simple-dialog-title" open={open}>
-      <DialogTitle id="simple-dialog-title">Discard changes?</DialogTitle>
-      {/* <DialogContent>
-        Discard changes?
-      </DialogContent> */}
-      <DialogActions>
-        <Button variant="contained" color="primary" onClick={onClose}>Cancel</Button>
-        <Button variant="contained" color="primary" onClick={discard}>Discard
-      </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
-
 function Program(props) {
   const { id, program, setProgram } = props
   
@@ -171,7 +155,6 @@ function ProgramSelect(props) {
   const [editProgram, setEditProgram] = useState(false);
   const [program, setProgramState] = useState(null);
   const [orig, setOrig] = useState(null);
-  const [discard, setDiscard] = useState(null);
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -238,11 +221,10 @@ function ProgramSelect(props) {
       return;
     }
 
-    setDiscard(() => () => {
-      setDiscard(null);
+    if (window.confirm(DISCARD_PROMPT)) {
       setProgram(programId, orig);
       history.push(`${path}/${index}/0`);
-    });
+    }
   };
 
   if (!programNames) {
@@ -251,6 +233,10 @@ function ProgramSelect(props) {
 
   return (
     <div>
+      <Prompt
+        when={program && modified()}
+        message={ () => DISCARD_PROMPT }
+      />
       <div>
         <TextField
           label="Program"
@@ -286,7 +272,6 @@ function ProgramSelect(props) {
           <DeleteIcon />
         </Fab>
         <ProgramDialog id={programId} program={program} setProgram={setProgram} open={editProgram} onClose={() => setEditProgram(false)} />
-        <DiscardDialog open={discard != null} discard={discard} onClose={() => setDiscard(null)} />
       </div>
       <Divider/>
       {program ?
