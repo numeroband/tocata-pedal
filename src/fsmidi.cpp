@@ -11,7 +11,13 @@ struct FsMidi::Impl
 {
 	BLEMIDI_NAMESPACE::BLEMIDI_Transport<BLEMIDI_NAMESPACE::BLEMIDI_ESP32_NimBLE> ble_midi;
 	MIDI_NAMESPACE::MidiInterface<BLEMIDI_NAMESPACE::BLEMIDI_Transport<BLEMIDI_NAMESPACE::BLEMIDI_ESP32_NimBLE>, BLEMIDI_NAMESPACE::MySettings> ble_midi_iface;
-	Impl(const char* name) : ble_midi(name), ble_midi_iface(ble_midi) {}
+	MIDI_NAMESPACE::SerialMIDI<HardwareSerial> serial_midi;
+	MIDI_NAMESPACE::MidiInterface<MIDI_NAMESPACE::SerialMIDI<HardwareSerial>> serial_midi_iface;
+	Impl(const char* name) : 
+		ble_midi(name), 
+		ble_midi_iface(ble_midi), 
+		serial_midi(Serial),
+		serial_midi_iface(serial_midi) {}
 };
 
 FsMidi* FsMidi::_singleton;
@@ -37,6 +43,10 @@ void FsMidi::begin()
 
     // ble_midi_iface_.setHandleNoteOn(OnNoteOn);
     // ble_midi_iface_.setHandleNoteOff(OnNoteOff);
+
+    // _impl->serial_midi_iface.begin();
+	// Serial.begin(115200);
+    // _connnected = true;
 
     _impl->ble_midi_iface.begin();
 }

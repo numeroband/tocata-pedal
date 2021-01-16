@@ -118,7 +118,7 @@ void Display::drawFootswitch(const Program::Footswitch& footswitch)
 
   uint8_t idx = footswitch.id();
   uint8_t x = block_width_padded * (idx % 3);
-  uint8_t y = block_height_padded * (1 - (idx / 3));
+  uint8_t y = block_height_padded * (idx / 3);
 
   _u8g2.setDrawColor(1);
   

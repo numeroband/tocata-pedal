@@ -68,13 +68,23 @@ void Server::startHttp()
 {
     _server.addHandler(&_program_handler);
     _server.addHandler(&_config_handler);
+
+    _server.rewrite("/", "/index.html");
+    _server.rewrite("/programs", "/index.html");
+    _server.rewrite("/config", "/index.html");
+    _server.rewrite("/backup", "/index.html");
+    _server.rewrite("/firmware", "/index.html");
+
+    _server.on("/index.html", HTTP_GET, std::bind(&Server::sendIndex, this, _1));
     _server.on("/api/restart", HTTP_POST, std::bind(&Server::restart, this, _1));
     _server.on("/api/config", HTTP_GET, std::bind(&Server::getConfig, this, _1));
     _server.on("/api/config", HTTP_DELETE, std::bind(&Server::removeConfig, this, _1));
     _server.on("/api/programs", HTTP_GET, std::bind(&Server::getPrograms, this, _1));
     _server.on("/api/programs", HTTP_DELETE, std::bind(&Server::removeProgram, this, _1));
+
     _server.onFileUpload(std::bind(&Server::firmwareUpload, this, _1, _2, _3, _4, _5, _6));
-    _server.onNotFound(std::bind(&Server::sendIndex, this, _1));
+
+    _server.onNotFound([](AsyncWebServerRequest *request) { request->send(404); });
  
     _server.begin();
     MDNS.begin(_hostname);
@@ -85,12 +95,6 @@ void Server::startHttp()
 
 void Server::sendIndex(AsyncWebServerRequest *request)
 {
-    if (request->url().lastIndexOf('.') >= 0) 
-    {
-        request->send(404);
-        return;
-    }
-
     AsyncWebServerResponse *response = request->beginResponse(
         String("text/html"),
         index_html_len,
