@@ -15,13 +15,6 @@ import {
 import { makeStyles } from '@material-ui/core/styles';
 import EditIcon from '@material-ui/icons/Edit';
 import DeleteIcon from '@material-ui/icons/Delete';
-import {
-  Switch as RouteSwitch,
-  Route,
-  useRouteMatch,
-  useParams,
-  useHistory,
-} from "react-router-dom";
 import { useState, useMemo, useEffect } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
@@ -164,13 +157,12 @@ function Footswitch(props) {
   )
 }
 
-function FootswitchesSelect(props) {
+export default function Footswitches(props) {
   const { footswitches, setFootswitches } = props
   const classes = useStyles();
-  const { programId, footswitchId } = useParams()
-  const history = useHistory();
   const [footswitchNames, setFootswitchNames] = useState(createNames(footswitches))
   const [editFS, setEditFS] = useState(false);
+  const [footswitchId, setFootswitchId] = useState(0);
 
   useEffect(() => setFootswitchNames(createNames(footswitches)), [footswitches])
 
@@ -216,7 +208,7 @@ function FootswitchesSelect(props) {
 
   const handleChange = (event) => {
     const index = event.target.value;
-    history.push(`/programs/${programId}/${index}`)
+    setFootswitchId(index);
   };
 
   return (
@@ -261,17 +253,4 @@ function FootswitchesSelect(props) {
       <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
     </Grid>
   )
-}
-
-export default function Footswitches(props) {
-  const { footswitches, setFootswitches } = props;
-  const { path } = useRouteMatch();
-
-  return (
-    <RouteSwitch>
-      <Route path={`${path}/:footswitchId`}>
-        <FootswitchesSelect footswitches={footswitches} setFootswitches={setFootswitches} />
-      </Route>
-    </RouteSwitch>
-  );
 }

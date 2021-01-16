@@ -21,13 +21,10 @@ import {
 } from '@material-ui/core';
 
 import {
-  Switch,
-  Route,
-  Redirect,
   Prompt,
   useRouteMatch,
-  useParams,
   useHistory,
+  useLocation,
 } from "react-router-dom";
 
 const MAX_NAME_LENGTH = 30;
@@ -61,6 +58,10 @@ function compareObjects(a, b) {
   return true;
 }
 
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
 function ProgramDialog(props) {
   const { id, program, setProgram, onClose, open } = props
   const classes = useStyles();
@@ -68,7 +69,7 @@ function ProgramDialog(props) {
     name: '',
     actions: [],
     fs: [],
-  }), [id])
+  }), [])
   const [state, setState] = useState({ ...defaultProgram, ...program })
   useEffect(() => setState({ ...defaultProgram, ...program }), [program, defaultProgram])
 
@@ -146,15 +147,15 @@ function Program(props) {
   )
 }
 
-function ProgramSelect(props) {
-  const { path } = props
+export default function Programs() {
   const classes = useStyles();
-  let { programId } = useParams();
+  const programId = useQuery().get("id") || 0;
   const history = useHistory();
   const [programNames, setProgramNames] = useState(null);
   const [editProgram, setEditProgram] = useState(false);
   const [program, setProgramState] = useState(null);
   const [orig, setOrig] = useState(null);
+  const { path } = useRouteMatch();
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -212,18 +213,18 @@ function ProgramSelect(props) {
 
   const handleChange = (event) => {
     const index = event.target.value;
-    if (index == programId) {
+    if (index === programId) {
       return;
     }
 
     if (!program.name || !modified()) {
-      history.push(`${path}/${index}/0`);
+      history.push(`${path}?id=${index}`);
       return;
     }
 
     if (window.confirm(DISCARD_PROMPT)) {
       setProgram(programId, orig);
-      history.push(`${path}/${index}/0`);
+      history.push(`${path}?id=${index}`);
     }
   };
 
@@ -299,7 +300,7 @@ function ProgramSelect(props) {
             variant="contained"
             className={classes.root}
             disabled={!modified()}
-            onClick={() => setProgram(programId, orig)}
+            onClick={() => setProgram(programId, JSON.parse(JSON.stringify(orig)))}
           >
             Discard
           </Button>
@@ -307,17 +308,4 @@ function ProgramSelect(props) {
       }
     </div>
   )
-}
-
-export default function Programs(props) {
-  const { path } = useRouteMatch();
-
-  return (
-    <Switch>
-      <Redirect exact from={path} to={`${path}/0/0`} />
-      <Route path={`${path}/:programId`}>
-        <ProgramSelect path={path} />
-      </Route>
-    </Switch>
-  );
 }
