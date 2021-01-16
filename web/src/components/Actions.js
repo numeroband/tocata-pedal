@@ -31,7 +31,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function actionDescription(action) {
-  return action[scheme[action.type].values[0].field];
+  return scheme[action.type].description(action);
 }
 
 const scheme = {
@@ -44,6 +44,7 @@ const scheme = {
         min: 1,
       },
     ],
+    description: action => `${action.program}`,
   },
   'CC': {
     name: 'Control Change',
@@ -58,6 +59,7 @@ const scheme = {
         field: 'value',
       },
     ],
+    description: action => `${action.control}:${action.value}`,
   },
 }
 

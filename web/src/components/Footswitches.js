@@ -26,6 +26,7 @@ import { useState, useMemo, useEffect } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
 const colors = ['blue', 'purple', 'red', 'yellow', 'green', 'turquoise']
+const MAX_NAME_LENGTH = 5;
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -100,7 +101,7 @@ function FootswitchDialog(props) {
             value={state.name}
             onChange={updateText}
             inputProps={{
-              maxLength: 5,
+              maxLength: MAX_NAME_LENGTH,
             }}
           ></TextField>
           <TextField
@@ -143,20 +144,20 @@ function FootswitchDialog(props) {
 }
 
 function Footswitch(props) {
-  const { id, footswitch, setFootswitch } = props
-
-  return !footswitch ? <div/> : (
+  const { id, footswitch = {}, setFootswitch } = props
+  
+  return !footswitch.name ? <div/> : (
     <Grid
       container
       direction="row"
       alignItems="flex-start"
     >
               <Actions 
-          actions={footswitch ? footswitch.onActions : null} 
+          actions={footswitch.onActions} 
           setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
           title="On MIDI"/>
               <Actions 
-          actions={footswitch ? footswitch.offActions : null} 
+          actions={footswitch.offActions} 
           setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
           title="Off MIDI"/>
     </Grid>
@@ -183,7 +184,13 @@ function FootswitchesSelect(props) {
   }
 
   function setFootswitch(id, newFS) {
-    const footswitch = newFS ? { ...newFS } : null
+    const footswitch = newFS ? { ...newFS } : null;
+    if (footswitch && !footswitches[id]) {
+      // Default MIDI actions
+      footswitch.onActions = [{type: 'CC', control: Number(id) + 32, value: 127}]
+      footswitch.offActions = [{type: 'CC', control: Number(id) + 32, value: 0}]
+    }
+  
     if (footswitch) {
       if (!footswitch.enabled) {
         delete footswitch.enabled

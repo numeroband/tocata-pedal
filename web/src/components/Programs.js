@@ -17,6 +17,7 @@ import {
   DialogActions,
   Grid,
   LinearProgress,
+  Divider,
 } from '@material-ui/core';
 
 import {
@@ -27,6 +28,8 @@ import {
   useParams,
   useHistory,
 } from "react-router-dom";
+
+const MAX_NAME_LENGTH = 30;
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -40,6 +43,22 @@ const useStyles = makeStyles((theme) => ({
 
 const nameEntry = (name, index) => `${Number(index) + 1} - ${name ? name : '<EMPTY>'}`
 
+function compareObjects(a, b) {
+  if (a === b) return true;
+
+  if (typeof a != 'object' || typeof b != 'object' || a == null || b == null) return false;
+
+  const keysA = Object.keys(a), keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (let key of keysA) {
+    if (!keysB.includes(key) || !compareObjects(a[key], b[key])) return false;
+  }
+
+  return true;
+}
+
 function ProgramDialog(props) {
   const { id, program, setProgram, onClose, open } = props
   const classes = useStyles();
@@ -47,7 +66,7 @@ function ProgramDialog(props) {
     name: '',
     actions: [],
     fs: [],
-  }), [])
+  }), [id])
   const [state, setState] = useState({ ...defaultProgram, ...program })
   useEffect(() => setState({ ...defaultProgram, ...program }), [program, defaultProgram])
 
@@ -71,6 +90,9 @@ function ProgramDialog(props) {
           className={classes.root}
           value={state.name}
           onChange={updateText}
+          inputProps={{
+            maxLength: MAX_NAME_LENGTH,
+          }}
         ></TextField>
       </DialogContent>
       <DialogActions>
@@ -78,13 +100,36 @@ function ProgramDialog(props) {
         <Button variant="contained" color="primary" onClick={update} disabled={!state.name}>Update
       </Button>
       </DialogActions>
+    </Dialog>
+  )
+}
 
+function DiscardDialog(props) {
+  const { discard, onClose, open } = props
+
+  return (
+    <Dialog onClose={onClose} aria-labelledby="simple-dialog-title" open={open}>
+      <DialogTitle id="simple-dialog-title">Discard changes?</DialogTitle>
+      {/* <DialogContent>
+        Discard changes?
+      </DialogContent> */}
+      <DialogActions>
+        <Button variant="contained" color="primary" onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="primary" onClick={discard}>Discard
+      </Button>
+      </DialogActions>
     </Dialog>
   )
 }
 
 function Program(props) {
   const { id, program, setProgram } = props
+  
+  if (!program.name) {
+    // Set default MIDI actions for new programs
+    program.actions = [{type: 'PC', program: Number(id) + 1}];
+  }
+
   const defaultProgram = useMemo(() => ({
     name: '',
     actions: [],
@@ -125,6 +170,8 @@ function ProgramSelect(props) {
   const [programNames, setProgramNames] = useState(null);
   const [editProgram, setEditProgram] = useState(false);
   const [program, setProgramState] = useState(null);
+  const [orig, setOrig] = useState(null);
+  const [discard, setDiscard] = useState(null);
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -139,16 +186,16 @@ function ProgramSelect(props) {
   useEffect(() => {
     async function fetchProgram(id) {
       setProgramState(null);
-      setProgramState(await readProgram(id));
+      const prog = await readProgram(id);
+      setProgramState(prog);
+      setOrig(JSON.parse(JSON.stringify(prog)));
     }
 
     fetchProgram(programId);
   }, [programId]);
 
-  const handleChange = (event) => {
-    const index = event.target.value;
-    history.push(`${path}/${index}/0`)
-  };
+  const modified = () => orig && program &&
+    !compareObjects(cleanProgram(orig), cleanProgram(program))
 
   function cleanProgram(program) {
     if (!program) {
@@ -163,10 +210,14 @@ function ProgramSelect(props) {
     return program;
   }
 
-  function setProgram(id, program) {
-    if (program) {
-      updateProgram(id, cleanProgram(program));
-    } else {
+  function setProgram(id, program, save = false) {
+    if (save) {
+      const programClean = cleanProgram(program);
+      setOrig(programClean);
+      updateProgram(id, programClean);
+    }
+
+    if (!program) {
       deleteProgram(id);
     }
 
@@ -175,6 +226,24 @@ function ProgramSelect(props) {
     setProgramNames(names);
     setProgramState(program ? program : {});
   }
+
+  const handleChange = (event) => {
+    const index = event.target.value;
+    if (index == programId) {
+      return;
+    }
+
+    if (!program.name || !modified()) {
+      history.push(`${path}/${index}/0`);
+      return;
+    }
+
+    setDiscard(() => () => {
+      setDiscard(null);
+      setProgram(programId, orig);
+      history.push(`${path}/${index}/0`);
+    });
+  };
 
   if (!programNames) {
     return <LinearProgress />;
@@ -211,13 +280,15 @@ function ProgramSelect(props) {
           size="small"
           color="secondary"
           aria-label="delete"
-          disabled={!program}
+          disabled={!program || !program.name}
           onClick={() => setProgram(programId, null)}
         >
           <DeleteIcon />
         </Fab>
         <ProgramDialog id={programId} program={program} setProgram={setProgram} open={editProgram} onClose={() => setEditProgram(false)} />
+        <DiscardDialog open={discard != null} discard={discard} onClose={() => setDiscard(null)} />
       </div>
+      <Divider/>
       {program ?
         <Program
           id={programId}
@@ -225,6 +296,29 @@ function ProgramSelect(props) {
           setProgram={setProgram}
         /> :
         <LinearProgress />
+      }
+      {program && program.name &&
+        <Grid>
+          <Divider/>
+          <Button
+            color="primary"
+            variant="contained"
+            className={classes.root}
+            disabled={!modified()}
+            onClick={() => setProgram(programId, program, true)}
+          >
+            Save
+          </Button>
+          <Button
+            color="secondary"
+            variant="contained"
+            className={classes.root}
+            disabled={!modified()}
+            onClick={() => setProgram(programId, orig)}
+          >
+            Discard
+          </Button>
+        </Grid>
       }
     </div>
   )
