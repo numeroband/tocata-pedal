@@ -12,7 +12,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function Config(props) {
+export default function Config() {
   const classes = useStyles();
   const [config, setConfig] = useState(null);
   const [updating, setUpdating] = useState(false);

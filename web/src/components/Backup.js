@@ -14,7 +14,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function Backup(props) {
+export default function Backup() {
   const classes = useStyles();
   const [progress, setProgress] = useState(-1);
 

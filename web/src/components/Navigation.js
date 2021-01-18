@@ -82,7 +82,7 @@ ListItemLink.propTypes = {
 };
 
 function Navigation(props) {
-  const { window, navigation, config } = props
+  const { window, navigation } = props
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -165,7 +165,7 @@ function Navigation(props) {
           <Switch>
             {navigation.map(({ path, content }, index) => (
               <Route path={path} key={index}>
-                {content(config)}
+                {React.createElement(content, {})}
               </Route>
             ))}
             <Redirect to="/programs"/>

@@ -19,6 +19,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "install": "react-scripts build ; npx gulp",
+    "sim": "node sim/index.mjs",
+    "tocata-sim": "react-scripts build ; rm -Rf tocata-sim ; mkdir tocata-sim ; cp sim-package.json tocata-sim/package.json ; cp -r tocata-sim.bat sim tocata-sim/ ; cp -r build tocata-sim/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -45,6 +47,8 @@
     "gulp-gzip": "^1.4.2",
     "gulp-inline-source": "^4.0.0",
     "gulp-replace": "^1.0.0",
+    "midi": "^1.0.0",
+    "terminal-kit": "^1.45.4",
     "ws": "^7.4.2"
   }
 }

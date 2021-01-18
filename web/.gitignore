@@ -10,6 +10,7 @@
 
 # production
 /build
+/tocata-sim
 
 # misc
 .DS_Store
