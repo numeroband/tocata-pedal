@@ -1,8 +1,11 @@
 #include "config.h"
 
+#ifdef TOCATA_USE_SPIFFS
 #include <SPIFFS.h>
-
 #define TocataFS SPIFFS
+#else
+#include "filesystem.h"
+#endif // TOCATA_USE_SPIFFS
 
 namespace tocata {
 
