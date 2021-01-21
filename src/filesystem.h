@@ -54,14 +54,13 @@ public:
         uint8_t _flags;
     };
 
-    FS(size_t file_size = 512, size_t block_size = 64 * 1024) : 
-        _block(this, file_size, block_size) {}
+    FS() : _block(this) {}
     bool begin(bool formatOnFail = false);
     File open(const char* path, const char* mode = FILE_READ);
     void remove(const char* path);
     bool exists(const char* path) { return open(path, FILE_READ); }
     size_t usedBytes() const { return _used_bytes; }
-    size_t totalBytes() const { return (_num_blocks - 1) * _block.totalBytes(); }
+    size_t totalBytes() const { return (_block.numBlocks() - 1) * _block.totalBytes(); }
     
 protected:
     size_t read(File& file, void* dst, size_t size);
@@ -72,9 +71,17 @@ private:
     {
     public:
         static constexpr uint8_t kInvalidId = 0xFF;
+        static constexpr size_t kFileSize = 512;
+        static constexpr size_t kBlockSize = 64 * 1024;
+        static constexpr size_t kMaxBlocks = 10;
+        static constexpr size_t kFilesPerBlock = (kBlockSize / kFileSize) - 1;
 
-        Block(FS* fs, size_t file_size, size_t block_size);
-        void begin(const esp_partition_t* partition) { _partition = partition; }
+        Block(FS* fs) : _fs(fs) {}
+        void begin(const esp_partition_t* partition) {
+            _partition = partition; 
+            _desc.header.num_blocks = partition->size / kBlockSize;
+        }
+        void init(uint8_t id);
         void load(uint8_t id);
         void erase() { erase(_id); }
         void erase(uint8_t id);
@@ -84,17 +91,20 @@ private:
         void compactInto(uint8_t block_id);
         size_t read(File& file, void* dst, size_t size);
         size_t write(File& file, const void* src, size_t size);
-        size_t size() const { return _block_size; }
-        bool isValid() const { return _desc->header.magic == Descriptor::kMagic; }
-        bool isEmpty() const { return _desc->flags[0] == File::kFree; }
+        static constexpr size_t size() { return kBlockSize; }
+        uint8_t numBlocks() const { return _desc.header.num_blocks; }
+        bool isEmpty() const { return _desc.flags[0] == File::kFree; }
         bool hasSpace(uint8_t block_id) const;
-        bool hasSpace() const { return _desc->flags[filesPerBlock() - 1] == File::kFree; }
-        size_t bytesPerFile() const { return _file_size - 1; }
+        bool hasSpace() const { return _desc.flags[kFilesPerBlock - 1] == File::kFree; }
+        static constexpr size_t bytesPerFile() { return kFileSize - 1; }
         size_t usedBytes() const;
-        size_t totalBytes() const { return filesPerBlock() * bytesPerFile(); }
+        size_t totalBytes() const { return kFilesPerBlock * bytesPerFile(); }
         uint8_t id() const { return _id; }
-        uint8_t cycles() const { return _desc->header.cycles; }
+        uint8_t cycles() const { return cycles(_id); }
+        uint8_t cycles(uint8_t id) const { return _desc.header.cycles[id]; }
         bool canReuse() const;
+        bool updateCycles(uint8_t id);
+        void printCycles();
 
     private:
         struct Descriptor
@@ -103,34 +113,37 @@ private:
             struct Header
             {
                 uint32_t magic;
-                uint32_t cycles;
+                uint32_t cycles[Block::kMaxBlocks];
+                uint8_t num_blocks;
+                bool isValid() { return magic == kMagic; }
             };
             Header header;
-            uint8_t flags[];
+            uint8_t flags[Block::kFilesPerBlock];
         };
 
+        static size_t offset(uint8_t id) { return id * kBlockSize; }
+        static constexpr size_t descSize() { return sizeof(Descriptor); }
+        static size_t fileOffset(uint8_t id, uint8_t index) { return offset(id) + (kFileSize * (index + 1)); }
+        static size_t fileContentOffset(uint8_t id, uint8_t index) { return fileOffset(id, index) + sizeof(uint8_t); }
+        static size_t indexOffset(uint8_t id, uint8_t index) { return offset(id) + offsetof(Descriptor, flags) + index; }
+
         void updateFlags(uint8_t index, uint8_t flag);
-        size_t filesPerBlock() const { return (_block_size / _file_size) - 1; }
-        size_t offset() const { return _id * _block_size; }
-        size_t descSize() const { return sizeof(Descriptor) + filesPerBlock(); }
-        size_t fileOffset(uint8_t index) { return offset() + (_file_size * (index + 1)); }
-        size_t fileContentOffset(uint8_t index) { return fileOffset(index) + sizeof(uint8_t); }
-        size_t indexOffset(uint8_t index) { return offset() + sizeof(_desc->header) + index; }
+        size_t offset() const { return offset(_id); }
+        size_t fileOffset(uint8_t index) const { return fileOffset(_id, index); }
+        size_t fileContentOffset(uint8_t index) const { return fileContentOffset(_id, index); }
+        size_t indexOffset(uint8_t index) const { return indexOffset(_id, index); }
 
         FS* _fs;
-        size_t _file_size;
-        size_t _block_size;
-        Descriptor* _desc;
-        uint8_t _id = 0xFF;
-        const esp_partition_t* _partition;
+        Descriptor _desc = {.header = {.magic = Descriptor::kMagic}};
+        size_t _total_cycles = 0;
+        uint8_t _id = kInvalidId;
+        const esp_partition_t* _partition = nullptr;
     };
 
     File create(uint8_t file_id);
 
     Block _block;
     size_t _used_bytes;
-    size_t _num_blocks;
-    size_t _empty_blocks;
     uint8_t _extra_block_id;
 };
 
