@@ -2,13 +2,15 @@
 
 #include <SPIFFS.h>
 
+#define TocataFS SPIFFS
+
 namespace tocata {
 
 void Storage::begin()
 {
     auto start = millis();
 
-    SPIFFS.begin(true);
+    TocataFS.begin(true);
 
     if (Config::init())
     {
@@ -19,9 +21,9 @@ void Storage::begin()
     Serial.print(F("Storage init in ms: "));
     Serial.println(end - start);
     Serial.print(F("Usage: "));
-    Serial.print(SPIFFS.usedBytes());
+    Serial.print(TocataFS.usedBytes());
     Serial.print('/');
-    Serial.println(SPIFFS.totalBytes());
+    Serial.println(TocataFS.totalBytes());
     Serial.print(F("Config size: "));
     Serial.print(sizeof(Config));
     Serial.print(F(", Program size: "));
@@ -36,7 +38,7 @@ void Storage::begin()
 
 bool Config::init()
 {
-    if (SPIFFS.exists(kPath))
+    if (TocataFS.exists(kPath))
     {
         return false;
     }
@@ -58,31 +60,33 @@ void Config::remove(bool check)
         }
     }
 
-    static const uint8_t zeros[sizeof(Config)] = {};
-
-    File file = SPIFFS.open(kPath, FILE_WRITE);
+    auto file = TocataFS.open(kPath, FILE_WRITE);
     if (!file)
     {
         Serial.println(F("Cannot open config file to init"));
         return;
     }
-
-    size_t written = file.write(zeros, sizeof(zeros));
     file.close();
-
-    if (written != sizeof(zeros))
-    {
-        Serial.println(F("Cannot write config to init"));
-    }
 }
 
 bool Config::load()
 {    
     _available = false;
 
-    File file = SPIFFS.open(kPath, FILE_READ);
+    auto file = TocataFS.open(kPath, FILE_READ);
+    if (!file)
+    {
+        Serial.println(F("Cannot open config file to load"));
+        return false;
+    }
     size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
     file.close();
+
+    if (bytes_read == 0)
+    {
+        return false;
+    }
+
     if (bytes_read != sizeof(*this))
     {
         Serial.println(F("Invalid config file"));
@@ -133,7 +137,7 @@ void Config::save() const
         return;
     }
 
-    File file = SPIFFS.open(kPath, FILE_WRITE);
+    auto file = TocataFS.open(kPath, FILE_WRITE);
     if (!file)
     {
         Serial.println(F("Cannot open config file to write"));
@@ -146,7 +150,7 @@ void Config::save() const
     if (written != sizeof(*this))
     {
         Serial.println(F("Cannot write config to file"));
-        SPIFFS.remove(kPath);
+        TocataFS.remove(kPath);
     }
 }
 
@@ -351,9 +355,20 @@ uint8_t Program::copyName(uint8_t id, char* name)
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    File file = SPIFFS.open(path, FILE_READ);
+    auto file = TocataFS.open(path, FILE_READ);
+    if (!file)
+    {
+        Serial.println(F("Cannot open to copy name"));
+        return 0;
+    }
     size_t bytes_read = file.read((uint8_t*)name, kMaxNameLength);
     file.close();
+
+    if (bytes_read == 0)
+    {
+        return 0;
+    }
+
     if (bytes_read != kMaxNameLength)
     {
         Serial.println(F("Invalid program file"));
@@ -382,23 +397,16 @@ void Program::remove(uint8_t id, bool check)
     }
 
     char path[kMaxPathSize];
-    static const uint8_t zeros[sizeof(Program)] = {};
     copyPath(id, path);
 
-    File file = SPIFFS.open(path, FILE_WRITE);
+    auto file = TocataFS.open(path, FILE_WRITE);
     if (!file)
     {
-        Serial.println(F("Cannot open program file to init"));
+        Serial.print(F("Cannot open program file to init"));
+        Serial.println(path);
         return;
     }
-
-    size_t written = file.write(zeros, sizeof(zeros));
     file.close();
-
-    if (written != sizeof(zeros))
-    {
-        Serial.println(F("Cannot write program to init"));
-    }
 }
 
 bool Program::load(uint8_t id)
@@ -409,7 +417,7 @@ bool Program::load(uint8_t id)
         _id = id;
 
         Serial.print(F("Invalid program to load "));
-        Serial.println(_id);
+        Serial.println(id);
 
         return false;
     }
@@ -417,15 +425,26 @@ bool Program::load(uint8_t id)
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    File file = SPIFFS.open(path, FILE_READ);
+    auto file = TocataFS.open(path, FILE_READ);
+    if (!file)
+    {
+        Serial.print(F("Cannot open program to load "));
+        Serial.println(path);
+    }
     size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
     file.close();
 
     _id = id;
 
+    if (bytes_read == 0)
+    {
+        return false;
+    }
+
     if (bytes_read != sizeof(*this))
     {
-        Serial.println(F("Invalid program file"));
+        Serial.print(F("Invalid program file "));
+        Serial.println(path);
         _available = false;
         return false;
     }
@@ -532,10 +551,11 @@ void Program::save() const
 
     char path[kMaxPathSize];
     copyPath(_id, path);
-    File file = SPIFFS.open(path, FILE_WRITE);
+    auto file = TocataFS.open(path, FILE_WRITE);
     if (!file)
     {
-        Serial.println(F("Cannot open program file to write"));
+        Serial.print(F("Cannot open program file to write "));
+        Serial.println(path);
         return;
     }
 
@@ -544,7 +564,8 @@ void Program::save() const
 
     if (written != sizeof(*this))
     {
-        Serial.println(F("Cannot write program to file"));
+        Serial.print(F("Cannot write program to file "));
+        Serial.println(path);
     }
 }
 

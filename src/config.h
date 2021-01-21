@@ -54,7 +54,7 @@ protected:
     static bool init();
 
 private:
-    static constexpr const char* kPath = "/config";
+    static constexpr const char* kPath = "/00";
 
     static void remove(bool check);
 
@@ -178,8 +178,8 @@ private:
     static void copyPath(uint8_t id, char* path) 
     { 
         path[0] = '/';
-        path[1] = '0' + (id / 10);
-        path[2] = '0' + (id % 10);
+        path[1] = '0' + ((id + 1) / 10);
+        path[2] = '0' + ((id + 1) % 10);
         path[3] = '\0';
     }
 
