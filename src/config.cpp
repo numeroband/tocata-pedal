@@ -1,6 +1,8 @@
 #include "config.h"
 
-#ifdef TOCATA_USE_SPIFFS
+#define TOCATA_USE_SPIFFS 0
+
+#if TOCATA_USE_SPIFFS
 #include <SPIFFS.h>
 #define TocataFS SPIFFS
 #else
@@ -63,7 +65,7 @@ void Config::remove(bool check)
         }
     }
 
-    auto file = TocataFS.open(kPath, FILE_WRITE);
+    File file = TocataFS.open(kPath, FILE_WRITE);
     if (!file)
     {
         Serial.println(F("Cannot open config file to init"));
@@ -76,7 +78,7 @@ bool Config::load()
 {    
     _available = false;
 
-    auto file = TocataFS.open(kPath, FILE_READ);
+    File file = TocataFS.open(kPath, FILE_READ);
     if (!file)
     {
         Serial.println(F("Cannot open config file to load"));
@@ -140,7 +142,7 @@ void Config::save() const
         return;
     }
 
-    auto file = TocataFS.open(kPath, FILE_WRITE);
+    File file = TocataFS.open(kPath, FILE_WRITE);
     if (!file)
     {
         Serial.println(F("Cannot open config file to write"));
@@ -358,7 +360,7 @@ uint8_t Program::copyName(uint8_t id, char* name)
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    auto file = TocataFS.open(path, FILE_READ);
+    File file = TocataFS.open(path, FILE_READ);
     if (!file)
     {
         Serial.println(F("Cannot open to copy name"));
@@ -402,7 +404,7 @@ void Program::remove(uint8_t id, bool check)
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    auto file = TocataFS.open(path, FILE_WRITE);
+    File file = TocataFS.open(path, FILE_WRITE);
     if (!file)
     {
         Serial.print(F("Cannot open program file to init"));
@@ -428,11 +430,12 @@ bool Program::load(uint8_t id)
     char path[kMaxPathSize];
     copyPath(id, path);
 
-    auto file = TocataFS.open(path, FILE_READ);
+    File file = TocataFS.open(path, FILE_READ);
     if (!file)
     {
         Serial.print(F("Cannot open program to load "));
         Serial.println(path);
+        return false;
     }
     size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
     file.close();
@@ -554,7 +557,7 @@ void Program::save() const
 
     char path[kMaxPathSize];
     copyPath(_id, path);
-    auto file = TocataFS.open(path, FILE_WRITE);
+    File file = TocataFS.open(path, FILE_WRITE);
     if (!file)
     {
         Serial.print(F("Cannot open program file to write "));

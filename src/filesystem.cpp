@@ -5,28 +5,26 @@ namespace tocata {
 
 FS TocataFS{};
 
+size_t File::read(void* dst, size_t size) 
+{ 
+    return _fs ? _fs->read(*this, dst, size) : 0; 
+}
+
+size_t File::write(const void* src, size_t size) { 
+    return _fs ? _fs->write(*this, src, size) : 0; 
+}
+
 bool FS::begin(bool formatOnFail)
 {
     auto partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, nullptr);
     assert(partition);
 
-    _block.begin(partition);
+    if (!_block.begin(partition, formatOnFail))
+    {
+        return false;
+    }
+
     _used_bytes = 0;
-
-    for (uint8_t i = 0; i < _block.numBlocks(); ++i)
-    {
-        if (!_block.updateCycles(i) && !formatOnFail)
-        {
-            return false;
-        }
-    }
-
-    for (uint8_t i = 0; i < _block.numBlocks(); ++i)
-    {
-        _block.init(i);
-    }
-
-    _block.printCycles();
 
     uint32_t extra_block_cycles = UINT32_MAX;
     // Read backwards to finish with block 0
@@ -57,7 +55,7 @@ bool FS::begin(bool formatOnFail)
     return true;
 }
 
-FS::File FS::open(const char* path, const char* mode)
+File FS::open(const char* path, const char* mode)
 {
     bool write = (mode[0] == 'w');
     uint8_t file_id = (path[1] - '0') * 10 + (path[2] - '0');
@@ -106,7 +104,7 @@ FS::File FS::open(const char* path, const char* mode)
     return file;
 }
 
-FS::File FS::create(uint8_t file_id)
+File FS::create(uint8_t file_id)
 {
     uint32_t min_cycles = UINT32_MAX;
     uint8_t available_block = Block::kInvalidId;
@@ -172,6 +170,7 @@ void FS::remove(const char* path)
 
     _block.load(file.blockId());
     _block.invalidateFile(file);
+    _used_bytes -= _block.bytesPerFile();
 }
 
 size_t FS::read(File& file, void* dst, size_t size)
@@ -186,20 +185,35 @@ size_t FS::write(File& file, const void* src, size_t size)
     return _block.write(file, src, size);
 }
 
-void FS::Block::init(uint8_t id)
+bool FS::Block::begin(const esp_partition_t* partition, bool formatOnFail)
 {
-    Descriptor::Header header;
-    auto ret = esp_partition_read(_partition, offset(id), &header.magic, sizeof(header.magic));
-    assert(ret == ESP_OK);
+    _partition = partition;
 
-    if (!header.isValid())
+    Descriptor::Header header;
+    for (uint8_t id = 0; id < numBlocks(); ++id)
     {
-        Serial.print("Initializing block ");
-        Serial.print(id);
-        Serial.print(" with header ");
-        Serial.println(header.magic);
-        erase(id);
+        auto ret = esp_partition_read(_partition, offset(id), &header, sizeof(header));
+        assert(ret == ESP_OK);
+
+        if (header.isValid())
+        {
+            _cycles[id] = header.cycles;
+            Serial.print("Found block ");
+            Serial.print(id);
+            Serial.print(" cycles ");
+            Serial.println(cycles(id));
+        }
+        else
+        {
+            if (!formatOnFail)
+            {
+                return false;
+            }
+            erase(id);
+        }
     }
+
+    return true;
 }
 
 void FS::Block::load(uint8_t id)
@@ -207,7 +221,7 @@ void FS::Block::load(uint8_t id)
     if (_id != id)
     {
         _id = id;
-        auto ret = esp_partition_read(_partition, indexOffset(0), &_desc.flags, sizeof(_desc.flags));
+        auto ret = esp_partition_read(_partition, indexOffset(0), &_cached_flags, sizeof(_cached_flags));
         assert(ret == ESP_OK);
     }
 }
@@ -215,15 +229,15 @@ void FS::Block::load(uint8_t id)
 void FS::Block::erase(uint8_t id)
 {
     _id = id;
-    ++_desc.header.cycles[_id];
-    ++_total_cycles;
+    Descriptor::Header header;
+    header.cycles = ++_cycles[id];
 
     auto ret = esp_partition_erase_range(_partition, offset(), size());
     assert(ret == ESP_OK);
-    ret = esp_partition_write(_partition, offset(), &_desc.header, sizeof(_desc.header));
+    ret = esp_partition_write(_partition, offset(), &header, sizeof(header));
     assert(ret == ESP_OK);
 
-    memset(_desc.flags, 0xFF, kFilesPerBlock);
+    memset(_cached_flags, 0xFF, kFilesPerBlock);
 
     Serial.print("Erased block ");
     Serial.print(_id);
@@ -231,11 +245,11 @@ void FS::Block::erase(uint8_t id)
     Serial.println(cycles());
 }
 
-FS::File FS::Block::open(uint8_t file_id)
+File FS::Block::open(uint8_t file_id)
 {
     for (uint8_t i = 0; i < kFilesPerBlock; ++i)
     {
-        uint8_t flags = _desc.flags[i];
+        uint8_t flags = _cached_flags[i];
         if (File::isFree(flags))
         {
             break;
@@ -249,11 +263,11 @@ FS::File FS::Block::open(uint8_t file_id)
     return {};
 }
 
-FS::File FS::Block::createFile(uint8_t file_id)
+File FS::Block::createFile(uint8_t file_id)
 {
     for (uint8_t i = 0; i < kFilesPerBlock; ++i)
     {
-        uint8_t flags = _desc.flags[i];
+        uint8_t flags = _cached_flags[i];
         if (File::isFree(flags))
         {
             flags = File::emptyFlags(file_id);
@@ -261,10 +275,14 @@ FS::File FS::Block::createFile(uint8_t file_id)
             return {_fs, _id, i, flags};
         }
     }
+    Serial.print("Cannot create file ");
+    Serial.print(file_id);
+    Serial.print(" in block ");
+    Serial.println(_id);
     return {};
 }
 
-void FS::Block::invalidateFile(FS::File& file) 
+void FS::Block::invalidateFile(File& file) 
 {
     file.invalidate();
     updateFlags(file.index(), file.flags()); 
@@ -272,7 +290,7 @@ void FS::Block::invalidateFile(FS::File& file)
 
 void FS::Block::updateFlags(uint8_t index, uint8_t flags)
 {
-    _desc.flags[index] = flags;
+    _cached_flags[index] = flags;
     auto ret = esp_partition_write(_partition, indexOffset(index), &flags, sizeof(flags));
     assert(ret == ESP_OK); 
     ret = esp_partition_write(_partition, fileOffset(index), &flags, sizeof(flags));
@@ -289,7 +307,7 @@ void FS::Block::compactInto(uint8_t dst_block_id)
     uint8_t file_content[kFileSize];
     for (uint8_t i = 0; i < kFilesPerBlock; ++i)
     {
-        uint8_t flags = _desc.flags[i];
+        uint8_t flags = _cached_flags[i];
         if (File::isAvailable(flags))
         {
             continue;
@@ -308,7 +326,7 @@ void FS::Block::compactInto(uint8_t dst_block_id)
     }
 }   
 
-size_t FS::Block::read(FS::File& file, void* dst, size_t size)
+size_t FS::Block::read(File& file, void* dst, size_t size)
 {
     if (size > bytesPerFile())
     {
@@ -328,7 +346,7 @@ size_t FS::Block::read(FS::File& file, void* dst, size_t size)
     return size;
 }
 
-size_t FS::Block::write(FS::File& file, const void* src, size_t size)
+size_t FS::Block::write(File& file, const void* src, size_t size)
 {
     if (size > bytesPerFile())
     {
@@ -349,14 +367,12 @@ size_t FS::Block::write(FS::File& file, const void* src, size_t size)
 
 bool FS::Block::hasSpace(uint8_t block_id) const
 {
-    size_t block_offset = block_id * kBlockSize;
-    size_t flags_offset = block_offset + offsetof(Descriptor, flags);
-    size_t last_flags_offset = flags_offset + (kFilesPerBlock - 1);
+    size_t last_flags_offset = indexOffset(block_id, kFilesPerBlock - 1);
     uint8_t flags;
     auto ret = esp_partition_read(_partition, last_flags_offset, &flags, sizeof(flags));
     assert(ret == ESP_OK);
 
-    return File::isEmpty(flags);    
+    return File::isFree(flags);
 }
 
 size_t FS::Block::usedBytes() const
@@ -364,7 +380,7 @@ size_t FS::Block::usedBytes() const
     uint8_t files_used = 0;
     for (uint8_t i = 0; i < kFilesPerBlock; ++i)
     {
-        uint8_t flags = _desc.flags[i];
+        uint8_t flags = _cached_flags[i];
         if (File::isFree(flags))
         {
             break;
@@ -384,70 +400,12 @@ bool FS::Block::canReuse() const
 {
     for (uint8_t i = 0; i < kFilesPerBlock; ++i)
     {
-        if (File::isAvailable(_desc.flags[i]))
+        if (File::isAvailable(_cached_flags[i]))
         {
             return true;
         }
     }
     return false;
-}
-
-bool FS::Block::updateCycles(uint8_t id)
-{
-    Descriptor::Header header;
-    auto ret = esp_partition_read(_partition, offset(id), &header, sizeof(header));
-    assert(ret == ESP_OK);
-
-    if (!header.isValid())
-    {
-        Serial.print("Invalid block ");
-        Serial.print(id);
-        Serial.print(" with header ");
-        Serial.println(header.magic);
-        return false;
-    }
-
-    if (header.num_blocks != _desc.header.num_blocks)
-    {
-        Serial.print("Invalidating block ");
-        Serial.print(id);
-        Serial.print(" with num blocks ");
-        Serial.print(header.num_blocks);
-        Serial.print(" instead of ");
-        Serial.println(_desc.header.num_blocks);
-        header.magic = 0;
-        auto ret = esp_partition_write(_partition, offset(id), &header.magic, sizeof(header.magic));
-        assert(ret == ESP_OK);
-        return false;
-    }
-
-    size_t total_cycles = 0;
-    for (uint8_t i = 0; i < _desc.header.num_blocks; ++i)
-    {
-        size_t cycles = header.cycles[i];
-        total_cycles += cycles;
-    }
-
-    if (total_cycles > _total_cycles)
-    {
-        _desc.header = header;
-        _total_cycles = total_cycles;
-    }
-
-    return true;
-}
-
-void FS::Block::printCycles()
-{
-    for (uint8_t i = 0; i < _desc.header.num_blocks; ++i)
-    {
-        Serial.print("Block: ");
-        Serial.print(i);
-        Serial.print(" cycles: ");
-        Serial.println(cycles(i));
-    }
-    Serial.print("Total cycles: ");
-    Serial.println(_total_cycles);
 }
 
 }
