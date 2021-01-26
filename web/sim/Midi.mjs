@@ -57,6 +57,10 @@ export default class Midi {
         this.output.sendMessage([0xB0, control, value]);
     }
 
+    sendSysEx(msg) {
+        this.output.sendMessage([0xF0, ...msg, 0xF7])
+    }
+    
     close() {
         this.output.closePort();
     }

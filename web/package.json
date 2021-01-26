@@ -1,5 +1,6 @@
 {
   "name": "tocata-pedal",
+  "homepage": "http://numeroband.github.io/tocata-pedal",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -16,6 +17,8 @@
     "web-vitals": "^0.2.4"
   },
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "install": "react-scripts build ; npx gulp",
@@ -43,6 +46,7 @@
     ]
   },
   "devDependencies": {
+    "gh-pages": "^3.1.0",
     "gulp": "^4.0.2",
     "gulp-gzip": "^1.4.2",
     "gulp-inline-source": "^4.0.0",
