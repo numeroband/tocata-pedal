@@ -22,17 +22,53 @@ const NUM_PROGRAMS = 99;
 export default class Api {
   constructor() {
     this.protocol = null;
-    this.buf = new Uint8Array(512);
+    this.requestQueue = [];
   }
 
-  async sendRequest(command, buffer) {
-    if (!this.protocol) {
-      this.protocol = new Protocol();
-      await this.protocol.connect();
+  get connected() {
+    return this.protocol != null;
+  }
+
+  async connect(usb, reconnect, ondisconnect) {
+    const protocol = new Protocol(usb);
+    await protocol.connect(reconnect, () => {
+      this.protocol = null;
+      ondisconnect && ondisconnect();
+    });
+    this.protocol = protocol;
+  }
+
+  sendRequest(command, buffer) {
+    if (!this.connected) {
+      throw 'Not connected';
+    }
+    const request = {command, data: new Uint8Array(buffer)};
+    const promise = new Promise((resolve, reject) => {
+      request.resolve = resolve;
+      request.reject = reject;
+    });
+    this.requestQueue.push(request);
+
+    const nextRequest = async () => {      
+      if (this.requestQueue.length == 0) {
+        return;
+      }
+      const req = this.requestQueue[0];
+      try {
+        const {data} = await this.protocol.sendRequest(req.command, req.data);
+        req.resolve(data.buffer);  
+      } catch(e) {
+        req.reject(e);
+      }
+      this.requestQueue.shift();
+      nextRequest();
     }
 
-    const {data} = await this.protocol.sendRequest(command, new Uint8Array(buffer));
-    return data.buffer;
+    if (this.requestQueue.length == 1) {
+      nextRequest();
+    }
+
+    return promise;
   }
 
   async getConfig() {
@@ -43,7 +79,7 @@ export default class Api {
 
   async setConfig(config) {
     console.log('setConfig');
-    const data = serializeConfig(this.buf.buffer, config);
+    const data = serializeConfig(config);
     await this.sendRequest(SET_CONFIG, data);
   }
 
@@ -72,7 +108,7 @@ export default class Api {
 
   async setProgram(id, program) {
     console.log('setprogram', id);
-    const data = serializeProgram(this.buf.buffer, {id, program});
+    const data = serializeProgram({id, program});
     await this.sendRequest(SET_PROGRAM, data);
   }
 

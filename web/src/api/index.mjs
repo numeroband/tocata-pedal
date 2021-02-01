@@ -1,3 +1,4 @@
+import WebUSB from "webusb";
 import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
@@ -8,6 +9,7 @@ async function main() {
   const start = process.uptime();
 
   try {
+    await api.connect(WebUSB.usb);
     switch(command) {
       case 'get-config':
       {

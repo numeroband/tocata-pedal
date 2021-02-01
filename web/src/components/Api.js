@@ -1,68 +1,43 @@
-const MAX_NAME_LENGTH = 30;
-const EMPTY_NAME = ' '.repeat(MAX_NAME_LENGTH);
+import Api from '../api/Api.mjs';
+
 const NUM_PROGRAMS = 99;
 
+const api = new Api();
+
+export const isSupported = () => "usb" in navigator;
+export const isConnected = () => api.connected;
+export const connect = (reconnect, ondisconnect) => api.connect(navigator.usb, reconnect, ondisconnect);
+
 export async function readConfig() {
-  console.log('readConfig');
-  const response = await fetch('/api/config');
-  return await response.json();
+  return api.getConfig();
 }
 
 export async function updateConfig(config) {
-  console.log('updateConfig', config);
-  await fetch('/api/config', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(config),
-  })
+  return api.setConfig(config);
 }
 
 export async function deleteConfig() {
-  console.log('deleteConfig');
-  await fetch('/api/config', {
-    method: 'DELETE'
-  })
+  return api.deleteConfig();
 }
 
 export async function readProgramNames() {
-  console.log('readProgramNames');
-  const response = await fetch('/api/programs');
-  const namesStr = await response.text();
-  const namesList = namesStr.match(/.{1,30}/g);
-  return namesList.map(name => name === EMPTY_NAME ? null : name);
+  return api.getProgramNames();
 }
 
 export async function readProgram(id) {
-  console.log('readProgram', id);
-  const response = await fetch(`/api/programs?id=${id}`);
-  return await response.json();
+  return api.getProgram(id);
 }
 
 export async function updateProgram(id, program) {
-  console.log('updateProgram', id, program);
-  await fetch(`/api/programs?id=${id}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(program),
-  })
+  return api.setProgram(id, program);
 }
 
 export async function deleteProgram(id) {
-  console.log('deleteProgram', id);
-  await fetch(`/api/programs?id=${id}`, {
-    method: 'DELETE'
-  })
+  return api.deleteProgram(id);
 }
 
 async function sendRestart() {
-  console.log('restart');
-  await fetch('/api/restart', {
-    method: 'POST'
-  })
+  return api.restart();
 }
 
 export async function readAll(progress) {

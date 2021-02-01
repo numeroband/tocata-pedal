@@ -112,7 +112,7 @@ function Program(props) {
   
   if (!program.name) {
     // Set default MIDI actions for new programs
-    program.actions = [{type: 'PC', program: Number(id) + 1}];
+    program.actions = [{type: 'PC', values: [Number(id) + 1]}];
   }
 
   const defaultProgram = useMemo(() => ({

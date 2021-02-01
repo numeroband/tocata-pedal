@@ -1,13 +1,37 @@
-import WebUSB from "webusb";
-const usb = WebUSB.usb;
-
 const EP_SIZE = 64
+const VENDOR_ID = 0xcafe;
 
 class Usb {
-  async connect() {
-    console.log('Connecting...');
-    const filters = [{ vendorId: 0xcafe }];
-    this.device_ = await usb.requestDevice({ 'filters': filters });
+  constructor(usb) {
+    this.usb = usb;
+  }
+
+  async connect(ondisconnect) {
+    try {
+      await this.reconnect(ondisconnect);
+    } catch (error) {
+      console.log('Connecting...');
+      const filters = [{ vendorId: VENDOR_ID }];
+      const device = await this.usb.requestDevice({ 'filters': filters })
+      if (!device) {
+        throw 'No device selected';
+      }
+      await this.connectDevice(device, ondisconnect);  
+    }
+  }
+
+  async reconnect(ondisconnect) {
+    console.log('Reconnecting...');
+    const devices = await this.usb.getDevices();
+    const device = devices.find(dev => { console.log('checking', dev); return dev.vendorId == VENDOR_ID});
+    if (!device) {
+      throw 'No cached devices found';
+    }
+    await this.connectDevice(device, ondisconnect);
+  }
+
+  async connectDevice(device, ondisconnect) {
+    this.device_ = device;
     await this.device_.open();
     if (this.device_.configuration === null) {
       await this.device_.selectConfiguration(1);
@@ -30,6 +54,7 @@ class Usb {
     })
 
     if (!this.endpointIn || !this.endpointOut) {
+      console.log('no usb devie')
       throw 'Cannot find USB device';
     }
 
@@ -42,6 +67,11 @@ class Usb {
       'index': this.interfaceNumber
     });
 
+    this.usb.ondisconnect = event => {
+      console.log(event);
+      this.device_ = null;
+      ondisconnect && ondisconnect();
+    };
     console.log('Connected');
   }
 
@@ -76,16 +106,16 @@ const STATUS_OFFSET = 3;
 const MSG_HEADER_SIZE = 4;
 
 export default class Protocol {
-  constructor() {
-    this.usb = new Usb(data => this.onReceive(data));
+  constructor(usb) {
+    this.usb = new Usb(usb);
   }
 
-  connect() {
+  connect(reconnect, ondisconnect) {
     this.buffer = new Uint8Array();
     this.responseResolve = null;
-    return this.usb.connect();
+    return reconnect ? this.usb.reconnect(ondisconnect) : this.usb.connect(ondisconnect);
   }
-  
+
   async receive() {
     let totalLength = Infinity;
     let msg;

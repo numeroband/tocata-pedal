@@ -179,8 +179,8 @@ export default function Footswitches(props) {
     const footswitch = newFS ? { ...newFS } : null;
     if (footswitch && !footswitches[id]) {
       // Default MIDI actions
-      footswitch.onActions = [{type: 'CC', control: Number(id) + 32, value: 127}]
-      footswitch.offActions = [{type: 'CC', control: Number(id) + 32, value: 0}]
+      footswitch.onActions = [{type: 'CC', values: [Number(id) + 32, 127]}]
+      footswitch.offActions = [{type: 'CC', values: [Number(id) + 32, 0]}]
     }
   
     if (footswitch) {

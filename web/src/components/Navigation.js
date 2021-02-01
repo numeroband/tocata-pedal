@@ -1,6 +1,8 @@
+import { connect, isSupported, isConnected } from './Api';
 import React from 'react';
 import PropTypes from 'prop-types';
 import AppBar from '@material-ui/core/AppBar';
+import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Divider from '@material-ui/core/Divider';
 import Drawer from '@material-ui/core/Drawer';
@@ -14,13 +16,13 @@ import MenuIcon from '@material-ui/icons/Menu';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
-import { 
-  Link as RouterLink, 
-  BrowserRouter,
-  Route, 
-  Switch, 
+import {
+  Link as RouterLink,
+  MemoryRouter,
+  Route,
+  Switch,
   Redirect,
- } from 'react-router-dom';
+} from 'react-router-dom';
 
 const drawerWidth = 240;
 
@@ -86,6 +88,14 @@ function Navigation(props) {
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [usbConnected, setUsbConnected] = React.useState(isConnected());
+
+  if (isSupported() && !usbConnected) {
+    // Try reconnecting
+    connect(true, () => setUsbConnected(false))
+    .then(() => setUsbConnected(isConnected()))
+    .catch(err => console.log('cannot reconnect', err));
+  }
 
   const handleDrawerToggle = () => {
     console.log('handleDrawerToggle', mobileOpen)
@@ -104,15 +114,24 @@ function Navigation(props) {
     </div>
   );
 
-  function getTitle({location}) {
+  function getTitle({ location }) {
     const currentRoute = navigation.filter(({ path }) => location.pathname.startsWith(path))
     return currentRoute.length > 0 ? currentRoute[0].title : 'TocataPedal'
   }
 
   const container = window !== undefined ? () => window().document.body : undefined;
 
+  async function connectUsb() {
+    try {
+      await connect();
+      setUsbConnected(isConnected());
+    } catch(error) {
+      console.error(error);
+    }
+  }
+
   return (
-    <BrowserRouter>
+    <MemoryRouter>
       <div className={classes.root}>
         <CssBaseline />
         <AppBar position="fixed" className={classes.appBar}>
@@ -165,14 +184,24 @@ function Navigation(props) {
           <Switch>
             {navigation.map(({ path, content }, index) => (
               <Route path={path} key={index}>
-                {React.createElement(content, {})}
+                {isSupported() ? (usbConnected ? 
+                    React.createElement(content, {}) : 
+                    <Button
+                    color="primary"
+                    variant="contained"
+                    onClick={connectUsb}
+                  >
+                    Connect to device
+                  </Button>
+                ) : <Typography>This browser doesn't support USB connections. Please use Google Chrome.</Typography>
+            }
               </Route>
             ))}
-            <Redirect to="/programs"/>
+            <Redirect to="/programs" />
           </Switch>
         </main>
       </div>
-    </BrowserRouter>
+    </MemoryRouter>
   );
 }
 

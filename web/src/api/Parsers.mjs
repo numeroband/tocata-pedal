@@ -170,5 +170,5 @@ const serializeStruct = (buffer, value, parser) => buffer.slice(0, serializers.s
 export const parseConfig = buffer => parseStruct(buffer, config);
 export const parseNames = buffer => parseStruct(buffer, names);
 export const parseProgram = buffer => parseStruct(buffer, idPlusProgram);
-export const serializeConfig = (buffer, value) => serializeStruct(buffer, value, config);
-export const serializeProgram = (buffer, value) => serializeStruct(buffer, value, idPlusProgram);
+export const serializeConfig = value => serializeStruct(new Uint8Array(512).buffer, value, config);
+export const serializeProgram = value => serializeStruct(new Uint8Array(512).buffer, value, idPlusProgram);

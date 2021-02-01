@@ -40,34 +40,30 @@ const scheme = {
     values: [
       {
         name: 'Program',
-        field: 'program',
         min: 1,
       },
     ],
-    description: action => `${action.program}`,
+    description: action => `${action.values[0]}`,
   },
   'CC': {
     name: 'Control Change',
     values: [
       {
         name: 'Control',
-        field: 'control',
         min: 1,
       },
       {
         name: 'Value',
-        field: 'value',
       },
     ],
-    description: action => `${action.control}:${action.value}`,
+    description: action => `${action.values[0]}:${action.values[1]}`,
   },
 }
 
 function initAction(actionType = 'PC') {
-  return scheme[actionType].values.reduce(
-    (previous, current) => ({...previous, [current.field]: (current.min || 0)}), 
-    {'type': actionType}
-  )
+  const action = {type: actionType, values: [0, 0]}
+  scheme[actionType].values.forEach((current, i) => action.values[i] = (current.min || 0));
+  return action;
 }
 
 function ActionDialog(props) {
@@ -82,7 +78,9 @@ function ActionDialog(props) {
   };
 
   function updateText(event) {
-    setState({ ...state, [event.target.name]: event.target.value });
+    const values = [...state.values];
+    values[event.target.index] = event.target.value;
+    setState({ ...state, values });
   };
 
   function update() {
@@ -97,8 +95,8 @@ function ActionDialog(props) {
         type="number"
         label={value.name}
         className={classes.root}
-        name={value.field}
-        value={state[value.field] === undefined ? value.min : state[value.field]}
+        index={id}
+        value={state.values[id] === undefined ? value.min : state.values[id]}
         onChange={updateText}
         inputProps={{
           min: value.min === undefined ? 0 : value.min,
