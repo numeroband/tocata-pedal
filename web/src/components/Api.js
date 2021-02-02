@@ -2,43 +2,20 @@ import Api from '../api/Api.mjs';
 
 const NUM_PROGRAMS = 99;
 
-const api = new Api();
+const api = new Api(navigator.usb);
 
 export const isSupported = () => "usb" in navigator;
 export const isConnected = () => api.connected;
-export const connect = (reconnect, ondisconnect) => api.connect(navigator.usb, reconnect, ondisconnect);
-
-export async function readConfig() {
-  return api.getConfig();
-}
-
-export async function updateConfig(config) {
-  return api.setConfig(config);
-}
-
-export async function deleteConfig() {
-  return api.deleteConfig();
-}
-
-export async function readProgramNames() {
-  return api.getProgramNames();
-}
-
-export async function readProgram(id) {
-  return api.getProgram(id);
-}
-
-export async function updateProgram(id, program) {
-  return api.setProgram(id, program);
-}
-
-export async function deleteProgram(id) {
-  return api.deleteProgram(id);
-}
-
-async function sendRestart() {
-  return api.restart();
-}
+export const connect = reconnect => api.connect(reconnect);
+export const setConnectionEvent = cb => api.connectionEvent = cb;
+export const readConfig = () => api.getConfig();
+export const updateConfig = config => api.setConfig(config);
+export const deleteConfig = () =>api.deleteConfig();
+export const readProgramNames = () => api.getProgramNames();
+export const readProgram = id => api.getProgram(id);
+export const updateProgram = (id, program) => api.setProgram(id, program);
+export const deleteProgram = id => api.deleteProgram(id);
+export const firmwareUpgrade = () => api.firmwareUpgrade();
 
 export async function readAll(progress) {
   let currentProgress = 0;
@@ -107,9 +84,7 @@ export async function restore(progress) {
   console.log('end restore');
 }
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function restart(progress) {
   let currentProgress = 0;
@@ -119,10 +94,10 @@ export async function restart(progress) {
   }
   
   console.log('start restart');
-  await sendRestart();
+  await api.restart();
   updateProgress(5);
 
-  const restartDelay = 5000;
+  const restartDelay = 2000;
   const progressUpdateMs = 500;
   const progressUpdate = (100 - currentProgress) / (restartDelay / progressUpdateMs);
   console.log(`waiting ${restartDelay / 1000} seconds`);

@@ -23,16 +23,6 @@ export default function App() {
     [prefersDarkMode],
   );
 
-  // useEffect(() => {
-  //   client.onopen = () => {
-  //     console.log('WebSocket Client Connected');
-  //   };
-  //   client.onmessage = (event) => {
-  //     console.log('received', event)
-  //   };
-  //   client.onerror = error => console.error(error);
-  // }, []);
-
   const navigation = [
     {
       'path' : '/programs',

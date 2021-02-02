@@ -4,12 +4,12 @@ import process from 'process';
 import fs from 'fs';
 
 async function main() {
-  const api = new Api();
+  const api = new Api(WebUSB.usb);
   const command = process.argv[2];
   const start = process.uptime();
 
   try {
-    await api.connect(WebUSB.usb);
+    await api.connect();
     switch(command) {
       case 'get-config':
       {

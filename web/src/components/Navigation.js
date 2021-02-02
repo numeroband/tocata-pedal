@@ -1,4 +1,4 @@
-import { connect, isSupported, isConnected } from './Api';
+import { connect, isSupported, isConnected, setConnectionEvent } from './Api';
 import React from 'react';
 import PropTypes from 'prop-types';
 import AppBar from '@material-ui/core/AppBar';
@@ -90,12 +90,14 @@ function Navigation(props) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [usbConnected, setUsbConnected] = React.useState(isConnected());
 
-  if (isSupported() && !usbConnected) {
-    // Try reconnecting
-    connect(true, () => setUsbConnected(false))
-    .then(() => setUsbConnected(isConnected()))
-    .catch(err => console.log('cannot reconnect', err));
-  }
+  setConnectionEvent(connected => { console.log(connected ? 'connected' : 'disconnected'); setUsbConnected(connected)});
+
+  React.useEffect(() => {
+    if (isSupported()) {
+      // Try reconnecting
+      connect(true).catch(err => console.log('Cannot reconnect', err));
+    }  
+  }, [])
 
   const handleDrawerToggle = () => {
     console.log('handleDrawerToggle', mobileOpen)
@@ -120,15 +122,6 @@ function Navigation(props) {
   }
 
   const container = window !== undefined ? () => window().document.body : undefined;
-
-  async function connectUsb() {
-    try {
-      await connect();
-      setUsbConnected(isConnected());
-    } catch(error) {
-      console.error(error);
-    }
-  }
 
   return (
     <MemoryRouter>
@@ -189,7 +182,7 @@ function Navigation(props) {
                     <Button
                     color="primary"
                     variant="contained"
-                    onClick={connectUsb}
+                    onClick={() => connect().catch(err => console.log('Cannot connect', err))}
                   >
                     Connect to device
                   </Button>

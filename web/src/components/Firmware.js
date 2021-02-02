@@ -1,5 +1,13 @@
-import Typography from '@material-ui/core/Typography';
+import Button from '@material-ui/core/Button';
+import { firmwareUpgrade } from './Api';
 
 export default function Firmware() {
-    return <Typography>Coming soon...</Typography>
+  return <Button
+    color="primary"
+    variant="contained"
+    onClick={firmwareUpgrade}
+  >
+    Firmware upgrade
+  </Button>
+
 }

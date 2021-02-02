@@ -1,5 +1,3 @@
-import { type } from "os";
-
 const MAX_PRG_NAME_SIZE = 30;
 const MAX_FS_NAME_SIZE = 5;
 const MAX_NAMES_RESPONSE = 16;
@@ -19,11 +17,11 @@ const parsers = {
   uint8: (view, offset) => [view.getUint8(offset), offset + 1],
   uint16: (view, offset) => [view.getUint16(offset), offset + 2],
   uint32: (view, offset) => [view.getUint32(offset), offset + 4],
-  bool: (view, offset) => [view.getUint8(offset) != 0, offset + 1],
+  bool: (view, offset) => [view.getUint8(offset) !== 0, offset + 1],
   enum: (view, offset, dict) => [dict[view.getUint8(offset)], offset + 1],
   str: (view, offset, size) => {
     const buf = new Uint8Array(view.buffer, offset, size + 1);
-    const end = buf.findIndex(c => c == 0);
+    const end = buf.findIndex(c => c === 0);
     return [String.fromCharCode.apply(null, buf.slice(0, end)), offset + size + 1];
   },
   array: (view, offset, numElems, parser, ...args) => {
@@ -59,9 +57,8 @@ const serializers = {
   uint16: (view, offset, value) => { view.setUint16(offset, value); return offset + 2 },
   uint32: (view, offset, value) => { view.setUint32(offset, value); return offset + 4 },
   bool: (view, offset, value) => { view.setUint8(offset, value); return offset + 1 },
-  enum: (view, offset, value, values) => { view.setUint8(offset, values.findIndex(v => v == value)); return offset + 1 },
+  enum: (view, offset, value, values) => { view.setUint8(offset, values.findIndex(v => v === value)); return offset + 1 },
   str: (view, offset, value, size) => {
-    const buf = new Uint8Array(view, offset, size + 1);
     const length = value ? value.length : 0;
     for (let i = 0; i < length; ++i) {
       view.setUint8(offset + i, value.charCodeAt(i));
@@ -70,7 +67,6 @@ const serializers = {
     return offset + size + 1;
   },
   array: (view, offset, value, numElems, parser, ...args) => {
-    const ret = [];
     for (let i = 0; i < numElems; ++i) {
       offset = serializers[parser](view, offset, value ? value[i] : null, ...args);
     }

@@ -20,27 +20,22 @@ const DEL_PROGRAM = 9;
 const NUM_PROGRAMS = 99;
 
 export default class Api {
-  constructor() {
+  constructor(usb) {
+    this.usb = usb;
     this.protocol = null;
     this.requestQueue = [];
+    this.protocol = new Protocol(usb, connected => this.connectionEvent && this.connectionEvent(connected));
   }
 
   get connected() {
-    return this.protocol != null;
+    return this.protocol.connected;
   }
 
-  async connect(usb, reconnect, ondisconnect) {
-    const protocol = new Protocol(usb);
-    await protocol.connect(reconnect, () => {
-      this.protocol = null;
-      ondisconnect && ondisconnect();
-    });
-    this.protocol = protocol;
-  }
+  connect = reconnect => this.protocol.connect(reconnect);
 
   sendRequest(command, buffer) {
     if (!this.connected) {
-      throw 'Not connected';
+      throw new Error('Not connected');
     }
     const request = {command, data: new Uint8Array(buffer)};
     const promise = new Promise((resolve, reject) => {
@@ -50,7 +45,7 @@ export default class Api {
     this.requestQueue.push(request);
 
     const nextRequest = async () => {      
-      if (this.requestQueue.length == 0) {
+      if (this.requestQueue.length === 0) {
         return;
       }
       const req = this.requestQueue[0];
@@ -64,7 +59,7 @@ export default class Api {
       nextRequest();
     }
 
-    if (this.requestQueue.length == 1) {
+    if (this.requestQueue.length === 1) {
       nextRequest();
     }
 
