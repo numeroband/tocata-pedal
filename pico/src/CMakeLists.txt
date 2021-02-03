@@ -3,15 +3,19 @@
 add_executable(tocata_pedal
         main.cpp
         usb/usb_descriptors.c
-        usb/device.cpp
+        usb/usb_device.cpp
         usb/web_usb.cpp
         usb/midi_usb.cpp
+        config/config.cpp
+        config/flash_partition.cpp
+        config/filesystem.cpp
         )
 
-target_include_directories(tocata_pedal PRIVATE ${CMAKE_CURRENT_LIST_DIR} usb)
+target_include_directories(tocata_pedal PRIVATE ${CMAKE_CURRENT_LIST_DIR} usb config)
 
 target_link_libraries(tocata_pedal PRIVATE 
         pico_stdlib 
+        hardware_flash
         tinyusb_device 
         tinyusb_board
         )

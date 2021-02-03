@@ -131,7 +131,6 @@ const footswitch = {
     ['name', 'str', MAX_FS_NAME_SIZE],
     ['color', 'enum', colors],
     ['enabled', 'bool'],
-    ['default', 'bool'],
     ['momentary', 'bool'],
   ],
   valid: o => o.name

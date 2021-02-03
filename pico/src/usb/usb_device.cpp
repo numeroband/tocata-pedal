@@ -1,4 +1,4 @@
-#include "device.h"
+#include "usb_device.h"
 #include "usb_descriptors.h"
 #include "bsp/board.h"
 

@@ -187,7 +187,7 @@ void WebUsb::getConfig()
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
 
   GetConfigRes& res = reinterpret_cast<GetConfigRes&>(msg.payload);
-  res.config = _config;
+  res.config.load();
 
   sendResponse(sizeof(res));
 }
@@ -197,7 +197,7 @@ void WebUsb::setConfig()
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const SetConfigReq& req = reinterpret_cast<const SetConfigReq&>(msg.payload);
 
-  _config = req.config;
+  req.config.save();
 
   sendStatus(kOk);
 }
@@ -206,7 +206,7 @@ void WebUsb::deleteConfig()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
 
-  memset(&_config, 0, sizeof(_config));
+  Config::remove();
 
   sendStatus(kOk);
 }
@@ -221,7 +221,7 @@ void WebUsb::getNames()
     return;
   }
 
-  if (req.id >= kNumPrograms)
+  if (req.id >= Program::kMaxPrograms)
   {
     sendStatus(kInvalidProgramId);
     return;
@@ -229,11 +229,11 @@ void WebUsb::getNames()
 
   GetNamesRes& res = reinterpret_cast<GetNamesRes&>(msg.payload);
   res.from_id = req.id;
-  const uint8_t remaining = kNumPrograms - req.id;
+  const uint8_t remaining = Program::kMaxPrograms - req.id;
   res.num_names = (kMaxNamesPerResponse < remaining) ? kMaxNamesPerResponse : remaining;
   for (uint8_t i = 0; i < res.num_names; ++i)
   {
-    memcpy(res.names[i], _programs[i].name, sizeof(res.names[i]));
+    Program::copyName(req.id + i, res.names[i]);
   }
 
   sendResponse(sizeof(res) + kMaxNamesPerResponse * sizeof(res.names[0]));
@@ -249,7 +249,7 @@ void WebUsb::getProgram()
     return;
   }
 
-  if (req.id >= kNumPrograms)
+  if (req.id >= Program::kMaxPrograms)
   {
     sendStatus(kInvalidProgramId);
     return;
@@ -257,7 +257,7 @@ void WebUsb::getProgram()
 
   GetProgramRes& res = reinterpret_cast<GetProgramRes&>(msg.payload);
   res.id = req.id;
-  res.program = _programs[req.id];
+  res.program.load(req.id);
 
   sendResponse(sizeof(res));
 }
@@ -272,13 +272,13 @@ void WebUsb::setProgram()
     return;
   }
 
-  if (req.id >= kNumPrograms)
+  if (req.id >= Program::kMaxPrograms)
   {
     sendStatus(kInvalidProgramId);
     return;
   }
 
-  _programs[req.id] = req.program;
+  req.program.save(req.id);
 
   sendStatus(kOk);
 }
@@ -293,13 +293,13 @@ void WebUsb::deleteProgram()
     return;
   }
 
-  if (req.id >= kNumPrograms)
+  if (req.id >= Program::kMaxPrograms)
   {
     sendStatus(kInvalidProgramId);
     return;
   }
 
-  memset(&_programs[req.id], 0, sizeof(_programs[req.id]));
+  Program::remove(req.id);
 
   sendStatus(kOk);
 }

@@ -111,7 +111,8 @@ async function main() {
   } catch(e) {
     console.error('ERROR!!!', e);
   }
-  console.log('time', process.uptime() - start);    
+  console.log('time', process.uptime() - start);
+  process.exit(0);   
 }
 
 main()

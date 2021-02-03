@@ -1,5 +1,7 @@
 #pragma once
 
+#include <config.h>
+
 #include <cstdio>
 #include <cstdint>
 
@@ -21,8 +23,6 @@ public:
 
 private:
   static constexpr size_t kBuffSize = 512;
-  static constexpr size_t kNumPrograms = 99;
-  static constexpr size_t kProgramNameSize = 30;
 
   static WebUsb* _singleton;
 
@@ -56,23 +56,12 @@ private:
     kInvalidProgramId,
   };
 
-  struct Config
-  {
-    char _reserved[128];
-  };
-
   struct ConfigReqRes
   {
     Config config;
   } __attribute__((packed));
 
-  using ProgramName = char[kProgramNameSize + 1];
-
-  struct Program
-  {
-    ProgramName name;
-    char _reserved[269];
-  };
+  using ProgramName = char[Program::kMaxNameLength + 1];
 
   struct IdAndProgram
   {
@@ -93,7 +82,7 @@ private:
   } __attribute__((packed));
 
   static constexpr size_t kMaxNamesPerResponse = 
-    (kBuffSize - sizeof(Message) - sizeof(GetNamesRes)) / kProgramNameSize;
+    (kBuffSize - sizeof(Message) - sizeof(GetNamesRes)) / Program::kMaxNameLength;
 
   using GetConfigRes = ConfigReqRes;
   using SetConfigReq = ConfigReqRes;
@@ -124,9 +113,6 @@ private:
   uint32_t _in_length = 0;
   uint8_t _in_out_buf[kBuffSize];
   bool _connected = false;
-
-  Program _programs[kNumPrograms] = {};
-  Config _config = {};
 };
 
 }

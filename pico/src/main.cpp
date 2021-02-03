@@ -1,4 +1,5 @@
-#include "usb/device.h"
+#include <usb_device.h>
+#include <filesystem.h>
 
 #include "bsp/board.h"
 
@@ -8,6 +9,7 @@ int main(void)
 {
   board_init();
 
+  tocata::TocataFS.begin();
   usb_device.init();
 
   while (1)
