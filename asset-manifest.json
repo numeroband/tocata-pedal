@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.js": "/tocata-pedal/static/js/main.bdce1aeb.chunk.js",
+    "main.js": "/tocata-pedal/static/js/main.4c2459df.chunk.js",
     "runtime-main.js": "/tocata-pedal/static/js/runtime-main.b07299df.js",
     "static/js/2.623c39b2.chunk.js": "/tocata-pedal/static/js/2.623c39b2.chunk.js",
     "static/js/3.40c8e074.chunk.js": "/tocata-pedal/static/js/3.40c8e074.chunk.js",
@@ -10,6 +10,6 @@
   "entrypoints": [
     "static/js/runtime-main.b07299df.js",
     "static/js/2.623c39b2.chunk.js",
-    "static/js/main.bdce1aeb.chunk.js"
+    "static/js/main.4c2459df.chunk.js"
   ]
 }
