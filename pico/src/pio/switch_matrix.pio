@@ -1,0 +1,80 @@
+;
+; Lorenzo Soto
+;
+
+.program switch_matrix
+.side_set 2 pindirs
+
+.define public num_in_pins 4
+.define public num_out_pins 2
+
+start:
+    mov isr, !null       side 0b01 [7]
+    in pins, num_in_pins side 0b10 [7]
+    in pins, num_in_pins side 0b00
+    mov y, isr           side 0b00     ; y current pins
+    jmp x!=y debounce    side 0b00     ; x last pins
+    jmp start            side 0b00
+debounce:
+    set x, 31            side 0b00     ; Initialize number of consecutive reads
+deb_loop:
+    mov isr, !null       side 0b01 [7]
+    in pins, num_in_pins side 0b10 [7]
+    in pins, num_in_pins side 0b00
+    mov osr, x           side 0b00
+    mov x, isr           side 0b00     ; x to check isr
+    jmp x!=y debounce    side 0b00     ; If the switches changed reset counter
+    mov x, osr           side 0b00
+    jmp x-- deb_loop     side 0b00     ; Check if x is 0 and decrement
+    mov x, y             side 0b00     ; x becomes the new value 
+    push                 side 0b00
+
+% c-sdk {
+
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+
+
+static inline void switch_matrix_program_init(PIO pio, uint sm, uint offset, uint in_pins_start, uint out_pins_start) 
+{
+    pio_sm_config c = switch_matrix_program_get_default_config(offset);
+
+    // IO mapping
+    sm_config_set_sideset_pins(&c, out_pins_start);
+    sm_config_set_in_pins(&c, in_pins_start);
+
+    // Shift to the left, no autopull
+    sm_config_set_in_shift(&c, false, false, switch_matrix_num_in_pins);
+    // We don't need the TX FIFO
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+    float div = (float)clock_get_hz(clk_sys) / (10 * 1000);
+    sm_config_set_clkdiv(&c, div);
+
+    // Init input pins
+    uint32_t in_pins_mask = 0;
+    for (uint i = 0; i < switch_matrix_num_in_pins; ++i)
+    {
+        uint pin = in_pins_start + i;
+        gpio_pull_up(pin);
+        pio_gpio_init(pio, pin);
+        in_pins_mask |= (1u << pin);
+    }
+
+    // Init output pins
+    uint32_t out_pins_mask = 0;
+    for (uint i = 0; i < switch_matrix_num_out_pins; ++i)
+    {
+        uint pin = out_pins_start + i;
+        pio_gpio_init(pio, pin);
+        out_pins_mask |= (1u << pin);
+    }
+    pio_sm_set_pindirs_with_mask(pio, sm, out_pins_mask, in_pins_mask | out_pins_mask);
+    pio_sm_set_pins_with_mask(pio, sm, 0, out_pins_mask);
+
+    // Configure and start SM
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+%}

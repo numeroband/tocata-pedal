@@ -1,6 +1,7 @@
 #include <config.h>
 
 #include "filesystem.h"
+#include "bsp/board.h"
 
 #define _log(...) 
 #define _logln(...) 
@@ -16,7 +17,7 @@ static Program sPrograms[Program::kMaxPrograms] = {};
 
 void Storage::begin()
 {
-    auto start = 0; // millis();
+    auto start = board_millis();
 
     TocataFS.begin(true);
 
@@ -25,23 +26,15 @@ void Storage::begin()
         Program::initAll();
     }
 
-    auto end = 0; // millis();
-    _log(F("Storage init in ms: "));
-    _logln(end - start);
-    _log(F("Usage: "));
-    _log(TocataFS.usedBytes());
-    _log('/');
-    _logln(TocataFS.totalBytes());
-    _log(F("Config size: "));
-    _log(sizeof(Config));
-    _log(F(", Program size: "));
-    _log(sizeof(Program));
-    _log(F(", Footswitch size: "));
-    _log(sizeof(Program::Footswitch));
-    _log(F(", Actions size: "));
-    _log(sizeof(Actions));
-    _log(F(", Action size: "));
-    _logln(sizeof(Actions::Action));
+    auto end = board_millis();
+    printf("Storage init in ms: %u\n", end - start);
+    printf("Usage: %u / %u\n", TocataFS.usedBytes(), TocataFS.totalBytes());
+    printf("Config size: %u, Program size: %u, Footswitch size: %u, Actions size: %u, Action size: %u\n",
+        sizeof(Config),
+        sizeof(Program),
+        sizeof(Program::Footswitch),
+        sizeof(Actions),
+        sizeof(Actions::Action));
 }
 
 bool Config::init()

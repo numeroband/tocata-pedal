@@ -2,6 +2,25 @@
 #include "usb_descriptors.h"
 #include "bsp/board.h"
 
+extern "C" {
+#include <pico/stdio.h>
+#include <pico/stdio/driver.h>
+}
+
+static struct stdio_driver usb_stdio = {
+  .out_chars = [](const char *buf, int len) {
+    tud_cdc_write(buf, len);
+  },
+  .out_flush = []() {
+    tud_cdc_write_flush();
+  },
+  .in_chars = [](char *buf, int len) { 
+    return (int)tud_cdc_read(buf, (uint32_t)len); 
+  },
+  .crlf_enabled = PICO_STDIO_DEFAULT_CRLF,
+};
+
+
 //--------------------------------------------------------------------+
 // Device callbacks
 //--------------------------------------------------------------------+
@@ -48,6 +67,7 @@ void UsbDevice::init()
   _web.init();
 
   tusb_init();
+  stdio_set_driver_enabled(&usb_stdio, true);
 }
 
 void UsbDevice::run()

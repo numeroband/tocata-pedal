@@ -31,11 +31,6 @@ enum
   VENDOR_REQUEST_MICROSOFT = 2
 };
 
-enum
-{
-  CDC_REQUEST_SET_CONTROL_LINE_STATE = 0x22,
-};
-
 extern uint8_t const desc_ms_os_20[];
 
 #endif /* USB_DESCRIPTORS_H_ */

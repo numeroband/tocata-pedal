@@ -2,10 +2,6 @@
 #include <cstring>
 #include <assert.h>
 
-#define _log(...)
-#define _logln(...)
-#define _logf(...)
-
 namespace tocata {
 
 FS TocataFS{};
@@ -21,6 +17,7 @@ size_t File::write(const void* src, size_t size) {
 
 bool FS::begin(bool formatOnFail)
 {
+    printf("Initializing filesystem...\n");
     if (!_block.begin(&_partition, formatOnFail))
     {
         return false;
@@ -51,8 +48,7 @@ bool FS::begin(bool formatOnFail)
         _block.load(1);
     }
 
-    _log("Extra block ");
-    _logln(_extra_block_id);
+    printf("Extra block %u\n", _extra_block_id);
 
     return true;
 }
@@ -200,10 +196,7 @@ bool FS::Block::begin(const FlashPartition* partition, bool formatOnFail)
         if (header.isValid())
         {
             _cycles[id] = header.cycles;
-            _log("Found block ");
-            _log(id);
-            _log(" cycles ");
-            _logln(cycles(id));
+            printf("Found block %u cycles %u\n", id, cycles(id));
         }
         else
         {
@@ -241,10 +234,7 @@ void FS::Block::erase(uint8_t id)
 
     memset(_cached_flags, 0xFF, kFilesPerBlock);
 
-    _log("Erased block ");
-    _log(_id);
-    _log(" cycles ");
-    _logln(cycles());
+    printf("Erased block %u cycles %u\n", _id, cycles());
 }
 
 File FS::Block::open(uint8_t file_id)
@@ -277,10 +267,7 @@ File FS::Block::createFile(uint8_t file_id)
             return {_fs, _id, i, flags};
         }
     }
-    _log("Cannot create file ");
-    _log(file_id);
-    _log(" in block ");
-    _logln(_id);
+    printf("Cannot create file %u in block %u\n", file_id, _id);
     return {};
 }
 
@@ -297,7 +284,7 @@ void FS::Block::updateFlags(uint8_t index, uint8_t flags)
     assert(ret); 
     ret = _partition->write(fileOffset(index), &flags, sizeof(flags));
     assert(ret);
-    _logf("update block %u index %u flags %02X\n", _id, index, flags);
+    printf("update block %u index %u flags %02X\n", _id, index, flags);
 }
 
 void FS::Block::compactInto(uint8_t dst_block_id)

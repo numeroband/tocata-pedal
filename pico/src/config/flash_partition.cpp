@@ -16,15 +16,19 @@ namespace {
 namespace tocata {
 
 #if FAKE_FLASH
-static uint8_t FakeFlash[128*1024];
+static uint8_t FakeFlash[128 * 1024];
 #endif
 
-FlashPartition::FlashPartition() : _part_offset(kPartitionOffset) {}
+FlashPartition::FlashPartition() : _part_offset(kPartitionOffset) 
+{
+    erase(0, size());
+}
 
 bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) const
 {
     const uint8_t* partition = reinterpret_cast<const uint8_t*>(XIP_BASE + _part_offset);
 #if FAKE_FLASH
+    // printf("read(%u, 0x%08X, %u)\n", src_offset, (uint32_t)dst_buf, dst_size);
     memcpy(dst_buf, FakeFlash + src_offset, dst_size);
 #else
     memcpy(dst_buf, partition + src_offset, dst_size);
@@ -55,6 +59,7 @@ bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_si
     }
 
 #if FAKE_FLASH
+    // printf("write(%u, 0x%08X, %u)\n", dst_offset, (uint32_t)src_buf, src_size);
     for (uint32_t i = 0; i < src_size; ++i)
     {
         FakeFlash[dst_offset + i] &= static_cast<const uint8_t*>(src_buf)[i];
@@ -69,6 +74,7 @@ bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_si
 bool FlashPartition::erase(size_t offset, size_t size) const
 {
 #if FAKE_FLASH
+    // printf("erase(%u, %u)\n", offset, size);
     memset(FakeFlash + offset, 0xFF, size);
 #else
     flash_range_erase(_part_offset + offset, size);
@@ -78,7 +84,11 @@ bool FlashPartition::erase(size_t offset, size_t size) const
 
 size_t FlashPartition::size() const
 {
-    return 128 * 1024; // kFlashSize - _part_offset;
+#if FAKE_FLASH
+    return sizeof(FakeFlash); 
+#else
+    return kFlashSize - _part_offset;
+#endif
 }
 
 
