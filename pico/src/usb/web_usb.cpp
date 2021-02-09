@@ -189,7 +189,6 @@ void WebUsb::getConfig()
 
   GetConfigRes& res = reinterpret_cast<GetConfigRes&>(msg.payload);
   res.config.load();
-
   sendResponse(sizeof(res));
 }
 
@@ -199,8 +198,8 @@ void WebUsb::setConfig()
   const SetConfigReq& req = reinterpret_cast<const SetConfigReq&>(msg.payload);
 
   req.config.save();
-
   sendStatus(kOk);
+  _delegate.configChanged();
 }
 
 void WebUsb::deleteConfig()
@@ -208,8 +207,8 @@ void WebUsb::deleteConfig()
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
 
   Config::remove();
-
   sendStatus(kOk);
+  _delegate.configChanged();
 }
 
 void WebUsb::getNames()
@@ -280,8 +279,8 @@ void WebUsb::setProgram()
   }
 
   req.program.save(req.id);
-
   sendStatus(kOk);
+  _delegate.programChanged(req.id);
 }
 
 void WebUsb::deleteProgram()
@@ -301,8 +300,8 @@ void WebUsb::deleteProgram()
   }
 
   Program::remove(req.id);
-
   sendStatus(kOk);
+  _delegate.programChanged(req.id);
 }
 
 void WebUsb::sendResponse(uint16_t length, Status status)

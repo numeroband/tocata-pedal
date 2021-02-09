@@ -77,6 +77,12 @@ void UsbDevice::init()
 
   tusb_init();
   stdio_set_driver_enabled(&usb_stdio, true);
+
+  while (to_ms_since_boot(get_absolute_time()) < 5000)
+  {
+    blink();
+    tud_task(); // tinyusb device task
+  }
 }
 
 void UsbDevice::run()

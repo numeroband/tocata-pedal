@@ -17,6 +17,7 @@ public:
   void suspend() { _blink_interval_ms = BLINK_SUSPENDED; }
   void resume() { _blink_interval_ms = BLINK_MOUNTED; }
 
+  UsbDevice(WebUsb::Delegate& web_delegate) : _web(web_delegate) {}
   void init();
   void run();
 

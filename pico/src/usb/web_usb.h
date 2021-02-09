@@ -14,6 +14,14 @@ class WebUsb
 public:
   static WebUsb& singleton() { return *_singleton; }
 
+  class Delegate
+  {
+    public:
+      virtual void configChanged() = 0;
+      virtual void programChanged(uint8_t id) = 0;
+  };
+
+  WebUsb(Delegate& delegate) : _delegate(delegate) {}
   void init();
   void run();
 
@@ -106,6 +114,7 @@ private:
   void setProgram();
   void deleteProgram();
 
+  Delegate& _delegate;
   uint8_t* _out_buf;
   uint32_t _out_pending = 0;
   uint32_t _in_length = 0;

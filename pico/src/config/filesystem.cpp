@@ -15,10 +15,10 @@ size_t File::write(const void* src, size_t size) {
     return _fs ? _fs->write(*this, src, size) : 0; 
 }
 
-bool FS::begin(bool formatOnFail)
+bool FS::init(bool formatOnFail)
 {
     printf("Initializing filesystem...\n");
-    if (!_block.begin(&_partition, formatOnFail))
+    if (!_block.init(&_partition, formatOnFail))
     {
         return false;
     }
@@ -183,7 +183,7 @@ size_t FS::write(File& file, const void* src, size_t size)
     return _block.write(file, src, size);
 }
 
-bool FS::Block::begin(const FlashPartition* partition, bool formatOnFail)
+bool FS::Block::init(const FlashPartition* partition, bool formatOnFail)
 {
     _partition = partition;
 

@@ -10,7 +10,7 @@ class MidiUsb;
 class Storage
 {
 public:
-    static void begin();
+    static void init();
 };
 
 class Config

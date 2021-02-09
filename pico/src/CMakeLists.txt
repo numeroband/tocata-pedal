@@ -9,6 +9,7 @@ target_compile_definitions(tocata_pedal PRIVATE U8X8_WITH_USER_PTR)
 
 target_sources(tocata_pedal PRIVATE
         main.cpp
+        controller.cpp
         usb/usb_descriptors.c
         usb/usb_device.cpp
         usb/web_usb.cpp

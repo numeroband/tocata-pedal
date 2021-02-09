@@ -58,7 +58,7 @@ private:
 
 public:
     FS() : _block(this) {}
-    bool begin(bool formatOnFail = false);
+    bool init(bool formatOnFail = false);
     File open(const char* path, const char* mode = FILE_READ);
     void remove(const char* path);
     bool exists(const char* path) { return open(path, FILE_READ); }
@@ -84,7 +84,7 @@ private:
         static constexpr size_t bytesPerFile() { return kFileSize - 1; }
 
         Block(FS* fs) : _fs(fs) {}
-        bool begin(const FlashPartition* partition, bool formatOnFail);
+        bool init(const FlashPartition* partition, bool formatOnFail);
         void load(uint8_t id);
         void erase() { erase(_id); }
         void erase(uint8_t id);

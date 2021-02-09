@@ -8,14 +8,18 @@ namespace tocata {
 class I2C
 {
 public:
-	I2C(uint8_t pin_sda, uint8_t pin_scl) : _pin_sda(pin_sda), _pin_scl(pin_scl) {}
+	struct HWConfig
+	{
+		uint8_t sda_pin;
+		uint8_t scl_pin;		
+	};
+
+	I2C(const HWConfig& config) : _pin_sda(config.sda_pin), _pin_scl(config.scl_pin) {}
+	I2C() {}
 	void init(uint32_t baudrate);
 	void startTransfer(uint8_t addr);
 	void sendBytes(const void* buf, size_t len);
 	void endTransfer();
-
-	void setClock(uint8_t value);
-	void setData(uint8_t value);
 	void delayMs(uint8_t ms);
 
 private:

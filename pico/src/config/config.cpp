@@ -16,12 +16,12 @@ static Config sConfig = {};
 static Program sPrograms[Program::kMaxPrograms] = {};
 #endif
 
-void Storage::begin()
+void Storage::init()
 {
     auto start = to_ms_since_boot(get_absolute_time());
 
 #if !FAKE_CONFIG
-    TocataFS.begin(true);
+    TocataFS.init(true);
 
     if (Config::init())
     {
@@ -157,10 +157,10 @@ void Actions::Action::run(MidiUsb& midi) const
     switch (_type)
     {
     case kProgramChange:
-        // midi.sendProgram(_values[0]);
+        midi.sendProgram(_values[0]);
         break;
     case kControlChange:
-        // midi.sendControl(_values[0], _values[1]);
+        midi.sendControl(_values[0], _values[1]);
         break;
     default:
         break;
