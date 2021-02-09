@@ -5,9 +5,7 @@
 #include <cstdio>
 #include <cstdint>
 
-extern "C" {
 #include <tusb.h>
-}
 
 namespace tocata
 {

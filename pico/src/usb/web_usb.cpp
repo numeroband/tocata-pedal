@@ -1,12 +1,8 @@
 #include "web_usb.h"
 
-extern "C" {
 #include "usb_descriptors.h"
-#include <pico/bootrom.h>
-#include <hardware/watchdog.h>
 
 #define URL  "numeroband.github.io/tocata-pedal"
-
 const tusb_desc_webusb_url_t desc_url =
 {
   3 + sizeof(URL) - 1, // bLength
@@ -14,6 +10,11 @@ const tusb_desc_webusb_url_t desc_url =
   1, // 0: http, 1: https
   URL,
 };
+
+extern "C" {
+
+#include <pico/bootrom.h>
+#include <hardware/watchdog.h>
 
 // Invoked when received VENDOR control request
 bool tud_vendor_control_request_cb(uint8_t rhport, tusb_control_request_t const * request)

@@ -12,5 +12,8 @@ set(TOCATA_PEDAL_PATH ${PROJECT_SOURCE_DIR})
 # Initialize the SDK
 pico_sdk_init()
 
+# Add libs
+add_subdirectory(lib)
+
 # Add source code
 add_subdirectory(src)

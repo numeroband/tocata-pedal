@@ -1,15 +1,24 @@
 #include "usb_device.h"
 #include "usb_descriptors.h"
-#include "bsp/board.h"
 
-extern "C" {
 #include <pico/stdio.h>
 #include <pico/stdio/driver.h>
-}
+#include <pico/time.h>
+#include <hardware/gpio.h>
 
 static struct stdio_driver usb_stdio = {
   .out_chars = [](const char *buf, int len) {
-    tud_cdc_write(buf, len);
+    int sent = 0;
+    bool blocked = false;
+    while (sent < len)
+    {
+      while (!tud_cdc_write_available())
+      {
+        tud_task();
+      }
+      int written = tud_cdc_write(buf + sent, len - sent);
+      sent += written;
+    }
   },
   .out_flush = []() {
     tud_cdc_write_flush();
@@ -84,10 +93,10 @@ void UsbDevice::blink()
   static bool led_state = false;
 
   // Blink every interval ms
-  if ( board_millis() - start_ms < _blink_interval_ms) return; // not enough time
+  if (to_ms_since_boot(get_absolute_time()) - start_ms < _blink_interval_ms) return; // not enough time
   start_ms += _blink_interval_ms;
 
-  board_led_write(led_state);
+  gpio_put(PICO_DEFAULT_LED_PIN, led_state);
   led_state = 1 - led_state; // toggle
 }
 

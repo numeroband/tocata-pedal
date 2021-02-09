@@ -1,10 +1,11 @@
 #pragma once
 
-#include "midi_usb.h"
-
 #include <cstring>
+#include <cstdint>
 
 namespace tocata {
+
+class MidiUsb;
 
 class Storage
 {
@@ -134,6 +135,7 @@ public:
 
     void run(MidiUsb& midi) const;
     Footswitch& footswitch(uint8_t id) { return _switches[id]; }
+    const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
     bool available() const { return _name[0]; }

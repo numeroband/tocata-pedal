@@ -3,9 +3,7 @@
 #include "midi_usb.h"
 #include "web_usb.h"
 
-extern "C" {
 #include <tusb.h>
-}
 
 namespace tocata
 {

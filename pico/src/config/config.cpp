@@ -1,7 +1,8 @@
 #include <config.h>
+#include <midi_usb.h>
+#include <filesystem.h>
 
-#include "filesystem.h"
-#include "bsp/board.h"
+#include <pico/time.h>
 
 #define _log(...) 
 #define _logln(...) 
@@ -17,16 +18,18 @@ static Program sPrograms[Program::kMaxPrograms] = {};
 
 void Storage::begin()
 {
-    auto start = board_millis();
+    auto start = to_ms_since_boot(get_absolute_time());
 
+#if !FAKE_CONFIG
     TocataFS.begin(true);
 
     if (Config::init())
     {
         Program::initAll();
     }
+#endif
 
-    auto end = board_millis();
+    auto end = to_ms_since_boot(get_absolute_time());
     printf("Storage init in ms: %u\n", end - start);
     printf("Usage: %u / %u\n", TocataFS.usedBytes(), TocataFS.totalBytes());
     printf("Config size: %u, Program size: %u, Footswitch size: %u, Actions size: %u, Action size: %u\n",

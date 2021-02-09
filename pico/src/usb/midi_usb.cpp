@@ -1,9 +1,7 @@
 #include "midi_usb.h"
-#include "bsp/board.h"
 
-extern "C" {
+#include <pico/time.h>
 #include <tusb.h>
-}
 
 namespace tocata
 {
@@ -11,7 +9,7 @@ namespace tocata
 void MidiUsb::run(void)
 {
   // send note every 1000 ms
-  uint32_t now = board_millis();
+  uint32_t now = to_ms_since_boot(get_absolute_time());
   if (now - _start_ms < 1000) return; // not enough time
   _start_ms = now;
 
