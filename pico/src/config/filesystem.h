@@ -123,7 +123,7 @@ private:
         static size_t offset(uint8_t id) { return id * kBlockSize; }
         static size_t fileOffset(uint8_t id, uint8_t index) { return offset(id) + (kFileSize * (index + 1)); }
         static size_t fileContentOffset(uint8_t id, uint8_t index) { return fileOffset(id, index) + sizeof(uint8_t); }
-        static size_t indexOffset(uint8_t id, uint8_t index) { return offset(id) + offsetof(Descriptor, flags) + index; }
+        static size_t indexOffset(uint8_t id, uint8_t index) { return offset(id) + sizeof(((Descriptor*)0)->header) + index; }
 
         void updateFlags(uint8_t index, uint8_t flag);
         size_t offset() const { return offset(_id); }

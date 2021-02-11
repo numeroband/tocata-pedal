@@ -56,9 +56,8 @@ uint8_t Display::gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, v
 	return 0;
 } // gpio_and_delay_cb
 
-void Display::init(const I2C::HWConfig& config)
+void Display::init()
 {
-	_i2c = config;
 	u8g2_Setup_sh1106_i2c_128x64_noname_f(&_u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
 	u8g2_SetUserPtr(&_u8g2, &_i2c);
 	u8g2_InitDisplay(&_u8g2); // send init sequence to the display, display is in sleep mode after this,

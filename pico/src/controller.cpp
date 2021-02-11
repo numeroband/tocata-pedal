@@ -1,18 +1,18 @@
 #include "controller.h"
 
-#include <pico/time.h>
+#include "hal.h"
 
 namespace tocata {
 
-void Controller::init(const HWConfig& config)
+void Controller::init()
 {
     _usb.init();
-    _display.init(config.display);
+    _display.init();
     Storage::init();
 
     loadProgram(0);
 
-    _buttons.init(config.switches);
+    _buttons.init();
 }
 
 void Controller::run() 
@@ -20,7 +20,7 @@ void Controller::run()
     _usb.run();
     _buttons.run();
 
-    uint32_t now = to_ms_since_boot(get_absolute_time());
+    uint32_t now = millis();
     if (now - _last_display_update > 70)
     {
         _display.run();

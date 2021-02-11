@@ -3,8 +3,6 @@
 #include "midi_usb.h"
 #include "web_usb.h"
 
-#include <tusb.h>
-
 namespace tocata
 {
 

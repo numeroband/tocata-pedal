@@ -5,8 +5,6 @@
 #include <cstdio>
 #include <cstdint>
 
-#include <tusb.h>
-
 namespace tocata
 {
 class WebUsb
@@ -24,9 +22,12 @@ public:
   WebUsb(Delegate& delegate) : _delegate(delegate) {}
   void init();
   void run();
-
-  bool controlRequestCb(uint8_t rhport, tusb_control_request_t const * request);
-
+  void connected(bool connected) 
+  { 
+    _connected = connected; 
+    reset();
+  }
+  
 private:
   static constexpr size_t kBuffSize = 512;
 

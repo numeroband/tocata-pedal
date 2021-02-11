@@ -9,7 +9,8 @@ namespace tocata {
 class Display
 {
 public:
-	void init(const I2C::HWConfig& config);
+	Display(const HWConfigI2C& config) : _i2c(config) {}
+	void init();
 	void run();
 	void setConnected(bool connected) { _connected = connected; }
 	void setProgram(uint8_t id, const Program& program);

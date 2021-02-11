@@ -1,38 +1,7 @@
 #include "web_usb.h"
+#include "hal.h"
 
-#include "usb_descriptors.h"
-
-#define URL  "numeroband.github.io/tocata-pedal"
-const tusb_desc_webusb_url_t desc_url =
-{
-  3 + sizeof(URL) - 1, // bLength
-  3, // WEBUSB URL type
-  1, // 0: http, 1: https
-  URL,
-};
-
-extern "C" {
-
-#include <pico/bootrom.h>
-#include <hardware/watchdog.h>
-
-// Invoked when received VENDOR control request
-bool tud_vendor_control_request_cb(uint8_t rhport, tusb_control_request_t const * request)
-{
-  return tocata::WebUsb::singleton().controlRequestCb(rhport, request);
-}
-
-// Invoked when DATA Stage of VENDOR's request is complete
-bool tud_vendor_control_complete_cb(uint8_t rhport, tusb_control_request_t const * request)
-{
-  (void) rhport;
-  (void) request;
-
-  // nothing to do
-  return true;
-}
-
-}
+#include <cassert>
 
 namespace tocata
 {
@@ -45,58 +14,24 @@ void WebUsb::init()
   _singleton = this;
 }
 
-bool WebUsb::controlRequestCb(uint8_t rhport, tusb_control_request_t const * request)
-{
-  switch (request->bRequest)
-  {
-    case VENDOR_REQUEST_WEBUSB:
-      // match vendor request in BOS descriptor
-      // Get landing page url
-      return tud_control_xfer(rhport, request, (void*)&desc_url, desc_url.bLength);
-
-    case VENDOR_REQUEST_MICROSOFT:
-      if (request->wIndex != 7)
-      {
-        return false;
-      }
-       
-      // Get Microsoft OS 2.0 compatible descriptor
-      uint16_t total_len;
-      memcpy(&total_len, desc_ms_os_20 + 8, 2);
-
-      return tud_control_xfer(rhport, request, (void*)desc_ms_os_20, total_len);
-
-    case CDC_REQUEST_SET_CONTROL_LINE_STATE:
-      _connected = (request->wValue != 0);
-      reset();
-
-      // response with status OK
-      return tud_control_status(rhport, request);
-
-    default:
-      // stall unknown request
-      return false;
-  }
-}
-
 void WebUsb::sendData()
 {
-  if (!_out_pending || !tud_vendor_write_available())
+  if (!_out_pending || !usb_vendor_write_available())
   {
     return;
   }
 
-  uint32_t count = tud_vendor_write(_out_buf, _out_pending);
+  uint32_t count = usb_vendor_write(_out_buf, _out_pending);
   _out_buf += count;
   _out_pending -= count;
 }
 
 void WebUsb::receiveData()
 {  
-  while (_out_pending == 0 && tud_vendor_available())
+  while (_out_pending == 0 && usb_vendor_available())
   {
     const Message& msg = reinterpret_cast<const Message&>(_in_out_buf);
-    uint32_t count = tud_vendor_read(_in_out_buf + _in_length, sizeof(_in_out_buf) - _in_length);
+    uint32_t count = usb_vendor_read(_in_out_buf + _in_length, sizeof(_in_out_buf) - _in_length);
     if (count == 0)
     {
       return;
@@ -170,16 +105,13 @@ void WebUsb::processRequest()
 
 void WebUsb::restart()
 {
-  watchdog_enable(50, 0);
+  board_reset();
   sendStatus(kOk);
 }
 
 void WebUsb::firmwareUpgrade()
 {
-  add_alarm_in_ms(50, [](alarm_id_t, void *) {
-    reset_usb_boot(0, 1);
-    return 0LL;
-  }, NULL, false);
+  board_program();
   sendStatus(kOk);
 }
 

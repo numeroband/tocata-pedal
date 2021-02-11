@@ -1,10 +1,6 @@
 #include "flash_partition.h"
+#include "hal.h"
 #include <cstring>
-
-extern "C"
-{
-#include "hardware/flash.h"
-}
 
 #define FAKE_FLASH 0
 
@@ -26,12 +22,11 @@ FlashPartition::FlashPartition() : _part_offset(kPartitionOffset)
 
 bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) const
 {
-    const uint8_t* partition = reinterpret_cast<const uint8_t*>(XIP_BASE + _part_offset);
 #if FAKE_FLASH
     // printf("read(%u, 0x%08X, %u)\n", src_offset, (uint32_t)dst_buf, dst_size);
     memcpy(dst_buf, FakeFlash + src_offset, dst_size);
 #else
-    memcpy(dst_buf, partition + src_offset, dst_size);
+    flash_read(_part_offset + src_offset, dst_buf, dst_size);
 #endif
 
     return true;
@@ -40,12 +35,12 @@ bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) con
 bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_size) const
 {
     // This function cannot be called multiple times so make it static
-    static uint8_t buf[FLASH_PAGE_SIZE];
+    static uint8_t buf[kFlashPageSize];
 
     // Page aligned offset and size
-    const uint32_t offset = dst_offset & ~(FLASH_PAGE_SIZE - 1);
+    const uint32_t offset = dst_offset & ~(kFlashPageSize - 1);
     const uint32_t prologue = dst_offset - offset;
-    const uint32_t size = (prologue + src_size + FLASH_PAGE_SIZE - 1) & ~(FLASH_PAGE_SIZE - 1);
+    const uint32_t size = (prologue + src_size + kFlashPageSize - 1) & ~(kFlashPageSize - 1);
     const uint32_t epilogue = size - (prologue + src_size);
 
     if (prologue || epilogue)
@@ -65,7 +60,7 @@ bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_si
         FakeFlash[dst_offset + i] &= static_cast<const uint8_t*>(src_buf)[i];
     }
 #else
-    flash_range_program(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), src_size);
+    flash_write(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), src_size);
 #endif
 
     return true;
@@ -77,7 +72,7 @@ bool FlashPartition::erase(size_t offset, size_t size) const
     // printf("erase(%u, %u)\n", offset, size);
     memset(FakeFlash + offset, 0xFF, size);
 #else
-    flash_range_erase(_part_offset + offset, size);
+    flash_erase(_part_offset + offset, size);
 #endif
     return true;
 }

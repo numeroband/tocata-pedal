@@ -290,7 +290,7 @@ void FS::Block::updateFlags(uint8_t index, uint8_t flags)
 void FS::Block::compactInto(uint8_t dst_block_id)
 {
     size_t dst_offset = dst_block_id * kBlockSize;
-    size_t dst_flags_off = dst_offset + offsetof(Descriptor, flags);
+    size_t dst_flags_off = dst_offset + sizeof(((Descriptor*)0)->header);
     size_t dst_file_off = dst_offset + kFileSize;
 
     uint8_t file_content[kFileSize];

@@ -1,8 +1,8 @@
 #include <config.h>
+#include "hal.h"
+
 #include <midi_usb.h>
 #include <filesystem.h>
-
-#include <pico/time.h>
 
 #define _log(...) 
 #define _logln(...) 
@@ -18,26 +18,26 @@ static Program sPrograms[Program::kMaxPrograms] = {};
 
 void Storage::init()
 {
-    auto start = to_ms_since_boot(get_absolute_time());
-
 #if !FAKE_CONFIG
+    auto start = millis();
+
     TocataFS.init(true);
 
     if (Config::init())
     {
         Program::initAll();
     }
-#endif
 
-    auto end = to_ms_since_boot(get_absolute_time());
+    auto end = millis();
     printf("Storage init in ms: %u\n", end - start);
-    printf("Usage: %u / %u\n", TocataFS.usedBytes(), TocataFS.totalBytes());
+    printf("Usage: %u / %u\n", (uint32_t)TocataFS.usedBytes(), (uint32_t)TocataFS.totalBytes());
+#endif
     printf("Config size: %u, Program size: %u, Footswitch size: %u, Actions size: %u, Action size: %u\n",
-        sizeof(Config),
-        sizeof(Program),
-        sizeof(Program::Footswitch),
-        sizeof(Actions),
-        sizeof(Actions::Action));
+        (uint32_t)sizeof(Config),
+        (uint32_t)sizeof(Program),
+        (uint32_t)sizeof(Program::Footswitch),
+        (uint32_t)sizeof(Actions),
+        (uint32_t)sizeof(Actions::Action));
 }
 
 bool Config::init()

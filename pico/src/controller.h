@@ -4,20 +4,15 @@
 #include "usb_device.h"
 #include "display.h"
 #include "config.h"
+#include "hal.h"
 
 namespace tocata {
 
 class Controller : public Switches::Delegate, public WebUsb::Delegate
 {
 public:
-    struct HWConfig
-    {
-        Switches::HWConfig switches;
-        I2C::HWConfig display;
-    }; 
-
-    Controller() : _usb(*this), _buttons(*this) {}
-    void init(const HWConfig& config);
+    Controller(const HWConfig& config) : _usb(*this), _buttons(config.switches, *this), _display(config.display) {}
+    void init();
     void run();
 
 private:

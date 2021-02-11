@@ -1,22 +1,20 @@
 #include "switches.h"
-#include "switch_matrix.pio.h"
+
 #include <cstdio>
 
 namespace tocata {
 
-void Switches::init(const HWConfig& config)
+void Switches::init()
 {
-    _sm = config.state_machine_id;
-    uint offset = pio_add_program(_pio, &switch_matrix_program);
-    switch_matrix_program_init(_pio, _sm, offset, config.first_input_pin, config.first_output_pin);
+    switches_init(_config);
 }
 
 void Switches::run()
 {
-    if (!pio_sm_is_rx_fifo_empty(_pio, _sm))
+    if (switches_changed(_config))
     {
         Mask old_state = _state;
-        _state = ~pio_sm_get(_pio, _sm);
+        _state = switches_value(_config);
         if (_state == old_state)
         {
             // Spurious read

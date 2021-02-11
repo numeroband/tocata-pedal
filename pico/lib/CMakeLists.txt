@@ -91,6 +91,20 @@ target_sources(u8g2 INTERFACE
     ${U8G2_PATH}/csrc/u8x8_u16toa.c
     ${U8G2_PATH}/csrc/u8x8_d_a2printer.c
     ${U8G2_PATH}/csrc/u8x8_d_st7565.c
+
+    ${U8G2_PATH}/csrc/u8x8_capture.c
+    ${U8G2_PATH}/csrc/u8x8_d_ist7920.c
+    ${U8G2_PATH}/csrc/u8x8_d_s1d15e06.c
+    ${U8G2_PATH}/csrc/u8x8_d_ssd1306_2040x16.c
+    ${U8G2_PATH}/csrc/u8x8_d_ssd1306_72x40.c
+    ${U8G2_PATH}/csrc/u8x8_d_ssd1306_128x32.c
+    ${U8G2_PATH}/csrc/u8x8_d_ssd1316.c
+    ${U8G2_PATH}/csrc/u8x8_d_ssd1318.c
+    ${U8G2_PATH}/csrc/u8x8_d_st7511.c
+    ${U8G2_PATH}/csrc/u8x8_d_st7528.c
+    ${U8G2_PATH}/csrc/u8x8_d_st75320.c
+    ${U8G2_PATH}/csrc/u8x8_d_st7571.c
+    ${U8G2_PATH}/csrc/u8x8_d_st7586s_ymc240160.c
     )
 
 target_compile_definitions(u8g2 INTERFACE U8X8_WITH_USER_PTR)
