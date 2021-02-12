@@ -9,7 +9,7 @@
 
 namespace tocata {
 
-#define FAKE_CONFIG 1
+#define FAKE_CONFIG 0
 
 #if FAKE_CONFIG
 static Config sConfig = {};

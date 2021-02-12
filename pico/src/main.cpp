@@ -1,4 +1,5 @@
 #include <controller.h>
+#include <hal.h>
 
 static constexpr tocata::HWConfig hw_config = {
   .switches = {
@@ -21,6 +22,7 @@ int main(void)
   while (1)
   {
     controller.run();
+    tocata::idle_loop();
   }
   
   return 0;

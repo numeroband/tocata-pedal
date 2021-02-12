@@ -2,9 +2,11 @@ import Api from '../api/Api.mjs';
 
 const NUM_PROGRAMS = 99;
 
-const api = new Api(navigator.usb);
+const urlParams = new URLSearchParams(window.location.search);
+const transport = urlParams.get('transport') || 'usb';
+const api = new Api(transport === 'usb' ? navigator.usb : null);
 
-export const isSupported = () => "usb" in navigator;
+export const isSupported = () => (transport === 'ws' || 'usb' in navigator);
 export const isConnected = () => api.connected;
 export const connect = reconnect => api.connect(reconnect);
 export const setConnectionEvent = cb => api.connectionEvent = cb;

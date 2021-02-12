@@ -12,6 +12,7 @@ endif()
 target_sources(tocata_pedal PRIVATE
         main.cpp
         controller.cpp
+        hal/hal_host.cpp
         hal/hal_pico.cpp
         usb/usb_device.cpp
         usb/web_usb.cpp
@@ -31,6 +32,8 @@ target_include_directories(tocata_pedal PRIVATE
         pio
         display
         hal
+        ../lib/websocketpp
+        ../lib/asio/asio/include
         )
 
 if(PICO_SDK)

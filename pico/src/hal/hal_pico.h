@@ -36,6 +36,7 @@ struct HWConfigSwitches
 
 // System
 
+static inline void idle_loop() {}
 static inline uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 static inline void sleep_ms(uint32_t ms) { ::sleep_ms(ms); }
 static inline void board_reset() { watchdog_enable(50, 0); }
@@ -51,6 +52,8 @@ static inline void board_program()
 // Flash
 
 static constexpr uint32_t kFlashPageSize = FLASH_PAGE_SIZE;
+static constexpr uint32_t kFlashPartitionOffset = 0x1c0000;
+static constexpr uint32_t kFlashSize = 0x200000;
 
 static inline void flash_read(uint32_t flash_offs, void *dst, size_t count)
 {

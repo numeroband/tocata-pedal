@@ -1,7 +1,9 @@
 #pragma once
 
 #include <chrono>
-#include <unistd.h>
+#include <thread>
+#include <cstring>
+#include <cassert>
 
 namespace tocata {
 
@@ -19,19 +21,39 @@ struct HWConfigSwitches
 };
 
 // System
-using namespace std::chrono;
-static inline uint32_t millis() { return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();; }
-static inline void sleep_ms(uint32_t ms) { usleep(ms * 1000); }
+static inline uint32_t millis() { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
+static inline void sleep_ms(uint32_t ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
+static inline void idle_loop() { sleep_ms(1); }
 static inline void board_reset() {}
 static inline void board_program() {}
 
 // Flash
 
 static constexpr uint32_t kFlashPageSize = 4 * 1024;
+static constexpr uint32_t kFlashPartitionOffset = 0x1c0000;
+static constexpr uint32_t kFlashSize = 0x200000;
 
-static inline void flash_read(uint32_t flash_offs, void *dst, size_t count) {}
-static inline void flash_write(uint32_t flash_offs, const void *data, size_t count) {}
-static inline void flash_erase(uint32_t flash_offs, size_t count) {}
+extern uint8_t MemFlash[kFlashSize];
+
+static inline void flash_read(uint32_t flash_offs, void *dst, size_t count) 
+{
+    memcpy(dst, MemFlash + flash_offs, count);
+}
+
+static inline void flash_write(uint32_t flash_offs, const void *data, size_t count) 
+{
+    for (size_t i = 0; i < count; ++i)
+    {
+        MemFlash[flash_offs + i] &= static_cast<const uint8_t*>(data)[i];
+    }
+}
+
+static inline void flash_erase(uint32_t flash_offs, size_t count) 
+{
+    assert(flash_offs % kFlashPageSize == 0);
+    assert(count % kFlashPageSize == 0);
+    memset(MemFlash + flash_offs, 0xFF, count);
+}
 
 // PIO
 
@@ -59,12 +81,14 @@ static inline void board_led_enable(bool enabled) {}
 
 // USB
 
-static inline void usb_init() {}
-static inline void usb_run() {}
-static inline uint32_t usb_vendor_available() { return false; }
-static inline uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return 0; }
-static inline uint32_t usb_vendor_write_available() { return 0; }
-static inline uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return 0; }
+void usb_init();
+void usb_run();
+
+uint32_t usb_vendor_available();
+uint32_t usb_vendor_read(void* buffer, uint32_t bufsize);
+uint32_t usb_vendor_write_available();
+uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize);
+
 static inline void usb_midi_write(uint8_t val1, uint8_t val2) {} 
 static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) {}
 

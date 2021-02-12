@@ -1,4 +1,5 @@
-import Transport from './Transport.mjs';
+import TransportUsb from './TransportUsb.mjs';
+import TransportWebSocket from './TransportWebSocket.mjs';
 
 const LENGTH_OFFSET = 0;
 const COMMAND_OFFSET = 2;
@@ -7,7 +8,7 @@ const MSG_HEADER_SIZE = 4;
 
 export default class Protocol {
   constructor(usb, connectionEvent) {
-    this.transport = new Transport(usb, connectionEvent);
+    this.transport = usb ? new TransportUsb(usb, connectionEvent) : new TransportWebSocket(connectionEvent);
     this.buffer = new Uint8Array();
   }
 
