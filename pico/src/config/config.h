@@ -84,6 +84,17 @@ private:
     Action _actions[kMaxActions];
 } __attribute__((packed));
 
+enum Color : uint8_t
+{
+    kNone,
+    kBlue, 
+    kPurple, 
+    kRed, 
+    kYellow, 
+    kGreen, 
+    kTurquoise,
+};
+
 class Program
 {
 public:
@@ -97,23 +108,14 @@ public:
     class Footswitch
     {
     public:
-        enum Color : uint8_t
-        {
-            kBlue, 
-            kPurple, 
-            kRed, 
-            kYellow, 
-            kGreen, 
-            kTurquoise,
-        };
-
         static constexpr size_t kMaxNameSize = 5;
 
         const char* name() const { return _name; }
         bool momentary() const { return _momentary; }
         bool enabled() const { return _enabled; }
+        Color color() const { return _color; }
         bool available() const { return _name[0]; }
-        void run(MidiUsb& midi) const;
+        void run(MidiUsb& midi, bool active) const;
         bool operator==(const Footswitch& other);
 
     private:

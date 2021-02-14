@@ -9,10 +9,10 @@ void Controller::init()
     _usb.init();
     _display.init();
     Storage::init();
+    _leds.init();
+    _buttons.init();
 
     loadProgram(0);
-
-    _buttons.init();
 }
 
 void Controller::run() 
@@ -30,15 +30,34 @@ void Controller::run()
 
 void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
 {
-    static bool toggle;
-
     auto activated = status & modified;
-    if (activated.any())
+    if (activated[3]) // Hardcoded
     {
         loadProgram((_program_id + 1) % 4);
-        toggle = !toggle;
-        _usb.midi().sendControl(55, toggle ? 127 : 0);
+        return;
     }
+
+    for (uint8_t sw = 0; sw < Switches::kNumSwitches; ++sw)
+    {
+        if (modified[sw])
+        {
+            changeSwitch(sw, status[sw]);
+        }
+    }
+    _leds.refresh();
+}
+
+void Controller::changeSwitch(uint8_t id, bool active)
+{
+    const auto& fs = _program.footswitch(id);
+    if (id >= _program.numFootswitches() || !fs.available() || (!fs.momentary() && !active))
+    {
+        return;
+    }
+
+    _switches_state[id] = fs.momentary() ? (active ^ fs.enabled()) : !_switches_state[id];
+    fs.run(_usb.midi(), _switches_state[id]);
+    _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 
 void Controller::configChanged()
@@ -62,6 +81,21 @@ void Controller::loadProgram(uint8_t id)
     {
         _program.run(_usb.midi());
     }
+
+    for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
+    {
+        const auto& fs = _program.footswitch(id);
+        if (id >= _program.numFootswitches() || !fs.available())
+        {
+            _leds.setColor(id, kNone, false);
+        }
+        else
+        {
+            _switches_state[id] = fs.enabled();
+            _leds.setColor(id, fs.color(), _switches_state[id]);
+        }
+    }
+    _leds.refresh();
 }
 
 }

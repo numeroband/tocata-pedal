@@ -4,7 +4,7 @@ add_executable(tocata_pedal)
 
 if(PICO_SDK)
 pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/switch_matrix.pio)
-pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812.pio)
+pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
 endif()
 
 # target_compile_definitions(tocata_pedal PRIVATE U8X8_WITH_USER_PTR)
@@ -21,6 +21,7 @@ target_sources(tocata_pedal PRIVATE
         config/flash_partition.cpp
         config/filesystem.cpp
         pio/switches.cpp
+        pio/leds.cpp
         display/i2c.cpp
         display/display.cpp
         )

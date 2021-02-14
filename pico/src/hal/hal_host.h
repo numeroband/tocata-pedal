@@ -20,6 +20,12 @@ struct HWConfigSwitches
     uint8_t first_output_pin;
 };
 
+struct HWConfigLeds
+{
+    int state_machine_id;
+    uint8_t data_pin;
+};
+
 // System
 static inline uint32_t millis() { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 static inline void sleep_ms(uint32_t ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
@@ -55,7 +61,7 @@ static inline void flash_erase(uint32_t flash_offs, size_t count)
     memset(MemFlash + flash_offs, 0xFF, count);
 }
 
-// PIO
+// Switches
 
 static inline void switches_init(const HWConfigSwitches& config) {}
 
@@ -69,10 +75,15 @@ static inline uint32_t switches_value(const HWConfigSwitches& config)
     return 0;
 }
 
+// Leds
+
+static inline void leds_init(const HWConfigLeds& config) {}
+
+static inline void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds) {}
 // I2C
 
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config) {}
-static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len) {}
+void i2c_write(uint8_t addr, const uint8_t *src, size_t len);
 
 // BOARD LED
 

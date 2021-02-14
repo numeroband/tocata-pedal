@@ -4,12 +4,14 @@
 #include <u8g2.h>
 #include "i2c.h"
 
+#include <bitset>
+
 namespace tocata {
 
 class Display
 {
 public:
-	Display(const HWConfigI2C& config) : _i2c(config) {}
+	Display(const HWConfigI2C& config, const std::bitset<Program::kNumSwitches>& fs_state) : _i2c(config), _fs_state(fs_state) {}
 	void init();
 	void run();
 	void setConnected(bool connected) { _connected = connected; }
@@ -27,6 +29,7 @@ private:
 	bool _connected = false;
 	bool _dirty = true;
 	const Program* _program = nullptr;
+	const std::bitset<Program::kNumSwitches>& _fs_state;
 	char _program_str[3];
 	struct {
 		const char* name;

@@ -3,6 +3,8 @@
 #define HAL_PICO
 
 #include "switch_matrix.pio.h"
+#include "ws2812b.pio.h"
+#include "config.h"
 
 extern "C" {
 #include <hardware/i2c.h>
@@ -32,6 +34,12 @@ struct HWConfigSwitches
     int state_machine_id;
     uint8_t first_input_pin;
     uint8_t first_output_pin;
+};
+
+struct HWConfigLeds
+{
+    int state_machine_id;
+    uint8_t data_pin;
 };
 
 // System
@@ -71,12 +79,13 @@ static inline void flash_erase(uint32_t flash_offs, size_t count)
     flash_range_erase(flash_offs, count);
 }
 
-// PIO
+// Switches
 
 static inline void switches_init(const HWConfigSwitches& config)
 {
     uint offset = pio_add_program(pio0, &switch_matrix_program);
     switch_matrix_program_init(pio0, config.state_machine_id, offset, config.first_input_pin, config.first_output_pin);
+    printf("Configured switch_matrix program in sm %u offset %u\n", config.state_machine_id, offset);
 }
 
 static inline bool switches_changed(const HWConfigSwitches& config)
@@ -86,23 +95,54 @@ static inline bool switches_changed(const HWConfigSwitches& config)
 
 static inline uint32_t switches_value(const HWConfigSwitches& config)
 {
-    return ~pio_sm_get(pio0, config.state_machine_id);
+    return ~pio_sm_get(pio0, config.state_machine_id) >> 4;
+}
+
+// Leds
+
+static inline void leds_init(const HWConfigLeds& config)
+{
+    uint offset = pio_add_program(pio0, &ws2812b_program);
+    ws2812b_program_init(pio0, config.state_machine_id, offset, config.data_pin);
+    printf("Configured ws2812b program in sm %u offset %u\n", config.state_machine_id, offset);
+}
+
+static inline void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds)
+{
+    printf("Leds update sm %u:", config.state_machine_id);
+    for (size_t led = 0; led < num_leds; ++led)
+    {
+        const uint32_t led_value = leds[led];
+        printf(" %08X", led_value);
+        pio_sm_put_blocking(pio0, config.state_machine_id, led_value);
+    }    
+    printf("\n");
 }
 
 // I2C
 
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config)
 {
-	::i2c_init(i2c0, baudrate);
+	uint actual_baudrate = ::i2c_init(i2c0, baudrate);
 	gpio_set_function(config.sda_pin, GPIO_FUNC_I2C);
 	gpio_set_function(config.scl_pin, GPIO_FUNC_I2C);
 	gpio_pull_up(config.sda_pin);
 	gpio_pull_up(config.scl_pin);
+    printf("i2c initialized to %u Hz\n", actual_baudrate);
 }
 
 static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 {
-	i2c_write_blocking(i2c0, addr, src, len, false);
+    int ret = i2c_write_timeout_per_char_us(i2c0, addr, src, len, false, 100);
+    if (ret != len)
+    {
+        printf("I2C error %d with %u bytes to %02X: ", ret, (uint32_t)len, addr);
+        for (uint8_t i = 0; i < len; ++i)
+        {
+            printf("%02X ", src[i]);
+        }
+        printf("\n");
+    }
 }
 
 // BOARD LED

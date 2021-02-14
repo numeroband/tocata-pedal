@@ -94,6 +94,7 @@ const messageTypes = [
 ];
 
 const colors = [
+  null,
   'blue',
   'purple',
   'red',

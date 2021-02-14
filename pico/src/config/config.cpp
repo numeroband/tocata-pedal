@@ -9,7 +9,7 @@
 
 namespace tocata {
 
-#define FAKE_CONFIG 0
+#define FAKE_CONFIG 1
 
 #if FAKE_CONFIG
 static Config sConfig = {};
@@ -226,7 +226,7 @@ void Program::run(MidiUsb& midi) const
         const Footswitch& fs = _switches[i];
         if (fs.available())
         {
-            fs.run(midi);
+            fs.run(midi, fs.enabled());
         }
     }
 }
@@ -401,9 +401,9 @@ bool Program::operator==(const Program& other)
     return true;
 }
 
-void Program::Footswitch::run(MidiUsb& midi) const
+void Program::Footswitch::run(MidiUsb& midi, bool active) const
 {
-    if (_enabled)
+    if (active)
     {
         _on_actions.run(midi);
     }    

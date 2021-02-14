@@ -27,7 +27,7 @@ uint8_t Display::i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *a
             i2c->sendBytes(arg_ptr, arg_int);
 			break;
 		case U8X8_MSG_BYTE_START_TRANSFER:
-            i2c->startTransfer(u8x8_GetI2CAddress(u8x8));
+            i2c->startTransfer(u8x8_GetI2CAddress(u8x8) >> 1);
 			break;
 		case U8X8_MSG_BYTE_END_TRANSFER:
             i2c->endTransfer();
@@ -71,7 +71,7 @@ void Display::init()
 void Display::setProgram(uint8_t id, const Program& program)
 {
 	_program = &program;
-	sprintf(_program_str, "%2u", id);
+	sprintf(_program_str, "%2u", id + 1);
 	_scroll.name = _program->available() ? _program->name() : "<EMPTY>";
 	_scroll.letter = 0;
 	_scroll.pixel = 0;
@@ -177,7 +177,7 @@ void Display::drawFootswitch(uint8_t idx, const Program::Footswitch& footswitch)
 
   u8g2_SetDrawColor(&_u8g2, 1);
   
-  if (footswitch.enabled())
+  if (_fs_state[idx])
   {
     u8g2_DrawFrame(&_u8g2, x, y, block_width, block_height);
   }

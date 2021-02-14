@@ -7,9 +7,13 @@ static constexpr tocata::HWConfig hw_config = {
     .first_input_pin = 2,
     .first_output_pin = 6,
   },
+  .leds = {
+    .state_machine_id = 1,
+    .data_pin = 18,
+  },
   .display = {
-    .sda_pin = 8,
-    .scl_pin = 9,
+    .sda_pin = 20,
+    .scl_pin = 21,
   },
 };
 

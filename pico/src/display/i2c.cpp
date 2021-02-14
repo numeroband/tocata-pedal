@@ -29,13 +29,6 @@ void I2C::sendBytes(const void* buf, size_t len)
 void I2C::endTransfer()
 {
 	i2c_write(_addr, _transfer, _transfer_len);
-
-	// printf("I2C %u bytes to %02X: ",_transfer_len, _addr);
-	// for (uint8_t i = 0; i < _transfer_len; ++i)
-	// {
-	// 	printf("%02X ", _transfer[i]);
-	// }
-	// printf("\n");
 }
 
 void I2C::delayMs(uint8_t ms)

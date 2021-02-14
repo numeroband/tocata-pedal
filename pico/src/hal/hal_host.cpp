@@ -8,10 +8,27 @@
 #include <websocketpp/server.hpp> 
 #include <functional>
 #include <queue>
+#include <display_sim.h>
 
 namespace tocata {
 
 uint8_t MemFlash[2 * 1024 * 1024];
+
+static DisplaySim display;
+void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
+{
+    if (display.processTransfer(src, len))
+    {
+      return;
+    }
+
+    printf("Invalid I2C %u bytes to %02X: ", (uint32_t)len, addr);
+    for (uint8_t i = 0; i < len; ++i)
+    {
+    	printf("%02X ", src[i]);
+    }
+    printf("\n");
+}
 
 class WebSocket
 {
@@ -103,7 +120,7 @@ private:
 static WebSocket ws;
 
 void usb_init() { ws.init(); }
-void usb_run() { ws.run(); }
+void usb_run() { ws.run(); display.refresh(); }
 uint32_t usb_vendor_available() { return ws.readAvailable(); }
 uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return ws.read(buffer, bufsize); }
 uint32_t usb_vendor_write_available() { return ws.writeAvailable(); }

@@ -11,6 +11,7 @@ namespace tocata {
 struct HWConfig
 {
     HWConfigSwitches switches;
+    HWConfigLeds leds;
     HWConfigI2C display;
 }; 
 

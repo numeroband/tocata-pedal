@@ -16,17 +16,17 @@ start:
     jmp x!=y debounce    side 0b00     ; x last pins
     jmp start            side 0b00
 debounce:
-    set x, 31            side 0b00     ; Initialize number of consecutive reads
+    mov x, y             side 0b00     ; x becomes the new value 
+    set y, 31            side 0b00     ; Initialize number of consecutive reads
 deb_loop:
     mov isr, !null       side 0b01 [7]
     in pins, num_in_pins side 0b10 [7]
     in pins, num_in_pins side 0b00
-    mov osr, x           side 0b00
-    mov x, isr           side 0b00     ; x to check isr
+    mov osr, y           side 0b00
+    mov y, isr           side 0b00     ; y to check isr
     jmp x!=y debounce    side 0b00     ; If the switches changed reset counter
-    mov x, osr           side 0b00
-    jmp x-- deb_loop     side 0b00     ; Check if x is 0 and decrement
-    mov x, y             side 0b00     ; x becomes the new value 
+    mov y, osr           side 0b00
+    jmp y-- deb_loop     side 0b00     ; Check if x is 0 and decrement
     push                 side 0b00
 
 % c-sdk {
