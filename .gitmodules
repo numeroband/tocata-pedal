@@ -1,9 +1,9 @@
 [submodule "pico/lib/u8g2"]
-	path = pico/lib/u8g2
+	path = firmware/lib/u8g2
 	url = https://github.com/olikraus/u8g2.git
 [submodule "pico/lib/asio"]
-	path = pico/lib/asio
+	path = firmware/lib/asio
 	url = https://github.com/chriskohlhoff/asio.git
 [submodule "pico/lib/websocketpp"]
-	path = pico/lib/websocketpp
+	path = firmware/lib/websocketpp
 	url = https://github.com/zaphoyd/websocketpp.git
