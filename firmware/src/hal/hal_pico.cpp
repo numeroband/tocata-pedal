@@ -97,6 +97,28 @@ bool tud_vendor_control_complete_cb(uint8_t rhport, tusb_control_request_t const
 
 namespace tocata {
 
+static char nibble_to_hex(uint8_t nibble)
+{
+  if (nibble < 10)
+  {
+    return '0' + nibble;
+  }
+  else
+  {
+    return 'A' + (nibble - 10);
+  }
+}
+
+static void bytes_to_hex(char* dst, uint8_t* bytes, size_t length)
+{
+  for (size_t i = 0; i < length; ++i)
+  {
+    dst[2 * i] = nibble_to_hex(bytes[i] >> 4);
+    dst[2 * i + 1] = nibble_to_hex(bytes[i] & 0xF);
+  }
+  dst[2 * length] = '\0';
+}
+
 void usb_init()
 {
   static struct stdio_driver usb_stdio = {
@@ -122,6 +144,9 @@ void usb_init()
     .crlf_enabled = PICO_STDIO_DEFAULT_CRLF,
   };
 
+  pico_unique_board_id_t board_id;
+  pico_get_unique_board_id(&board_id);
+  bytes_to_hex(usb_serial_number, board_id.id, sizeof(board_id.id));
   tusb_init();
   stdio_set_driver_enabled(&usb_stdio, true);
 }

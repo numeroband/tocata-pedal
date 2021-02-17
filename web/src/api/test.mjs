@@ -2,10 +2,27 @@ import WebUSB from "webusb";
 import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
+import UF2 from './UF2.mjs'
+
+function parseUF2(inPath, outPath) {
+  const content = fs.readFileSync(inPath);
+  const uf2 = new UF2(content.buffer);
+  console.log(`Flash start: 0x${uf2.flashStart.toString(16)}`);
+  console.log(`Flash end: 0x${uf2.flashEnd.toString(16)}`);
+  const flash = new Uint8Array(uf2.flashEnd - uf2.flashStart);
+  for (const block of uf2.blocks) {
+    flash.set(block.payload, block.address - uf2.flashStart);
+  }
+  fs.writeFileSync(outPath, flash);
+}
 
 async function main() {
-  const api = new Api(WebUSB.usb);
   const command = process.argv[2];
+  if (command == 'uf2') {
+    parseUF2(process.argv[3], process.argv[4]);
+    return;
+  }
+  const api = new Api(WebUSB.usb);
   const start = process.uptime();
 
   try {

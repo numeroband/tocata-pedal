@@ -32,5 +32,6 @@ enum
 };
 
 extern uint8_t const desc_ms_os_20[];
+extern char usb_serial_number[];
 
 #endif /* USB_DESCRIPTORS_H_ */

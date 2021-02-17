@@ -54,7 +54,7 @@ tusb_desc_device_t const desc_device =
 
     .idVendor           = 0xCafe,
     .idProduct          = USB_PID,
-    .bcdDevice          = 0x0100,
+    .bcdDevice          = (VERSION_MAJOR << 8) | (VERSION_MINOR << 4) | VERSION_SUBMINOR,
 
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,
@@ -178,6 +178,7 @@ uint8_t const * tud_descriptor_bos_cb(void)
   return desc_bos;
 }
 
+char usb_serial_number[2 * sizeof(uint64_t) + 1];
 
 uint8_t const desc_ms_os_20[] =
 {
@@ -219,7 +220,7 @@ char const* string_desc_arr [] =
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
   "Tocata Inc.",                 // 1: Manufacturer
   "Tocata Pedal",                // 2: Product
-  "123456",                      // 3: Serials, should use chip ID
+  usb_serial_number,             // 3: Serials
   "CDC",                         // 4: CDC Interface
   "WebUSB",                      // 5: Vendor Interface
   "MIDI",                        // 6: MIDI Interface

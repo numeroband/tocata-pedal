@@ -12,6 +12,7 @@ extern "C" {
 #include <hardware/flash.h>
 #include <hardware/watchdog.h>
 #include <pico/bootrom.h>
+#include <pico/unique_id.h>
 }
 
 #include <pico/stdio.h>

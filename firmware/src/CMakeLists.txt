@@ -2,13 +2,6 @@
 
 add_executable(tocata_pedal)
 
-if(PICO_SDK)
-pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/switch_matrix.pio)
-pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
-endif()
-
-# target_compile_definitions(tocata_pedal PRIVATE U8X8_WITH_USER_PTR)
-
 target_sources(tocata_pedal PRIVATE
         main.cpp
         controller.cpp
@@ -37,21 +30,36 @@ target_include_directories(tocata_pedal PRIVATE
         ../lib/asio/asio/include
         )
 
+target_link_libraries(tocata_pedal PRIVATE u8g2)
+
+target_compile_definitions(tocata_pedal PRIVATE
+        VERSION_MAJOR=${TOCATA_PEDAL_VERSION_MAJOR}
+        VERSION_MINOR=${TOCATA_PEDAL_VERSION_MINOR}
+        VERSION_SUBMINOR=${TOCATA_PEDAL_VERSION_SUBMINOR}
+        )
+
 if(PICO_SDK)
+pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/switch_matrix.pio)
+pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
+
+pico_set_program_name(tocata_pedal "tocata-pedal")
+pico_set_program_version(tocata_pedal "${TOCATA_PEDAL_VERSION_MAJOR}.${TOCATA_PEDAL_VERSION_MINOR}.${TOCATA_PEDAL_VERSION_SUBMINOR}")
+
+pico_set_binary_type(tocata_pedal copy_to_ram)
+
+pico_enable_stdio_uart(tocata_pedal 0)
+pico_enable_stdio_usb(tocata_pedal 0)
+
 target_link_libraries(tocata_pedal PRIVATE 
         pico_stdlib 
+        pico_unique_id
         hardware_i2c
         hardware_flash
         hardware_pio
         tinyusb_device 
         tinyusb_board
-        u8g2
         )
-else()
-target_link_libraries(tocata_pedal PRIVATE u8g2)
-endif()
-
-if(PICO_SDK)
+ 
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(tocata_pedal)
 endif()
