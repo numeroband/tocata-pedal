@@ -1,32 +1,33 @@
 export default class TransportWS {
-  constructor(connectionEvent) {
-    this.ws = null;
+  constructor(ws, connectionEvent) {
+    this.ws = ws;
+    this.socket = null;
     this.connectionEvent = connectionEvent;
     this.queue = [];
     this.resolve = null;
   }
 
   get connected() {
-    return this.ws != null;
+    return this.socket != null;
   }
 
   async connect() {
-    const ws = new WebSocket("ws://localhost:9002");
-    ws.binaryType = "arraybuffer";
+    const socket = new this.ws("ws://localhost:9002");
+    socket.binaryType = "arraybuffer";
 
-    ws.onopen = e => {
-      console.log('onopen', e);
-      this.ws = ws;
+    socket.onopen = e => {
+      console.log('onopen');
+      this.socket = socket;
       this.connectionEvent(true);
     };
 
-    ws.onerror = e => {
-      console.log('onerror', e);
-      this.ws = null;
+    socket.onerror = e => {
+      console.log('onerror');
+      this.socket = null;
       this.connectionEvent(false);
     };    
     
-    ws.onmessage = e => {
+    socket.onmessage = e => {
       this.queue.push(new Uint8Array(e.data));
       if (this.resolve) {
         this.resolve(this.queue.shift());
@@ -40,7 +41,7 @@ export default class TransportWS {
   }
 
   async send(data) {
-    this.ws.send(data);
+    this.socket.send(data);
   };
 
   async receive() {

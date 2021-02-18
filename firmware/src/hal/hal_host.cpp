@@ -120,7 +120,10 @@ private:
 static WebSocket ws;
 
 void usb_init() { ws.init(); }
-void usb_run() { ws.run(); display.refresh(); }
+void usb_run() { 
+  ws.run(); 
+  // display.refresh(); 
+}
 uint32_t usb_vendor_available() { return ws.readAvailable(); }
 uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return ws.read(buffer, bufsize); }
 uint32_t usb_vendor_write_available() { return ws.writeAvailable(); }

@@ -7,8 +7,8 @@ const STATUS_OFFSET = 3;
 const MSG_HEADER_SIZE = 4;
 
 export default class Protocol {
-  constructor(usb, connectionEvent) {
-    this.transport = usb ? new TransportUsb(usb, connectionEvent) : new TransportWebSocket(connectionEvent);
+  constructor(transport, connectionEvent) {
+    this.transport = ("requestDevice" in transport) ? new TransportUsb(transport, connectionEvent) : new TransportWebSocket(transport, connectionEvent);
     this.buffer = new Uint8Array();
   }
 

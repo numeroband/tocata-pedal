@@ -2,7 +2,7 @@ const EP_SIZE = 64
 const VENDOR_ID = 0xcafe;
 const IFACE_CLASS = 0xFF;
 
-export default class Transport {
+export default class TransportUsb {
   constructor(usb, connectionEvent) {
     this.usb = usb;
     this.device = null;

@@ -96,6 +96,15 @@ void WebUsb::processRequest()
     case kDeleteProgram:
       deleteProgram();
       break;
+    case kMemRead:
+      memRead();
+      break;
+    case kMemWrite:
+      memWrite();
+      break;
+    case kFlashErase:
+      flashErase();
+      break;
     default:
       memmove(_in_out_buf + sizeof(msg), _in_out_buf, sizeof(_in_out_buf) - sizeof(msg));
       sendResponse(sizeof(_in_out_buf) - sizeof(msg), kInvalidCommand);
@@ -234,6 +243,104 @@ void WebUsb::deleteProgram()
   Program::remove(req.id);
   sendStatus(kOk);
   _delegate.programChanged(req.id);
+}
+
+void WebUsb::memRead()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const MemReadReq& req = reinterpret_cast<const MemReadReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  MemReadRes& res = reinterpret_cast<MemReadRes&>(msg.payload);
+  if (req.length + sizeof(msg) + sizeof(res) > sizeof(_in_out_buf))
+  {
+    sendStatus(kInvalidPayloadLength);
+    return;
+  }
+
+  uint32_t length = req.length;
+  void* src = reinterpret_cast<void*>(req.address);
+  res.address = req.address;
+  res.length = length;
+  if (res.address >= kFlashAddress && res.address < (kFlashAddress + kFlashSize))
+  {
+    flash_read(res.address - kFlashAddress, res.payload, length);
+  }
+  else
+  {
+    memcpy(res.payload, src, req.length);
+  }
+
+  sendResponse(sizeof(res) + length);
+}
+
+void WebUsb::memWrite()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const MemWriteReq& req = reinterpret_cast<const MemWriteReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.length + sizeof(msg) + sizeof(req) > sizeof(_in_out_buf))
+  {
+    sendStatus(kInvalidPayloadLength);
+    return;
+  }
+
+  void* dst = reinterpret_cast<void*>(req.address);
+  if (req.address >= kFlashAddress && req.address < (kFlashAddress + kFlashSize))
+  {
+    if (req.address + req.length >= (kFlashAddress + kFlashSize)) {
+      sendStatus(kInvalidPayloadLength);
+      return;
+    }
+    flash_write(req.address - kFlashAddress, req.payload, req.length);
+  }
+  else
+  {
+    memcpy(dst, req.payload, req.length);
+  }
+
+  sendStatus(kOk);
+}
+
+void WebUsb::flashErase()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const FlashEraseReq& req = reinterpret_cast<const FlashEraseReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.address < kFlashAddress || req.address >= (kFlashAddress + kFlashSize))
+  {
+    sendStatus(kInvalidAddress);
+    return;
+  }
+
+  if (req.address + req.length >= (kFlashAddress + kFlashSize)) {
+    sendStatus(kInvalidPayloadLength);
+    return;
+  }
+
+  if (req.length > kFlashSize)
+  {
+    sendStatus(kInvalidPayloadLength);
+    return;
+  }
+
+  uint32_t length = (req.length + kFlashPageSize - 1) & ~(kFlashPageSize - 1);
+  flash_erase(req.address - kFlashAddress, length);
+  sendStatus(kOk);
 }
 
 void WebUsb::sendResponse(uint16_t length, Status status)

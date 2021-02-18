@@ -15,8 +15,8 @@ function isEmpty(value) {
 
 const parsers = {
   uint8: (view, offset) => [view.getUint8(offset), offset + 1],
-  uint16: (view, offset) => [view.getUint16(offset), offset + 2],
-  uint32: (view, offset) => [view.getUint32(offset), offset + 4],
+  uint16: (view, offset) => [view.getUint16(offset, true), offset + 2],
+  uint32: (view, offset) => [view.getUint32(offset, true), offset + 4],
   bool: (view, offset) => [view.getUint8(offset) !== 0, offset + 1],
   enum: (view, offset, dict) => [dict[view.getUint8(offset)], offset + 1],
   str: (view, offset, size) => {
@@ -50,12 +50,17 @@ const parsers = {
     }
     return [(scheme.valid && !scheme.valid(ret)) ? null : ret, offset];
   },
+  u32Buffer: (view, offset) => {
+    const length = view.getUint32(offset, true);
+    offset += 4;
+    return [new Uint8Array(view.buffer, offset, length), offset + length];
+  }
 };
 
 const serializers = {
   uint8: (view, offset, value) => { view.setUint8(offset, value); return offset + 1 },
-  uint16: (view, offset, value) => { view.setUint16(offset, value); return offset + 2 },
-  uint32: (view, offset, value) => { view.setUint32(offset, value); return offset + 4 },
+  uint16: (view, offset, value) => { view.setUint16(offset, value, true); return offset + 2 },
+  uint32: (view, offset, value) => { view.setUint32(offset, value, true); return offset + 4 },
   bool: (view, offset, value) => { view.setUint8(offset, value); return offset + 1 },
   enum: (view, offset, value, values) => { view.setUint8(offset, values.findIndex(v => v === value)); return offset + 1 },
   str: (view, offset, value, size) => {
@@ -83,6 +88,13 @@ const serializers = {
     }
     return offset;
   },
+  u32Buffer: (view, offset, buffer) => {
+    view.setUint32(offset, buffer.byteLength, true);
+    offset += 4;
+    const arr = new Uint8Array(view.buffer, offset);
+    arr.set(buffer);
+    return offset + buffer.byteLength;
+  }
 };
 
 const messageTypes = [
@@ -160,11 +172,28 @@ const idPlusProgram = {
   ]
 };
 
+const addressAndLength = { 
+  fields: [
+    ['address', 'uint32'],
+    ['length', 'uint32'],
+  ]
+};
+
+const addressAndPayload = { 
+  fields: [
+    ['address', 'uint32'],
+    ['payload', 'u32Buffer'],
+  ]
+};
+
 const parseStruct = (buffer, parser) => parsers.struct(new DataView(buffer), 0, parser)[0];
 const serializeStruct = (buffer, value, parser) => buffer.slice(0, serializers.struct(new DataView(buffer), 0, value, parser));
 
 export const parseConfig = buffer => parseStruct(buffer, config);
 export const parseNames = buffer => parseStruct(buffer, names);
 export const parseProgram = buffer => parseStruct(buffer, idPlusProgram);
+export const parseAddrPayload = buffer => parseStruct(buffer, addressAndPayload);
 export const serializeConfig = value => serializeStruct(new Uint8Array(512).buffer, value, config);
 export const serializeProgram = value => serializeStruct(new Uint8Array(512).buffer, value, idPlusProgram);
+export const serializeAddrPayload = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndPayload);
+export const serializeAddrLength = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndLength);

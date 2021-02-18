@@ -1,4 +1,5 @@
-import WebUSB from "webusb";
+import WebUSB from 'webusb';
+import WebSocket from 'ws'
 import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
@@ -23,7 +24,15 @@ async function main() {
     return;
   }
   const api = new Api(WebUSB.usb);
+  // const api = new Api(WebSocket);
   const start = process.uptime();
+
+  const promise = new Promise((resolve, reject) => {
+    api.connectionEvent = connected => connected && resolve();
+    api.connect();
+  });
+
+  await promise;
 
   try {
     await api.connect();
@@ -120,6 +129,28 @@ async function main() {
       case 'factory':
       {
         await api.factory();
+        break;
+      }
+      case 'flash':
+      {
+        const path = process.argv[3];
+        const content = fs.readFileSync(path);
+        const uf2 = new UF2(content.buffer);
+        console.log('Flashing firmware');
+        await api.flashFirmware(uf2);
+        console.log('Verifying firmware');
+        await api.verifyFirmware(uf2);
+        console.log('Restarting');
+        await api.restart();
+        break;
+      }
+      case 'read':
+      {
+        const addr = Number(process.argv[3]);
+        const length = Number(process.argv[4]);
+        const path = process.argv[5];
+        const content = await api.readMemory(addr, length);
+        fs.writeFileSync(path, content);
         break;
       }
       default:

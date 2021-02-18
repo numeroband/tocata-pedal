@@ -4,7 +4,7 @@ const NUM_PROGRAMS = 99;
 
 const urlParams = new URLSearchParams(window.location.search);
 const transport = urlParams.get('transport') || 'usb';
-const api = new Api(transport === 'usb' ? navigator.usb : null);
+const api = new Api(transport === 'usb' ? navigator.usb : WebSocket);
 
 export const isSupported = () => (transport === 'ws' || 'usb' in navigator);
 export const isConnected = () => api.connected;
