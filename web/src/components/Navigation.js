@@ -90,7 +90,9 @@ function Navigation(props) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [usbConnected, setUsbConnected] = React.useState(isConnected());
 
-  setConnectionEvent(connected => { console.log(connected ? 'connected' : 'disconnected'); setUsbConnected(connected)});
+  if (isSupported()) {
+    setConnectionEvent(connected => { console.log(connected ? 'connected' : 'disconnected'); setUsbConnected(connected)});
+  }
 
   React.useEffect(() => {
     if (isSupported()) {

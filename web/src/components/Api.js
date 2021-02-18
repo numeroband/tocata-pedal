@@ -4,10 +4,10 @@ const NUM_PROGRAMS = 99;
 
 const urlParams = new URLSearchParams(window.location.search);
 const transport = urlParams.get('transport') || 'usb';
-const api = new Api(transport === 'usb' ? navigator.usb : WebSocket);
+const api = (transport === 'ws') ? new Api(WebSocket) : (navigator.usb ? new Api(navigator.usb) : null);
 
 export const isSupported = () => (transport === 'ws' || 'usb' in navigator);
-export const isConnected = () => api.connected;
+export const isConnected = () => api && api.connected;
 export const connect = reconnect => api.connect(reconnect);
 export const setConnectionEvent = cb => api.connectionEvent = cb;
 export const readConfig = () => api.getConfig();
@@ -86,29 +86,53 @@ export async function restore(progress) {
   console.log('end restore');
 }
 
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+export async function restart() {
+  console.log('start restart');
+  await api.restart();
+  console.log('end restart');
+}
 
-export async function restart(progress) {
+export async function flash(uf2, progress) {
   let currentProgress = 0;
   function updateProgress(value) {
     currentProgress += value;
     progress && progress(currentProgress);
   }
   
-  console.log('start restart');
-  await api.restart();
+  console.log('start flashing');
+  await api.flashErase(uf2.flashStart, uf2.flashEnd - uf2.flashStart);
   updateProgress(5);
-
-  const restartDelay = 2000;
-  const progressUpdateMs = 500;
-  const progressUpdate = (100 - currentProgress) / (restartDelay / progressUpdateMs);
-  console.log(`waiting ${restartDelay / 1000} seconds`);
-  let waited = 0;
-  while (waited < restartDelay)
-  {
-    await wait(progressUpdateMs);
-    waited += progressUpdateMs;
+  const progressUpdate = (100 - currentProgress) / uf2.blocks.length;
+  for (const block of uf2.blocks) {
+    await api.memWrite(block.address, block.payload);
     updateProgress(progressUpdate);
   }
-  console.log('end restart');
+  console.log('end flashing');
+}
+
+export async function verify(uf2, progress) {
+  let currentProgress = 0;
+  function updateProgress(value) {
+    currentProgress += value;
+    progress && progress(currentProgress);
+  }
+  
+  console.log('start verifying');
+  const progressUpdate = 100 / uf2.blocks.length;
+  for (const block of uf2.blocks) {
+    const payload = await api.memRead(block.address, block.payload.byteLength);
+    if (payload.byteLength !== block.payload.byteLength) {
+      throw new Error(`Payload length does not match: local ${block.payload.byteLength} != remote ${payload.byteLength}`);
+    }
+    const local = new Uint8Array(block.payload);
+    const remote = new Uint8Array(payload);
+    for (let i = 0; i < block.payload.length; ++i)
+    {
+      if (local[i] !== remote[i]) {
+        throw new Error(`Payload difference in addr 0x${(block.address + i).toString(16)} local 0x${local[i].toString(16)} != remote 0x${remote[i].toString(16)}`);
+      }
+    }
+    updateProgress(progressUpdate);
+  }
+  console.log('end verifying');
 }

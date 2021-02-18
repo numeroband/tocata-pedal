@@ -197,14 +197,14 @@ export default class Api {
   async verifyFirmware(uf2) {
     for (const block of uf2.blocks) {
       const payload = await this.memRead(block.address, block.payload.byteLength);
-      if (payload.byteLength != block.payload.byteLength) {
+      if (payload.byteLength !== block.payload.byteLength) {
         throw new Error(`Payload length does not match: local ${block.payload.byteLength} != remote ${payload.byteLength}`);
       }
       const local = new Uint8Array(block.payload);
       const remote = new Uint8Array(payload);
       for (let i = 0; i < block.payload.length; ++i)
       {
-        if (local[i] != remote[i]) {
+        if (local[i] !== remote[i]) {
           console.log('local');
           this.printBuffer(block.address, local.buffer);
           console.log('remote');

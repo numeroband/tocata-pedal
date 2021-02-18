@@ -5,12 +5,12 @@ import {
   makeStyles,
 } from '@material-ui/core';
 import { useState } from 'react';
-import { readAll, updateAll, restore, restart } from './Api';
+import { readAll, updateAll, restore } from './Api';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     margin: theme.spacing(1),
-    minWidth: 120,
+    minWidth: 150,
   },
 }));
 
@@ -60,12 +60,6 @@ export default function Backup() {
     setProgress(-1);
   }
 
-  async function handleRestart() {
-    setProgress(0);
-    await restart(setProgress);
-    setProgress(-1);
-  }
-
   return (
     <div>
       <Grid
@@ -106,16 +100,7 @@ export default function Backup() {
           onClick={handleReset}
           disabled={progress >= 0}
         >
-          Reset
-        </Button>
-        <Button
-          color="secondary"
-          variant="contained"
-          className={classes.root}
-          onClick={handleRestart}
-          disabled={progress >= 0}
-        >
-          Restart
+          Factory Reset
         </Button>
      </Grid>
       <div>
