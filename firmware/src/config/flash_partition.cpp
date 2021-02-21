@@ -4,10 +4,7 @@
 
 namespace tocata {
 
-FlashPartition::FlashPartition() : _part_offset(kFlashPartitionOffset) 
-{
-    erase(0, size());
-}
+FlashPartition::FlashPartition() : _part_offset(kFlashPartitionOffset) {}
 
 bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) const
 {
@@ -15,16 +12,19 @@ bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) con
     return true;
 }
 
-bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_size) const
+size_t FlashPartition::writePage(size_t dst_offset, const void* src_buf, size_t src_size) const
 {
     // This function cannot be called multiple times so make it static
     static uint8_t buf[kFlashPageSize];
 
     // Page aligned offset and size
-    const uint32_t offset = dst_offset & ~(kFlashPageSize - 1);
-    const uint32_t prologue = dst_offset - offset;
-    const uint32_t size = (prologue + src_size + kFlashPageSize - 1) & ~(kFlashPageSize - 1);
-    const uint32_t epilogue = size - (prologue + src_size);
+    uint32_t aligned_offset = dst_offset & ~(kFlashPageSize - 1);
+    uint32_t prologue = dst_offset - aligned_offset;
+    uint32_t epilogue = 0;    
+    if (prologue + src_size < kFlashPageSize)
+    {
+        epilogue = kFlashPageSize - (prologue + src_size);
+    }
 
     if (prologue || epilogue)
     {
@@ -32,11 +32,24 @@ bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_si
         memcpy(buf + prologue, src_buf, src_size);
         memset(buf + prologue + src_size, 0xFF, epilogue);
         src_buf = buf;
-        dst_offset = offset;
-        src_size = size;
+        dst_offset = aligned_offset;
     }
 
-    flash_write(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), src_size);
+    flash_write(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), kFlashPageSize);
+    return kFlashPageSize - prologue - epilogue;
+}
+
+bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_size) const
+{
+    const uint8_t* buf = static_cast<const uint8_t*>(src_buf);
+    while(src_size)
+    {
+        size_t written = writePage(dst_offset, buf, src_size);
+        dst_offset += written;
+        buf += written;
+        src_size -= written;
+    }
+
     return true;
 }
 
@@ -48,7 +61,7 @@ bool FlashPartition::erase(size_t offset, size_t size) const
 
 size_t FlashPartition::size() const
 {
-    return kFlashSize - _part_offset;
+    return kFlashPartitionSize;
 }
 
 

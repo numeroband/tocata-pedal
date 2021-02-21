@@ -14,7 +14,8 @@ public:
     size_t size() const;
 
 private:
-    static uint32_t flashOffset(size_t offset);
+    size_t writePage(size_t dst_offset, const void* src_buf, size_t src_size) const;
+
     uint32_t _part_offset = 0;
 };
 

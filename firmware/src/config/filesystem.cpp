@@ -15,6 +15,32 @@ size_t File::write(const void* src, size_t size) {
     return _fs ? _fs->write(*this, src, size) : 0; 
 }
 
+void FS::printUsage() {
+  printf("Usage: %u/%u\n", static_cast<uint32_t>(usedBytes()), static_cast<uint32_t>(totalBytes()));
+}
+
+void FS::test()
+{
+  auto file = open("/00", FILE_READ);
+  printf("non existent read %u\n", static_cast<bool>(file));
+  printUsage();
+  
+  file = open("/00", FILE_WRITE);
+  printf("write empty %u\n", static_cast<bool>(file));
+  printUsage();
+  
+  static char buffer[] = "asdfadsfasdfasdfasdfasdfasdfasdf";
+  size_t written;
+
+  for (int i = 0; i < 200; ++i)
+  {
+    file = open("/00", FILE_WRITE);
+    written = file.write(buffer, sizeof(buffer)); 
+    printf("write bytes %lu\n", written);
+    printUsage();
+  }  
+}
+
 bool FS::init(bool formatOnFail)
 {
     printf("Initializing filesystem...\n");

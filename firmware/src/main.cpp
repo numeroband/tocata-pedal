@@ -1,5 +1,31 @@
-#include <controller.h>
-#include <hal.h>
+#define TEST_BUILD 0
+#if TEST_BUILD
+
+#include "filesystem.h"
+#include "hal.h"
+
+using namespace tocata;
+
+int main() {
+  puts("starting");
+  auto start = millis();
+
+  TocataFS.init(true);
+
+  auto end = millis();
+  printf("Storage init in ms: %u\n", end - start);
+  TocataFS.printUsage();
+
+  TocataFS.test();  
+
+  return 0;
+}
+
+#else
+
+#include "controller.h"
+#include "hal.h"
+
 
 static constexpr tocata::HWConfig hw_config = {
   .switches = {
@@ -17,10 +43,9 @@ static constexpr tocata::HWConfig hw_config = {
   },
 };
 
-static tocata::Controller controller{hw_config};
-
-int main(void)
+int main()
 {
+  static tocata::Controller controller{hw_config};
   controller.init();
 
   while (1)
@@ -31,3 +56,5 @@ int main(void)
   
   return 0;
 }
+
+#endif

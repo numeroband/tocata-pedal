@@ -1,7 +1,7 @@
 #include <config.h>
 #include "hal.h"
 
-#include <midi_usb.h>
+#include <usb_device.h>
 #include <filesystem.h>
 
 #define _log(...) 
@@ -9,7 +9,7 @@
 
 namespace tocata {
 
-#define FAKE_CONFIG 1
+#define FAKE_CONFIG 0
 
 #if FAKE_CONFIG
 static Config sConfig = {};

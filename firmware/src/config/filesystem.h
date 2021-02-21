@@ -59,6 +59,8 @@ private:
 public:
     FS() : _block(this) {}
     bool init(bool formatOnFail = false);
+    void test();
+    void printUsage();
     File open(const char* path, const char* mode = FILE_READ);
     void remove(const char* path);
     bool exists(const char* path) { return open(path, FILE_READ); }

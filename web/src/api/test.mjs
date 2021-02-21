@@ -23,8 +23,9 @@ async function main() {
     parseUF2(process.argv[3], process.argv[4]);
     return;
   }
-  const api = new Api(WebUSB.usb);
-  // const api = new Api(WebSocket);
+
+  const transport = process.env['TOCATA_TRANSPORT'] || 'usb';
+  const api = new Api((transport === 'ws') ? WebSocket : WebUSB.usb);
   const start = process.uptime();
 
   const promise = new Promise((resolve, reject) => {

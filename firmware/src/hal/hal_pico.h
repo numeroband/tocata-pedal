@@ -59,26 +59,69 @@ static inline void board_program()
 
 
 // Flash
+#define MEMFLASH 0
 
+static constexpr uint32_t kFlashSectorSize = FLASH_SECTOR_SIZE;
 static constexpr uint32_t kFlashPageSize = FLASH_PAGE_SIZE;
 static constexpr uint32_t kFlashAddress = XIP_BASE;
-static constexpr uint32_t kFlashPartitionOffset = 0x1c0000;
-static constexpr uint32_t kFlashSize = 0x200000;
+
+#if MEMFLASH
+static constexpr uint32_t kFlashPartitionSize = 2 * 64 * 1024;
+static constexpr uint32_t kFlashPartitionOffset = 0;
+static constexpr uint32_t kFlashSize = kFlashPartitionSize;
+extern uint8_t MemFlash[];
+#else
+static constexpr uint32_t kFlashPartitionSize = 4 * 64 * 1024;
+static constexpr uint32_t kFlashPartitionOffset = 512 * 1024;
+static constexpr uint32_t kFlashSize = 2 * 1024 * 1024;
+#endif
+
+static inline void flash_init()
+{
+#if MEMFLASH
+memset(MemFlash, 0xFF, kFlashSize);
+#endif
+}
 
 static inline void flash_read(uint32_t flash_offs, void *dst, size_t count)
 {
-    const uint8_t* partition = reinterpret_cast<const uint8_t*>(XIP_BASE);
-    memcpy(dst, partition + flash_offs, count);
+    assert(flash_offs + count <= kFlashSize);
+#if MEMFLASH
+    printf("flash_read 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    memcpy(dst, MemFlash + flash_offs, count);
+#else
+    const uint8_t* flash = reinterpret_cast<const uint8_t*>(XIP_BASE);
+    memcpy(dst, flash + flash_offs, count);
+#endif
 }
 
 static inline void flash_write(uint32_t flash_offs, const void *data, size_t count)
 {
+    assert(flash_offs + count <= kFlashSize);
+    assert(flash_offs % kFlashPageSize == 0);
+    assert(count % kFlashPageSize == 0);
+#if MEMFLASH
+    printf("flash_write 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    for (size_t i = 0; i < count; ++i)
+    {
+        MemFlash[flash_offs + i] &= static_cast<const uint8_t*>(data)[i];
+    }
+#else
     flash_range_program(flash_offs, static_cast<const uint8_t*>(data), count);
+#endif
 }
 
 static inline void flash_erase(uint32_t flash_offs, size_t count)
 {
+    assert(flash_offs + count <= kFlashSize);
+    assert(flash_offs % kFlashSectorSize == 0);
+    assert(count % kFlashSectorSize == 0);
+#if MEMFLASH
+    printf("flash_erase 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    memset(MemFlash + flash_offs, 0xFF, count);
+#else
     flash_range_erase(flash_offs, count);
+#endif
 }
 
 // Switches

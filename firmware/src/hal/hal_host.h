@@ -36,34 +36,17 @@ static inline void board_program() {}
 // Flash
 
 static constexpr uint32_t kFlashAddress = 0x10000000;
-static constexpr uint32_t kFlashPageSize = 4 * 1024;
-static constexpr uint32_t kFlashPartitionOffset = 0x1c0000;
-static constexpr uint32_t kFlashSize = 0x200000;
+static constexpr uint32_t kFlashSectorSize = 4 * 1024;
+static constexpr uint32_t kFlashPageSize = 256;
+static constexpr uint32_t kFlashPartitionOffset = 512 * 1024;
+static constexpr uint32_t kFlashPartitionSize = 128 * 1024;
+static constexpr uint32_t kFlashSize = 2 * 1024 * 1024;
 
-extern uint8_t MemFlash[kFlashSize];
+void flash_read(uint32_t flash_offs, void *dst, size_t count);
 
-static inline void flash_read(uint32_t flash_offs, void *dst, size_t count) 
-{
-    printf("flash_read 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
-    memcpy(dst, MemFlash + flash_offs, count);
-}
+void flash_write(uint32_t flash_offs, const void *data, size_t count);
 
-static inline void flash_write(uint32_t flash_offs, const void *data, size_t count) 
-{
-    printf("flash_write 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
-    for (size_t i = 0; i < count; ++i)
-    {
-        MemFlash[flash_offs + i] &= static_cast<const uint8_t*>(data)[i];
-    }
-}
-
-static inline void flash_erase(uint32_t flash_offs, size_t count) 
-{
-    printf("flash_erase 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
-    assert(flash_offs % kFlashPageSize == 0);
-    assert(count % kFlashPageSize == 0);
-    memset(MemFlash + flash_offs, 0xFF, count);
-}
+void flash_erase(uint32_t flash_offs, size_t count);
 
 // Switches
 

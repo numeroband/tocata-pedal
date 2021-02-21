@@ -39,8 +39,8 @@ public:
   {
     try {
         // Set logging settings
-        _server.set_access_channels(websocketpp::log::alevel::all);
-        _server.clear_access_channels(websocketpp::log::alevel::frame_payload);
+        _server.clear_access_channels(websocketpp::log::alevel::all);
+        _server.set_access_channels(websocketpp::log::alevel::connect);
 
         _server.init_asio();
 
@@ -118,8 +118,77 @@ private:
 };
 
 static WebSocket ws;
+static FILE* flash;
 
-void usb_init() { ws.init(); }
+void flash_init() 
+{
+  flash = fopen("/tmp/tocata_flash", "a");
+  assert(flash);  
+  fclose(flash);
+  flash = fopen("/tmp/tocata_flash", "r+");
+  assert(flash);  
+  fseek(flash, kFlashSize - 1, SEEK_SET);
+  int c = fgetc(flash);
+  c = (c == EOF) ? 0xFF : c;
+  fseek(flash, kFlashSize - 1, SEEK_SET);
+  int new_c = fputc(c, flash);  
+  assert(c == new_c);
+  fflush(flash);
+}
+
+void flash_read(uint32_t flash_offs, void *dst, size_t count) 
+{
+  assert(flash_offs + count <= kFlashSize);
+  fseek(flash, flash_offs, SEEK_SET);
+  size_t ret = fread(dst, count, 1, flash);
+  assert(ret == 1);
+    // printf("flash_read 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    // memcpy(dst, MemFlash + flash_offs, count);
+}
+
+void flash_write(uint32_t flash_offs, const void *data, size_t count) 
+{
+    assert(flash_offs + count <= kFlashSize);
+    assert(flash_offs % kFlashPageSize == 0);
+    assert(count % kFlashPageSize == 0);
+    uint8_t* buffer = new uint8_t[count];
+    flash_read(flash_offs, buffer, count);
+    for (size_t i = 0; i < count; ++i)
+    {
+        buffer[i] &= static_cast<const uint8_t*>(data)[i];
+    }
+    fseek(flash, flash_offs, SEEK_SET);
+    size_t ret = fwrite(buffer, count, 1, flash);
+    assert(ret == 1);
+    fflush(flash);
+    delete[] buffer;
+
+    // printf("flash_write 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    // for (size_t i = 0; i < count; ++i)
+    // {
+    //     MemFlash[flash_offs + i] &= static_cast<const uint8_t*>(data)[i];
+    // }
+}
+
+void flash_erase(uint32_t flash_offs, size_t count) 
+{
+    assert(flash_offs + count <= kFlashSize);
+    assert(flash_offs % kFlashSectorSize == 0);
+    assert(count % kFlashSectorSize == 0);
+
+    uint8_t* buffer = new uint8_t[count];
+    memset(buffer, 0xFF, count);    
+    fseek(flash, flash_offs, SEEK_SET);
+    size_t ret = fwrite(buffer, count, 1, flash);
+    assert(ret == 1);
+    fflush(flash);
+    delete[] buffer;
+    
+    // printf("flash_erase 0x%08X %u bytes\n", flash_offs, (uint32_t)count);
+    // memset(MemFlash + flash_offs, 0xFF, count);
+}
+
+void usb_init() { ws.init(); flash_init(); }
 void usb_run() { 
   ws.run(); 
   // display.refresh(); 

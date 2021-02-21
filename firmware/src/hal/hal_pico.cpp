@@ -119,6 +119,10 @@ static void bytes_to_hex(char* dst, uint8_t* bytes, size_t length)
   dst[2 * length] = '\0';
 }
 
+#if MEMFLASH
+uint8_t MemFlash[kFlashSize];
+#endif
+
 void usb_init()
 {
   static struct stdio_driver usb_stdio = {
@@ -143,6 +147,8 @@ void usb_init()
     },
     .crlf_enabled = PICO_STDIO_DEFAULT_CRLF,
   };
+
+  flash_init();
 
   pico_unique_board_id_t board_id;
   pico_get_unique_board_id(&board_id);
