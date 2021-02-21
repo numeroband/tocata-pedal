@@ -45,7 +45,7 @@ private:
   {
     kNone = 0,
     kRestart = 1,
-    kFirmwareUpgrade = 2,
+    kBootRom = 2,
     kGetConfig = 3,
     kSetConfig = 4,
     kDeleteConfig = 5,
@@ -128,7 +128,7 @@ private:
   void sendResponse(uint16_t length, Status status = kOk);
   void sendStatus(Status status) { sendResponse(0, status); };
   void restart();
-  void firmwareUpgrade();
+  void bootRom();
   void getConfig();
   void setConfig();
   void deleteConfig();

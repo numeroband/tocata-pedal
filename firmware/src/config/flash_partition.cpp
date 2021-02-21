@@ -25,6 +25,10 @@ size_t FlashPartition::writePage(size_t dst_offset, const void* src_buf, size_t 
     {
         epilogue = kFlashPageSize - (prologue + src_size);
     }
+    else
+    {
+        src_size = kFlashPageSize - prologue;
+    }
 
     if (prologue || epilogue)
     {
@@ -36,7 +40,7 @@ size_t FlashPartition::writePage(size_t dst_offset, const void* src_buf, size_t 
     }
 
     flash_write(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), kFlashPageSize);
-    return kFlashPageSize - prologue - epilogue;
+    return src_size;
 }
 
 bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_size) const

@@ -17,7 +17,6 @@ export const readProgramNames = () => api.getProgramNames();
 export const readProgram = id => api.getProgram(id);
 export const updateProgram = (id, program) => api.setProgram(id, program);
 export const deleteProgram = id => api.deleteProgram(id);
-export const firmwareUpgrade = () => api.firmwareUpgrade();
 
 export async function readAll(progress) {
   let currentProgress = 0;

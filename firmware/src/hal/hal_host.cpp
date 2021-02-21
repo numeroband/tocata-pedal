@@ -52,7 +52,6 @@ public:
 
         _server.set_message_handler([this](websocketpp::connection_hdl hdl, server::message_ptr msg)
         {
-          printf("queuing %u bytes\n", (uint32_t)msg->get_payload().length());
           _messages.push(msg->get_payload());
         });
 
@@ -99,7 +98,6 @@ public:
   uint32_t write(const void* buffer, uint32_t bufsize)
   {
     try {
-        printf("sending %u bytes\n", bufsize);
         _server.send(_connection, buffer, bufsize, websocketpp::frame::opcode::binary);
         return bufsize;
     } catch (websocketpp::exception const & e) {

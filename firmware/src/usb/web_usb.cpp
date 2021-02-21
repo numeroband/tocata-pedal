@@ -72,8 +72,8 @@ void WebUsb::processRequest()
     case kRestart:
       restart();      
       break;
-    case kFirmwareUpgrade:
-      firmwareUpgrade();
+    case kBootRom:
+      bootRom();
       break;
     case kGetConfig:
       getConfig();
@@ -118,7 +118,7 @@ void WebUsb::restart()
   sendStatus(kOk);
 }
 
-void WebUsb::firmwareUpgrade()
+void WebUsb::bootRom()
 {
   board_program();
   sendStatus(kOk);

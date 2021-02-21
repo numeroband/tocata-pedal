@@ -11,7 +11,7 @@ import {
 } from "./Parsers.mjs";
 
 const RESTART = 1;
-const FIRMWARE_UPGRADE = 2;
+const BOOT_ROM = 2;
 const GET_CONFIG = 3;
 const SET_CONFIG = 4;
 const DEL_CONFIG = 5;
@@ -141,8 +141,8 @@ export default class Api {
     await this.sendRequest(RESTART);
   }
 
-  async firmwareUpgrade() {
-    await this.sendRequest(FIRMWARE_UPGRADE);
+  async bootRom() {
+    await this.sendRequest(BOOT_ROM);
   }
 
   async backup() {
@@ -225,4 +225,15 @@ export default class Api {
     }
     return result;
   }
+
+  async writeMemory(addr, buffer) {
+    const chunkSize = 256;
+    const length = buffer.byteLength;
+    for (let offset = 0; offset < length; offset += chunkSize) {
+      const toWrite = Math.min(chunkSize, length - offset);
+      const chunk = new Uint8Array(buffer, offset, toWrite);
+      await this.memWrite(addr + offset, chunk);
+    }
+  }
+
 }

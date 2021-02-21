@@ -3,6 +3,8 @@
 
 #include <cassert>
 
+#define DELAY_BOOT_MS 0
+
 namespace tocata
 {
 
@@ -21,7 +23,8 @@ void UsbDevice::init()
 
   usb_init();
 
-  while (millis() < 5000)
+  uint32_t start = millis();
+  while (millis() - start < DELAY_BOOT_MS)
   {
     blink();
     usb_run();

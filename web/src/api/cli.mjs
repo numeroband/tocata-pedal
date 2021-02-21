@@ -5,38 +5,19 @@ import process from 'process';
 import fs from 'fs';
 import UF2 from './UF2.mjs'
 
-function parseUF2(inPath, outPath) {
-  const content = fs.readFileSync(inPath);
-  const uf2 = new UF2(content.buffer);
-  console.log(`Flash start: 0x${uf2.flashStart.toString(16)}`);
-  console.log(`Flash end: 0x${uf2.flashEnd.toString(16)}`);
-  const flash = new Uint8Array(uf2.flashEnd - uf2.flashStart);
-  for (const block of uf2.blocks) {
-    flash.set(block.payload, block.address - uf2.flashStart);
-  }
-  fs.writeFileSync(outPath, flash);
-}
-
 async function main() {
   const command = process.argv[2];
-  if (command == 'uf2') {
-    parseUF2(process.argv[3], process.argv[4]);
-    return;
-  }
-
   const transport = process.env['TOCATA_TRANSPORT'] || 'usb';
   const api = new Api((transport === 'ws') ? WebSocket : WebUSB.usb);
   const start = process.uptime();
 
-  const promise = new Promise((resolve, reject) => {
+  const connect = _ => new Promise((resolve, reject) => {
     api.connectionEvent = connected => connected && resolve();
     api.connect();
   });
 
-  await promise;
-
   try {
-    await api.connect();
+    await connect();
     switch(command) {
       case 'get-config':
       {
@@ -102,10 +83,10 @@ async function main() {
         console.log('restarting');
         break;
       }
-      case 'firmware':
+      case 'bootrom':
       {
-        await api.firmwareUpgrade();
-        console.log('firmware upgrade ready');
+        await api.bootRom();
+        console.log('boot rom ready');
         break;
       }
       case 'backup':
@@ -152,6 +133,21 @@ async function main() {
         const path = process.argv[5];
         const content = await api.readMemory(addr, length);
         fs.writeFileSync(path, content);
+        break;
+      }
+      case 'write':
+      {
+        const addr = Number(process.argv[3]);
+        const path = process.argv[4];
+        const content = fs.readFileSync(path);
+        await api.writeMemory(addr, content.buffer);
+        break;
+      }
+      case 'erase':
+      {
+        const addr = Number(process.argv[3]);
+        const length = Number(process.argv[4]);
+        await api.flashErase(addr, length);
         break;
       }
       default:

@@ -2,6 +2,12 @@
 #include <cstring>
 #include <assert.h>
 
+#if MEMFS
+namespace tocata {
+File::Content File::files[File::kNumFiles] = {};
+FS TocataFS{};
+}
+#else
 namespace tocata {
 
 FS TocataFS{};
@@ -424,3 +430,5 @@ bool FS::Block::canReuse() const
 }
 
 }
+
+#endif // MEMFS

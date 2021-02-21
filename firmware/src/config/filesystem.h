@@ -1,5 +1,10 @@
 #pragma once
 
+#define MEMFS 0
+#if MEMFS
+#include "filesystem_mem.h"
+#else
+
 #include "flash_partition.h"
 
 namespace tocata {
@@ -151,3 +156,4 @@ private:
 extern FS TocataFS;
 
 }
+#endif // MEMFS
