@@ -10,7 +10,7 @@ namespace tocata {
 class Switches
 {
 public:
-    static constexpr size_t kNumSwitches = 8;
+    static constexpr size_t kNumSwitches = 6;
     using Mask = std::bitset<kNumSwitches>;
 
     class Delegate

@@ -2,7 +2,7 @@
 
 #define HAL_PICO
 
-#include "switch_matrix.pio.h"
+#include "switches.pio.h"
 #include "ws2812b.pio.h"
 #include "config.h"
 
@@ -128,9 +128,9 @@ static inline void flash_erase(uint32_t flash_offs, size_t count)
 
 static inline void switches_init(const HWConfigSwitches& config)
 {
-    uint offset = pio_add_program(pio0, &switch_matrix_program);
-    switch_matrix_program_init(pio0, config.state_machine_id, offset, config.first_input_pin, config.first_output_pin);
-    printf("Configured switch_matrix program in sm %u offset %u\n", config.state_machine_id, offset);
+    uint offset = pio_add_program(pio0, &switches_program);
+    switches_program_init(pio0, config.state_machine_id, offset, config.first_input_pin, config.first_output_pin);
+    printf("Configured switches program in sm %u offset %u\n", config.state_machine_id, offset);
 }
 
 static inline bool switches_changed(const HWConfigSwitches& config)
@@ -140,7 +140,7 @@ static inline bool switches_changed(const HWConfigSwitches& config)
 
 static inline uint32_t switches_value(const HWConfigSwitches& config)
 {
-    return ~pio_sm_get(pio0, config.state_machine_id) >> 4;
+    return ~pio_sm_get(pio0, config.state_machine_id);
 }
 
 // Leds

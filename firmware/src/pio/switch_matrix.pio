@@ -5,7 +5,7 @@
 .program switch_matrix
 .side_set 2 pindirs
 
-.define public num_in_pins 4
+.define public num_in_pins 3
 .define public num_out_pins 2
 
 start:

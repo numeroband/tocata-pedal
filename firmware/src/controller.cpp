@@ -31,9 +31,16 @@ void Controller::run()
 void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
 {
     auto activated = status & modified;
-    if (activated[3]) // Hardcoded
+
+    if (activated[0] && activated[3]) // Hardcoded
     {
-        loadProgram((_program_id + 1) % 4);
+        loadProgram((_program_id - 1) % 99);
+        return;
+    }
+
+    if (activated[2] && activated[5]) // Hardcoded
+    {
+        loadProgram((_program_id + 1) % 99);
         return;
     }
 
