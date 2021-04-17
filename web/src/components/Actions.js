@@ -79,7 +79,7 @@ function ActionDialog(props) {
 
   function updateText(event) {
     const values = [...state.values];
-    values[event.target.index] = event.target.value;
+    values[event.target.name] = event.target.value;
     setState({ ...state, values });
   };
 
@@ -95,7 +95,7 @@ function ActionDialog(props) {
         type="number"
         label={value.name}
         className={classes.root}
-        index={id}
+        name={`${id}`}
         value={state.values[id] === undefined ? value.min : state.values[id]}
         onChange={updateText}
         inputProps={{
