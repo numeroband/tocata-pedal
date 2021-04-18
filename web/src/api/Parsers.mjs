@@ -42,11 +42,12 @@ const parsers = {
     let ret = {};
     for (const [field, parser, ...args] of scheme.fields) {
       let parsed;
-      [parsed, offset] = parsers[parser](view, offset, ...args);
-      
-      if (!isEmpty(parsed)) {
-        ret[field] = parsed;
-      }
+      try {
+        [parsed, offset] = parsers[parser](view, offset, ...args);      
+        if (!isEmpty(parsed)) {
+          ret[field] = parsed;
+        }
+      } catch {}
     }
     return [(scheme.valid && !scheme.valid(ret)) ? null : ret, offset];
   },
@@ -115,6 +116,11 @@ const colors = [
   'turquoise',
 ];
 
+const mode = [
+  'stomp',
+  'scene',
+];
+
 const wifi = {
   fields: [
     ['ssid', 'str', MAX_WIFI_STR_SIZE],
@@ -161,6 +167,8 @@ const program = {
     ['name', 'str', MAX_PRG_NAME_SIZE],
     ['fs', 'nArray', MAX_SWITCHES, 'struct', footswitch],
     ['actions', 'nArray', MAX_ACTIONS, 'struct', action],
+    ['mode', 'enum', mode],
+    ['expression', 'uint8'],
   ],
   valid: o => o.name
 };

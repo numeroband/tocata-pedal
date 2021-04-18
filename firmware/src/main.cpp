@@ -36,6 +36,7 @@ static constexpr tocata::HWConfig hw_config = {
   .leds = {
     .state_machine_id = 1,
     .data_pin = 18,
+    .mapping = {2, 1, 0, 3, 4, 5},
   },
   .display = {
     .sda_pin = 20,

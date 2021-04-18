@@ -16,7 +16,7 @@ void Leds::setColor(uint8_t led, Color color, bool active)
     const uint8_t r = brightness(rgb.r, active);
     const uint8_t g = brightness(rgb.g, active);
     const uint8_t b = brightness(rgb.b, active);
-    _state[led] = (g << 24) | (r << 16) | (b << 8);
+    _state[_config.mapping[led]] = (g << 24) | (r << 16) | (b << 8);
 }
 
 void Leds::refresh()

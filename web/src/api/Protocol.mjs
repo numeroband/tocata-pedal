@@ -16,10 +16,9 @@ export default class Protocol {
     return this.transport.connected;
   }
 
-  connect(reconnect) {
-    return reconnect ? this.transport.reconnect() : this.transport.connect();
-  }
-
+  connect = reconnect => reconnect ? this.transport.reconnect() : this.transport.connect();
+  version = _ => this.transport.version();
+  
   async receive() {
     let totalLength = Infinity;
     let msg;

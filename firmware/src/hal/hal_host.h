@@ -24,6 +24,7 @@ struct HWConfigLeds
 {
     int state_machine_id;
     uint8_t data_pin;
+    uint8_t mapping[6];
 };
 
 // System

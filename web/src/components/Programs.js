@@ -9,6 +9,7 @@ import { readProgram, readProgramNames, updateProgram, deleteProgram } from './A
 import {
   MenuItem,
   TextField,
+  Switch,
   Button,
   Fab,
   Dialog,
@@ -29,6 +30,15 @@ import {
 
 const MAX_NAME_LENGTH = 30;
 const DISCARD_PROMPT = 'Are you sure you want to discard the changes made to this program?';
+const INVALID_CC_MASK = 0x80;
+const isValidCC = cc => ((cc & INVALID_CC_MASK) === 0);
+const validCC = cc => (cc & ~INVALID_CC_MASK) & 0xFF;
+const invalidCC = cc => (cc | INVALID_CC_MASK) & 0xFF;
+const DEFAULT_EXP_CC = 40;
+const MODE = Object.freeze({
+  stomp: 'stomp',
+  scene: 'scene',
+});
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -38,6 +48,9 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     margin: theme.spacing(2, 0, 0, 1),
   },
+  switch: {
+    marginTop: 20,
+  }
 }));
 
 const nameEntry = (name, index) => `${Number(index) + 1} - ${name ? name : '<EMPTY>'}`
@@ -67,15 +80,19 @@ function ProgramDialog(props) {
   const classes = useStyles();
   const defaultProgram = useMemo(() => ({
     name: '',
+    mode: MODE.stomp,
+    expression: invalidCC(DEFAULT_EXP_CC),
     actions: [],
     fs: [],
   }), [])
   const [state, setState] = useState({ ...defaultProgram, ...program })
   useEffect(() => setState({ ...defaultProgram, ...program }), [program, defaultProgram])
 
-  function updateText(event) {
-    const newState = { ...state, [event.target.name]: event.target.value }
-    setState(newState);
+  const updateText = event => setState({ ...state, [event.target.name]: event.target.value });
+  const updateNumber = event => setState({ ...state, [event.target.name]: Number(event.target.value)});
+  const updateSwitch = event => {
+    const validate = event.target.checked ? validCC : invalidCC;
+    setState(state => ({ ...state, [event.target.name]: validate(state.expression)}));
   }
 
   function update() {
@@ -83,20 +100,66 @@ function ProgramDialog(props) {
     onClose();
   }
 
+  const modeNames = [
+    {value: MODE.stomp, name: "Stomp"},
+    {value: MODE.scene, name: "Scene"},
+  ]
+
   return (
     <Dialog onClose={onClose} aria-labelledby="simple-dialog-title" open={open}>
       <DialogTitle id="simple-dialog-title">{`PROGRAM ${Number(id) + 1}`}</DialogTitle>
       <DialogContent>
-        <TextField
-          label="Name"
-          name="name"
-          className={classes.root}
-          value={state.name}
-          onChange={updateText}
-          inputProps={{
-            maxLength: MAX_NAME_LENGTH,
-          }}
-        ></TextField>
+        <Grid
+            container
+            direction="column"
+            alignItems="flex-start"
+        >
+          <TextField
+            label="Name"
+            name="name"
+            className={classes.root}
+            value={state.name}
+            onChange={updateText}
+            inputProps={{
+              maxLength: MAX_NAME_LENGTH,
+            }}
+          ></TextField>
+          <TextField
+            label="Mode"
+            name="mode"
+            className={classes.root}
+            select
+            value={state.mode || MODE.stomp}
+            onChange={updateText}
+          >
+            {modeNames.map((mode, index) => (
+              <MenuItem key={index} value={mode.value}>
+                {mode.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <div>
+            <TextField
+              type="number"
+              label="Expression CC"
+              className={classes.root}
+              disabled={!isValidCC(state.expression)}
+              name="expression"
+              value={validCC(state.expression)}
+              onChange={updateNumber}
+              inputProps={{
+                min: 0,
+                max: 127,
+              }}
+            ></TextField>
+            <Switch
+                className={classes.switch}
+                checked={isValidCC(state.expression)}
+                name="expression"
+                onChange={updateSwitch}
+            />          
+          </div>
+        </Grid>
       </DialogContent>
       <DialogActions>
         <Button variant="contained" color="primary" onClick={onClose}>Cancel</Button>
@@ -142,7 +205,7 @@ function Program(props) {
         actions={program.actions}
         setActions={actions => setProgram(id, { ...program, actions: actions })}
         title="Program MIDI" />
-      <Footswitches footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
+      <Footswitches mode={state.mode} footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
     </Grid>
   )
 }

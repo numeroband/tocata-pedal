@@ -15,6 +15,12 @@ export default class TransportUsb {
     return this.device != null;
   }
 
+  version = _ => ({
+    major: this.device ? this.device.deviceVersionMajor : 0,
+    minor: this.device ? this.device.deviceVersionMinor : 0,
+    subminor: this.device ? this.device.deviceVersionSubminor : 0,
+  })
+  
   async onconnect(event) {
     if (this.connected || event.device.vendorId !== VENDOR_ID) {
       return;

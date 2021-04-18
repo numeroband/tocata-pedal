@@ -38,7 +38,7 @@ void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
         return;
     }
 
-    if (activated[2] && activated[5]) // Hardcoded
+    if (activated[1] && activated[4]) // Hardcoded
     {
         loadProgram((_program_id + 1) % 99);
         return;
@@ -57,12 +57,31 @@ void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
 void Controller::changeSwitch(uint8_t id, bool active)
 {
     const auto& fs = _program.footswitch(id);
-    if (id >= _program.numFootswitches() || !fs.available() || (!fs.momentary() && !active))
+    bool is_scene = (_program.mode() == Program::kScene);
+    bool momentary = !is_scene && fs.momentary();
+    if (id >= _program.numFootswitches() || !fs.available() || (!momentary && !active))
     {
         return;
     }
 
-    _switches_state[id] = fs.momentary() ? (active ^ fs.enabled()) : !_switches_state[id];
+    if (is_scene)
+    {
+        _switches_state.reset();
+        for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
+        {
+            const auto& fs = _program.footswitch(id);
+            if (id >= _program.numFootswitches() || !fs.available())
+            {
+                _leds.setColor(id, kNone, false);
+            }
+            else
+            {
+                _leds.setColor(id, fs.color(), false);
+            }
+        }
+    }
+
+    _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];
     fs.run(_usb.midi(), _switches_state[id]);
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
@@ -89,6 +108,7 @@ void Controller::loadProgram(uint8_t id)
         _program.run(_usb.midi());
     }
 
+    bool is_scene = (_program.mode() == Program::kScene);
     for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
     {
         const auto& fs = _program.footswitch(id);
@@ -98,7 +118,7 @@ void Controller::loadProgram(uint8_t id)
         }
         else
         {
-            _switches_state[id] = fs.enabled();
+            _switches_state[id] = is_scene ? (id == 0) : fs.enabled();
             _leds.setColor(id, fs.color(), _switches_state[id]);
         }
     }

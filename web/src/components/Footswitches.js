@@ -137,7 +137,7 @@ function FootswitchDialog(props) {
 }
 
 function Footswitch(props) {
-  const { id, footswitch = {}, setFootswitch } = props
+  const { id, mode,  footswitch = {}, setFootswitch } = props
   
   return !footswitch.name ? <div/> : (
     <Grid
@@ -145,20 +145,21 @@ function Footswitch(props) {
       direction="row"
       alignItems="flex-start"
     >
-              <Actions 
-          actions={footswitch.onActions} 
-          setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
-          title="On MIDI"/>
-              <Actions 
-          actions={footswitch.offActions} 
-          setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
-          title="Off MIDI"/>
+      <Actions 
+        actions={footswitch.onActions} 
+        setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
+        title={(mode === 'scene') ? "Scene MIDI": "On MIDI"}
+      />
+      {(mode === 'scene') ? <div/> : <Actions 
+        actions={footswitch.offActions} 
+        setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
+        title="Off MIDI"/>}
     </Grid>
   )
 }
 
 export default function Footswitches(props) {
-  const { footswitches, setFootswitches } = props
+  const { mode, footswitches, setFootswitches } = props
   const classes = useStyles();
   const [footswitchNames, setFootswitchNames] = useState(createNames(footswitches))
   const [editFS, setEditFS] = useState(false);
@@ -250,7 +251,7 @@ export default function Footswitches(props) {
         </Fab>
         <FootswitchDialog id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} open={editFS} onClose={() => setEditFS(false)} />
       </Grid>
-      <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
+      <Footswitch id={footswitchId} mode={mode} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
     </Grid>
   )
 }

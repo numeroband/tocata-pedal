@@ -4,7 +4,7 @@ import {
   LinearProgress,
   makeStyles,
 } from '@material-ui/core';
-import { flash, verify, restart } from './Api';
+import { flash, verify, restart, version } from './Api';
 import UF2 from '../api/UF2.mjs'
 import { useState } from 'react';
 
@@ -47,6 +47,8 @@ export default function Firmware() {
     setProgress(-1);
   }
 
+  const {major, minor, subminor} = version();
+
   return (
     <div>
       <Grid
@@ -54,6 +56,7 @@ export default function Firmware() {
         direction="column"
         alignItems="flex-start"
       >
+        <h3>Version: {major}.{minor}.{subminor}</h3>
         <input
           accept=".uf2"
           id="restore-file"

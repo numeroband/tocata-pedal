@@ -36,6 +36,7 @@ export default class Api {
     return this.protocol.connected;
   }
 
+  version = _ => this.protocol.version();
   connect = reconnect => this.protocol.connect(reconnect);
 
   sendRequest(command, buffer) {

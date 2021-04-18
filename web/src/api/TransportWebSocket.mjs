@@ -11,6 +11,12 @@ export default class TransportWS {
     return this.socket != null;
   }
 
+  version = _ => ({
+    major: 1,
+    minor: 2,
+    subminor: 3,
+  })
+
   async connect() {
     const socket = new this.ws("ws://localhost:9002");
     socket.binaryType = "arraybuffer";

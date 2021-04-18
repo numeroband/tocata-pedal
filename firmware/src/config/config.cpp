@@ -385,6 +385,8 @@ bool Program::operator==(const Program& other)
 {
     if (!(true
         && available() == other.available()
+        && _mode == other._mode
+        && _expression == other._expression
         && _num_switches == other._num_switches
         && strncmp(_name, other._name, sizeof(_name)) == 0
         && _actions == other._actions
