@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.js": "/tocata-pedal/static/js/main.a73e35a8.chunk.js",
+    "main.js": "/tocata-pedal/static/js/main.365b6fe7.chunk.js",
     "runtime-main.js": "/tocata-pedal/static/js/runtime-main.b07299df.js",
-    "static/js/2.722daaa4.chunk.js": "/tocata-pedal/static/js/2.722daaa4.chunk.js",
+    "static/js/2.c0ee7bc4.chunk.js": "/tocata-pedal/static/js/2.c0ee7bc4.chunk.js",
     "static/js/3.40c8e074.chunk.js": "/tocata-pedal/static/js/3.40c8e074.chunk.js",
     "index.html": "/tocata-pedal/index.html",
-    "static/js/2.722daaa4.chunk.js.LICENSE.txt": "/tocata-pedal/static/js/2.722daaa4.chunk.js.LICENSE.txt"
+    "static/js/2.c0ee7bc4.chunk.js.LICENSE.txt": "/tocata-pedal/static/js/2.c0ee7bc4.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.b07299df.js",
-    "static/js/2.722daaa4.chunk.js",
-    "static/js/main.a73e35a8.chunk.js"
+    "static/js/2.c0ee7bc4.chunk.js",
+    "static/js/main.365b6fe7.chunk.js"
   ]
 }
