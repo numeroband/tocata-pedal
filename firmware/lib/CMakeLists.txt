@@ -112,3 +112,9 @@ target_compile_definitions(u8g2 INTERFACE U8X8_WITH_USER_PTR)
 target_include_directories(u8g2 INTERFACE 
     ${U8G2_PATH}/csrc
     )
+
+if(PICO_SDK)
+else()
+add_subdirectory(libremidi)
+add_subdirectory(SDL)
+endif()

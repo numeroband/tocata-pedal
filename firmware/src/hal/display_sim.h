@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 
 namespace tocata {
@@ -25,32 +27,24 @@ public:
         }
     }
 
-    void refresh()
+    void refresh(uint32_t* screen, uint8_t hw_cols, uint32_t* colors)
     {
-        if (!_modified)
-        {
-            return;
-        }
+        // if (!_modified)
+        // {
+        //     return;
+        // }
 
         _modified = false;
-        system("clear");
-        // printf("\e[1;1H\e[2J"); // Clear screen
-        char screen[8][kCols + 1];  // '\0'
         for (uint8_t page = 0; page < kPages; ++page)
         {
-            for (uint8_t col = 0; col < kCols; ++col)
+            for (uint8_t col = 0; col < hw_cols; ++col)
             {
                 uint8_t data = _ram[page][col];
                 for (uint32_t row = 0; row < 8; ++row)
                 {
-                    screen[row][col] = (data & 1) ? '*' : ' ';
+                    screen[(page * 8 + row) * hw_cols + col] = colors[(data & 1)];
                     data = data >> 1;
                 }
-            }
-            for (uint32_t row = 0; row < 8; ++row)
-            {                
-                screen[row][kCols] = '\0';
-                puts(screen[row]);
             }
         }
     }

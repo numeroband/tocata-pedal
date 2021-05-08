@@ -62,4 +62,9 @@ target_link_libraries(tocata_pedal PRIVATE
  
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(tocata_pedal)
+else()
+target_link_libraries(tocata_pedal PRIVATE 
+        libremidi
+        SDL2-static
+        )
 endif()

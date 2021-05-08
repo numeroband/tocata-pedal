@@ -1,20 +1,28 @@
 #include "hal.h"
 #ifndef HAL_PICO
 
+#include "display_sim.h"
+#include "application.h"
+
 #define ASIO_STANDALONE
  
 #include <web_usb.h>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp> 
+#include <libremidi/libremidi.hpp>
+
 #include <functional>
 #include <queue>
-#include <display_sim.h>
+
 
 namespace tocata {
 
 uint8_t MemFlash[2 * 1024 * 1024];
 
+static libremidi::midi_out midi{};
 static DisplaySim display;
+static Application app{display};
+
 void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 {
     if (display.processTransfer(src, len))
@@ -28,6 +36,32 @@ void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
     	printf("%02X ", src[i]);
     }
     printf("\n");
+}
+
+bool switches_changed(const HWConfigSwitches& config) 
+{
+  return app.switchesChanged();
+}
+
+void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds)
+{
+  auto adjust = [](uint32_t v32) -> uint8_t {
+    uint8_t v8 = static_cast<uint8_t>(v32);
+    return (v8 == 0) ? 0 : (v8 + 127);
+  };
+
+  for (uint8_t i = 0; i < num_leds; ++i) {
+    uint32_t led = leds[i];
+    uint8_t r = adjust(led >> 16);
+    uint8_t g = adjust(led >> 24);
+    uint8_t b = adjust(led >> 8);
+    app.setLedColor(i, r, g, b);
+  }
+}
+
+uint32_t switches_value(const HWConfigSwitches& config) 
+{
+  return app.switchesValue();
 }
 
 class WebSocket
@@ -186,16 +220,27 @@ void flash_erase(uint32_t flash_offs, size_t count)
     // memset(MemFlash + flash_offs, 0xFF, count);
 }
 
-void usb_init() { ws.init(); flash_init(); }
+void usb_init() { 
+  ws.init(); 
+  flash_init();
+  midi.open_virtual_port("Tocata Pedal");
+}
+
 void usb_run() { 
-  ws.run(); 
-  // display.refresh(); 
+  ws.run();
+  if (!app.run()) {
+    exit(0);
+  }
 }
 uint32_t usb_vendor_available() { return ws.readAvailable(); }
 uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return ws.read(buffer, bufsize); }
 uint32_t usb_vendor_write_available() { return ws.writeAvailable(); }
 uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return ws.write(buffer,bufsize); }
 
+void usb_midi_write(const unsigned char* message, size_t size) {
+  midi.send_message(message, size);
 }
 
-#endif // HAL_PICO
+}
+
+#endif // HAL_HOST

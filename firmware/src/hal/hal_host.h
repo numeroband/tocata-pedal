@@ -53,21 +53,16 @@ void flash_erase(uint32_t flash_offs, size_t count);
 
 static inline void switches_init(const HWConfigSwitches& config) {}
 
-static inline bool switches_changed(const HWConfigSwitches& config)
-{
-    return false;
-}
+bool switches_changed(const HWConfigSwitches& config);
 
-static inline uint32_t switches_value(const HWConfigSwitches& config)
-{
-    return 0;
-}
+uint32_t switches_value(const HWConfigSwitches& config);
 
 // Leds
 
 static inline void leds_init(const HWConfigLeds& config) {}
 
-static inline void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds) {}
+void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds);
+
 // I2C
 
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config) {}
@@ -88,7 +83,14 @@ uint32_t usb_vendor_read(void* buffer, uint32_t bufsize);
 uint32_t usb_vendor_write_available();
 uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize);
 
-static inline void usb_midi_write(uint8_t val1, uint8_t val2) {} 
-static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) {}
+void usb_midi_write(const unsigned char* message, size_t size);
+static inline void usb_midi_write(uint8_t val1, uint8_t val2) { 
+    uint8_t msg[] = {val1, val2};
+    usb_midi_write(msg, sizeof(msg));
+} 
+static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) {
+    uint8_t msg[] = {val1, val2, val3};
+    usb_midi_write(msg, sizeof(msg));
+}
 
 }

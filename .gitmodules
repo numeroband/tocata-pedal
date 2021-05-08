@@ -7,3 +7,9 @@
 [submodule "pico/lib/websocketpp"]
 	path = firmware/lib/websocketpp
 	url = https://github.com/zaphoyd/websocketpp.git
+[submodule "firmware/lib/libremidi"]
+	path = firmware/lib/libremidi
+	url = https://github.com/jcelerier/libremidi.git
+[submodule "firmware/lib/SDL"]
+	path = firmware/lib/SDL
+	url = https://github.com/libsdl-org/SDL.git
