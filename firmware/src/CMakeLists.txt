@@ -1,8 +1,19 @@
 # set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
-add_executable(tocata_pedal)
+set(CUR_TARGET TocataPedal)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+add_executable(${CUR_TARGET} MACOSX_BUNDLE)
+set_target_properties(${CUR_TARGET} PROPERTIES
+    BUNDLE True
+    MACOSX_BUNDLE_GUI_IDENTIFIER my.domain.style.identifier.${CUR_TARGET}
+    MACOSX_BUNDLE_BUNDLE_NAME ${CUR_TARGET}
+    MACOSX_BUNDLE_INFO_PLIST "Info.plist"
+)
+else()
+add_executable(${CUR_TARGET})
+endif()
 
-target_sources(tocata_pedal PRIVATE
+target_sources(${CUR_TARGET} PRIVATE
         main.cpp
         controller.cpp
         hal/hal_host.cpp
@@ -19,7 +30,7 @@ target_sources(tocata_pedal PRIVATE
         display/display.cpp
         )
 
-target_include_directories(tocata_pedal PRIVATE 
+target_include_directories(${CUR_TARGET} PRIVATE 
         ${CMAKE_CURRENT_LIST_DIR} 
         usb 
         config 
@@ -30,27 +41,27 @@ target_include_directories(tocata_pedal PRIVATE
         ../lib/asio/asio/include
         )
 
-target_link_libraries(tocata_pedal PRIVATE u8g2)
+target_link_libraries(${CUR_TARGET} PRIVATE u8g2)
 
-target_compile_definitions(tocata_pedal PRIVATE
+target_compile_definitions(${CUR_TARGET} PRIVATE
         VERSION_MAJOR=${TOCATA_PEDAL_VERSION_MAJOR}
         VERSION_MINOR=${TOCATA_PEDAL_VERSION_MINOR}
         VERSION_SUBMINOR=${TOCATA_PEDAL_VERSION_SUBMINOR}
         )
 
 if(PICO_SDK)
-pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/switches.pio)
-pico_generate_pio_header(tocata_pedal ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
+pico_generate_pio_header(${CUR_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio/switches.pio)
+pico_generate_pio_header(${CUR_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
 
-pico_set_program_name(tocata_pedal "tocata-pedal")
-pico_set_program_version(tocata_pedal "${TOCATA_PEDAL_VERSION_MAJOR}.${TOCATA_PEDAL_VERSION_MINOR}.${TOCATA_PEDAL_VERSION_SUBMINOR}")
+pico_set_program_name(${CUR_TARGET} "tocata-pedal")
+pico_set_program_version(${CUR_TARGET} "${TOCATA_PEDAL_VERSION_MAJOR}.${TOCATA_PEDAL_VERSION_MINOR}.${TOCATA_PEDAL_VERSION_SUBMINOR}")
 
-pico_set_binary_type(tocata_pedal copy_to_ram)
+pico_set_binary_type(${CUR_TARGET} copy_to_ram)
 
-pico_enable_stdio_uart(tocata_pedal 0)
-pico_enable_stdio_usb(tocata_pedal 0)
+pico_enable_stdio_uart(${CUR_TARGET} 0)
+pico_enable_stdio_usb(${CUR_TARGET} 0)
 
-target_link_libraries(tocata_pedal PRIVATE 
+target_link_libraries(${CUR_TARGET} PRIVATE 
         pico_stdlib 
         pico_unique_id
         hardware_i2c
@@ -61,9 +72,9 @@ target_link_libraries(tocata_pedal PRIVATE
         )
  
 # create map/bin/hex/uf2 file etc.
-pico_add_extra_outputs(tocata_pedal)
+pico_add_extra_outputs(${CUR_TARGET})
 else()
-target_link_libraries(tocata_pedal PRIVATE 
+target_link_libraries(${CUR_TARGET} PRIVATE 
         libremidi
         SDL2-static
         )

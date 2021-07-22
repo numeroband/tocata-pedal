@@ -21,7 +21,7 @@ public:
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
                                 620, 400,
-                                0);
+                                SDL_WINDOW_ALLOW_HIGHDPI);
 
     if(!_window)
     {
@@ -115,7 +115,7 @@ public:
 
 private:
   static constexpr size_t kDisplayRows = 64;
-  static constexpr size_t kDisplayColumns = 128;
+  static constexpr size_t kDisplayColumns = 132;
   static constexpr size_t kSwitches = 6;
 
   void initSwitches() {
@@ -170,7 +170,7 @@ private:
       } else {
         SDL_SetRenderDrawColor(_window_renderer, 0xEE, 0xEE, 0xEE, 0xFF);
       }
-      SDL_RenderFillRect(_window_renderer, &_switches_rect[i]);
+      fillCircle(_switches_rect[i]);
     }
   }
 
@@ -185,8 +185,20 @@ private:
         SDL_SetRenderDrawColor(_window_renderer, led.r, led.g, led.b, led.a);
         rect.x = start.x + (col * start.w);
         rect.y = start.y + (row * start.h);
-        SDL_RenderFillRect(_window_renderer, &rect);
+        fillCircle(rect);
       }
+    }
+  }
+
+  void fillCircle(const SDL_Rect& rect) {
+    int a = rect.w / 2;
+    int b = rect.h / 2;
+    int b2 = (b * b);
+    int b2a2 = b2 / (a * a);
+    for (int x = 0; x < a; ++x) {
+      int y = sqrt(b2 - (x * x * b2a2));
+      SDL_RenderDrawLine(_window_renderer, rect.x + a + x, rect.y + b - y, rect.x + a + x, rect.y + b + y);
+      SDL_RenderDrawLine(_window_renderer, rect.x + a - x, rect.y + b - y, rect.x + a - x, rect.y + b + y);
     }
   }
 
