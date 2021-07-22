@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <bitset>
+#include <array>
 
 namespace tocata {
 
@@ -25,8 +26,13 @@ public:
     void run();
 
 private:
+    static constexpr uint32_t kDebounceMs = 50;
+
     int _sm;
     Mask _state{};
+    Mask _debouncing{};
+    Mask _debouncing_state{};
+    uint32_t _debouncing_start;
     const HWConfigSwitches& _config;
     Delegate& _delegate;
 };

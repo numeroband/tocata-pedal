@@ -11,18 +11,39 @@ void Switches::init()
 
 void Switches::run()
 {
+    uint32_t now = millis();
     if (switches_changed(_config))
     {
         Mask old_state = _state;
         _state = switches_value(_config);
-        printf("sw %02X -> %02X\n", static_cast<uint8_t>(old_state.to_ulong()), static_cast<uint8_t>(_state.to_ulong()));
-        if (_state == old_state)
+        Mask changed = _state ^ old_state;
+        Mask old_debouncing = _debouncing;
+        Mask start_debouncing = ~old_debouncing & changed;
+        _debouncing = old_debouncing | start_debouncing;
+        _debouncing_state = _debouncing_state | (_state & start_debouncing);
+
+        if (start_debouncing.any())
         {
-            // Spurious read
-            return;
+            _debouncing_start = now;
         }
-        _delegate.switchesChanged(_state, _state ^ old_state);
     }
+
+    if (!_debouncing.any() || (now - _debouncing_start) < kDebounceMs)
+    {
+        return;
+    }
+
+    _delegate.switchesChanged(_debouncing_state, _debouncing);
+    printf("%u: sw %02X(%02X)\n", 
+        now, 
+        static_cast<uint8_t>(_debouncing_state.to_ulong()), 
+        static_cast<uint8_t>(_debouncing.to_ulong()));
+
+    // If the current state is different than the state at the start of the debouncing 
+    // we start a new debounce with the new state
+    _debouncing = _debouncing_state ^ (_state & _debouncing);
+    _debouncing_state = (_state & _debouncing);
+    _debouncing_start = now;
 }
 
 } // namespace tocata

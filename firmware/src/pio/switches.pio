@@ -6,24 +6,17 @@
 
 .define public num_in_pins 6
 
+    mov x, !null             ; initialize x
+.wrap_target
 start:
     mov isr, !null       [7]
     in pins, num_in_pins [7]
     mov y, isr               ; y current pins
-    jmp x!=y debounce        ; x last pins
+    jmp x!=y change          ; x last pins
     jmp start            
-debounce:
+change:
+    push
     mov x, y                 ; x becomes the new value 
-    set y, 31                ; Initialize number of consecutive reads
-deb_loop:
-    mov isr, !null       [7]
-    in pins, num_in_pins [7]
-    mov osr, y           
-    mov y, isr               ; y to check isr
-    jmp x!=y debounce        ; If the switches changed reset counter
-    mov y, osr           
-    jmp y-- deb_loop         ; Check if x is 0 and decrement
-    push                 
 
 % c-sdk {
 
