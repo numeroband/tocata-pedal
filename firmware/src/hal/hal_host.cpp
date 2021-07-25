@@ -15,6 +15,7 @@
 #include <queue>
 #include <fstream>
 
+#include <filesystem>
 #include <CoreFoundation/CoreFoundation.h>
 
 namespace tocata {
@@ -78,11 +79,18 @@ public:
   {
     try {
         auto url = CFBundleCopyResourceURL(CFBundleGetMainBundle(), CFSTR("web"), nullptr, nullptr);
-        assert(url);
-        auto path_cfstr = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
-        _http_root = CFStringGetCStringPtr(path_cfstr, kCFStringEncodingUTF8);
-        CFRelease(path_cfstr);
-        CFRelease(url);
+        if (url)
+        {
+          auto path_cfstr = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
+          _http_root = CFStringGetCStringPtr(path_cfstr, kCFStringEncodingUTF8);
+          CFRelease(path_cfstr);
+          CFRelease(url);
+        } else {
+          _http_root = std::filesystem::current_path().c_str();
+          _http_root += "/build/src/TocataPedal.app/Resources/web";
+        }
+
+        std::cout << "HTTP root: " << _http_root << std::endl;
         
         // Set logging settings
         _server.clear_access_channels(websocketpp::log::alevel::all);

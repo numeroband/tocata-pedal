@@ -8,6 +8,7 @@
 #include <array>
 #include <bitset>
 #include <chrono>
+#include <os/log.h>
 
 using namespace std::chrono_literals;
 
@@ -66,7 +67,7 @@ public:
           return false;
         case SDL_MOUSEBUTTONDOWN:
         {
-          int switch_id = checkSwitches({_window_event.motion.x, _window_event.motion.y});
+          int switch_id = checkSwitches({_window_event.button.x, _window_event.button.y});
           if (switch_id >= 0) {
             switch (_window_event.button.button) {
               case SDL_BUTTON_RIGHT:
@@ -89,6 +90,10 @@ public:
             _switches_changed = true;
           }
           break;
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
+          keyChanged(_window_event.key.keysym.sym, _window_event.type == SDL_KEYDOWN);
+          break;
         default:
           break;
       }
@@ -97,6 +102,37 @@ public:
     draw();
 
     return true;
+  }
+
+  void keyChanged(SDL_Keycode code, bool state) {
+    uint8_t switch_id;
+    switch (code) {
+      case SDLK_a:
+        switch_id = 0;
+        break;
+      case SDLK_b:
+        switch_id = 1;
+        break;
+      case SDLK_c:
+        switch_id = 2;
+        break;
+      case SDLK_d:
+        switch_id = 3;
+        break;
+      case SDLK_e:
+        switch_id = 4;
+        break;
+      case SDLK_f:
+        switch_id = 5;
+        break;
+      default:
+        return;
+    }
+
+    if (_switches_state[switch_id] != state) {
+      _switches_state[switch_id] = state;
+      _switches_changed = true;
+    }
   }
 
   bool switchesChanged() { return _switches_changed; }
@@ -139,6 +175,7 @@ private:
   }
 
   int checkSwitches(const SDL_Point& point) {
+    os_log(OS_LOG_DEFAULT, "Checking switches in (%u,%u)", point.x, point.y);
     for (int i = 0; i < kSwitches; ++i) {
       if (SDL_PointInRect(&point, &_switches_rect[i])) {
         return i;
