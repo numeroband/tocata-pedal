@@ -139,7 +139,7 @@ function FootswitchDialog(props) {
 function Footswitch(props) {
   const { id, mode,  footswitch = {}, setFootswitch } = props
   
-  return !footswitch.name ? <div/> : (
+  return (!footswitch || !footswitch.name) ? <div/> : (
     <Grid
       container
       direction="row"
