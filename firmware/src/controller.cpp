@@ -34,13 +34,13 @@ void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
 
     if (activated[0] && activated[3]) // Hardcoded
     {
-        loadProgram((_program_id - 1) % 99);
+        loadProgram((_program_id == 0) ? 98 : _program_id - 1);
         return;
     }
 
     if (activated[1] && activated[4]) // Hardcoded
     {
-        loadProgram((_program_id + 1) % 99);
+        loadProgram((_program_id == 98) ? 0 : _program_id + 1);
         return;
     }
 
