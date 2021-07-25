@@ -7,7 +7,6 @@ set_target_properties(${CUR_TARGET} PROPERTIES
     BUNDLE True
     MACOSX_BUNDLE_GUI_IDENTIFIER my.domain.style.identifier.${CUR_TARGET}
     MACOSX_BUNDLE_BUNDLE_NAME ${CUR_TARGET}
-    MACOSX_BUNDLE_INFO_PLIST "Info.plist"
 )
 else()
 add_executable(${CUR_TARGET})

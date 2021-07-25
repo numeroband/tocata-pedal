@@ -78,6 +78,8 @@ public:
               default:
                 break;
             }
+          } else {
+            system("open 'http://localhost:9002/tocata-pedal?transport=ws'");
           }
           break;
         }

@@ -13,7 +13,9 @@
 
 #include <functional>
 #include <queue>
+#include <fstream>
 
+#include <CoreFoundation/CoreFoundation.h>
 
 namespace tocata {
 
@@ -64,6 +66,9 @@ uint32_t switches_value(const HWConfigSwitches& config)
   return app.switchesValue();
 }
 
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::bind;
+
 class WebSocket
 {
 public:
@@ -72,6 +77,13 @@ public:
   void init()
   {
     try {
+        auto url = CFBundleCopyResourceURL(CFBundleGetMainBundle(), CFSTR("web"), nullptr, nullptr);
+        assert(url);
+        auto path_cfstr = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
+        _http_root = CFStringGetCStringPtr(path_cfstr, kCFStringEncodingUTF8);
+        CFRelease(path_cfstr);
+        CFRelease(url);
+        
         // Set logging settings
         _server.clear_access_channels(websocketpp::log::alevel::all);
         _server.set_access_channels(websocketpp::log::alevel::connect);
@@ -88,6 +100,8 @@ public:
         {
           _messages.push(msg->get_payload());
         });
+
+        _server.set_http_handler(bind(&WebSocket::http, this, _1));
 
         // Listen on port 9002
         _server.listen(9002);
@@ -143,10 +157,58 @@ public:
 
   uint32_t writeAvailable() { return 64; }
 
+  void http(websocketpp::connection_hdl hdl)
+  {
+    // Upgrade our connection handle to a full connection_ptr
+    server::connection_ptr con = _server.get_con_from_hdl(hdl);
+    std::ifstream file;
+    std::string filename = con->get_resource();
+    std::string response;
+    auto query = filename.find('?');
+    if (query != std::string::npos)
+    {
+      filename = filename.substr(0, query);
+    }
+
+    if (filename.rfind("/tocata-pedal", 0) == 0)
+    {
+      filename = filename.substr(sizeof("tocata-pedal"));
+    }    
+    if (filename.empty() || filename == "/") {
+        filename = "/index.html";
+    }
+    
+    filename = _http_root + filename;
+
+    file.open(filename.c_str(), std::ios::in);
+    if (!file) {
+        // 404 error
+        std::stringstream ss;
+
+        ss << "<!doctype html><html><head>"
+           << "<title>Error 404 (Resource not found)</title><body>"
+           << "<h1>Error 404</h1>"
+           << "<p>The requested URL " << filename << " was not found on this server.</p>"
+           << "</body></head></html>";
+
+        con->set_body(ss.str());
+        con->set_status(websocketpp::http::status_code::not_found);
+        return;
+    }
+    file.seekg(0, std::ios::end);
+    response.reserve(file.tellg());
+    file.seekg(0, std::ios::beg);
+    response.assign((std::istreambuf_iterator<char>(file)),
+                    std::istreambuf_iterator<char>());
+    con->set_body(response);
+    con->set_status(websocketpp::http::status_code::ok);
+
+  }
 private:
   server _server;
   std::queue<std::string> _messages;
   websocketpp::connection_hdl _connection;
+  std::string _http_root;
 };
 
 static WebSocket ws;
