@@ -33,7 +33,10 @@ void Switches::run()
         return;
     }
 
-    _delegate.switchesChanged(_debouncing_state, _debouncing);
+    if (_callback)
+    {
+        _callback(_debouncing_state, _debouncing);
+    }
     printf("%u: sw %02X(%02X)\n", 
         now, 
         static_cast<uint8_t>(_debouncing_state.to_ulong()), 

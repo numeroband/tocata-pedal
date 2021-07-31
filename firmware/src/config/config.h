@@ -93,6 +93,7 @@ enum Color : uint8_t
     kYellow, 
     kGreen, 
     kTurquoise,
+    kWhite,
 };
 
 class Program

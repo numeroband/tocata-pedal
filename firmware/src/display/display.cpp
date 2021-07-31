@@ -58,6 +58,7 @@ uint8_t Display::gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, v
 
 void Display::init()
 {
+	setBlink(false);
 	u8g2_Setup_sh1106_i2c_128x64_noname_f(&_u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
 	u8g2_SetUserPtr(&_u8g2, &_i2c);
 	u8g2_InitDisplay(&_u8g2); // send init sequence to the display, display is in sleep mode after this,
@@ -68,15 +69,30 @@ void Display::init()
     u8g2_SendBuffer(&_u8g2);
 }
 
-void Display::setProgram(uint8_t id, const Program& program)
+void Display::setNumber(uint8_t number) {
+	if (number == kNoNumber) {
+		_number[0] = '\0';
+	} else {
+		_number[0] = (number / 10) ? '0' + (number / 10) : ' ';
+		_number[1] = '0' + (number % 10);
+		_number[2] = '\0';
+	}
+}
+
+void Display::setText(const char* text)
 {
-	_program = &program;
-	sprintf(_program_str, "%2u", id + 1);
-	_scroll.name = _program->available() ? _program->name() : "<EMPTY>";
+	_scroll.text = text;
 	_scroll.letter = 0;
 	_scroll.pixel = 0;
-	_scroll.size = strlen(_scroll.name);
+	_scroll.size = text ? strlen(_scroll.text) : 0;
 	_scroll.delay = 10;
+}
+
+void Display::setBlink(bool enabled)
+{
+	_blink.ticks = enabled ? kBlinkTicks : 0;
+	_blink.enabled = enabled;
+	_blink.state = true;
 }
 
 void Display::run()
@@ -87,19 +103,26 @@ void Display::run()
 	u8g2_SetFontDirection(&_u8g2, 0);
 	u8g2_SetFontMode(&_u8g2, 0);  
 	u8g2_SetFont(&_u8g2, u8g2_font_7x13_mf);
-	if (_program->available())
+	for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
 	{
-		uint8_t num_switches = _program->numFootswitches();
-		for (uint8_t i = 0; i < num_switches; ++i)
-		{
-			drawFootswitch(i, _program->footswitch(i));
-		}
+		drawFootswitch(i, _fs_text[i]);
 	}
 
 	u8g2_SetDrawColor(&_u8g2, 1);
 
-	u8g2_SetFont(&_u8g2, u8g2_font_helvB18_tf);
-	u8g2_DrawStr(&_u8g2,  0, 19, _program_str);
+	if (_blink.enabled)
+	{
+		if (--_blink.ticks == 0)
+		{
+			_blink.ticks = kBlinkTicks;
+			_blink.state = !_blink.state;
+		}
+	}
+	if (_blink.state)
+	{
+		u8g2_SetFont(&_u8g2, u8g2_font_helvB18_tf);
+		u8g2_DrawStr(&_u8g2,  0, 19, _number);
+	}
 
 	drawScroll();
 
@@ -119,7 +142,7 @@ void Display::drawScroll()
 	char name[max_chars + 2];
 	for (uint8_t i = 0; i < max_chars + 1; ++i)
 	{
-		name[i] = _scroll.name[_scroll.letter + i];
+		name[i] = _scroll.text[_scroll.letter + i];
 	}
 	name[max_chars + 1] = '\0';
 
@@ -153,7 +176,7 @@ void Display::drawScroll()
 	}
 }
 
-void Display::drawFootswitch(uint8_t idx, const Program::Footswitch& footswitch)
+void Display::drawFootswitch(uint8_t idx, const char* text)
 {
   static constexpr uint8_t screen_height = 64;
   static constexpr uint8_t x_padding = 3;
@@ -167,7 +190,7 @@ void Display::drawFootswitch(uint8_t idx, const Program::Footswitch& footswitch)
   static constexpr uint8_t block_height = (2 * y_padding) + font_height;
   static constexpr uint8_t block_height_padded = screen_height - block_height;
 
-  if (!footswitch.available())
+  if (!text)
   {
 	  return;
   }
@@ -182,7 +205,7 @@ void Display::drawFootswitch(uint8_t idx, const Program::Footswitch& footswitch)
     u8g2_DrawFrame(&_u8g2, x, y, block_width, block_height);
   }
   
-  u8g2_DrawStr(&_u8g2, x + x_padding, y + y_padding, footswitch.name());
+  u8g2_DrawStr(&_u8g2, x + x_padding, y + y_padding, text);
 }
 
 } // namespace tocata

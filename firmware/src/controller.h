@@ -9,26 +9,37 @@
 
 namespace tocata {
 
-class Controller : public Switches::Delegate, public WebUsb::Delegate
+class Controller : public WebUsb::Delegate
 {
 public:
     Controller(const HWConfig& config) : 
         _usb(*this), 
-        _buttons(config.switches, *this), 
+        _buttons(config.switches), 
         _leds(config.leds), 
         _display(config.display, _switches_state) {}
     void init();
     void run();
 
 private:
-    void switchesChanged(Switches::Mask status, Switches::Mask modified) override;
+    static constexpr uint8_t kIncOneSwitch = 0;
+    static constexpr uint8_t kIncTenSwitch = 1;
+    static constexpr uint8_t kSetupSwitch = 2;
+    static constexpr uint8_t kDecOneSwitch = Program::kNumSwitches / 2;
+    static constexpr uint8_t kDecTenSwitch = Program::kNumSwitches / 2 + 1;
+    static constexpr uint8_t kLoadSwitch = Program::kNumSwitches / 2 + 2;
+
+    void footswitchCallback(Switches::Mask status, Switches::Mask modified);
+    void programCallback(Switches::Mask status, Switches::Mask modified);
+
     void configChanged() override;
     void programChanged(uint8_t id) override;
 
+    void changeProgramMode();
     void changeSwitch(uint8_t id, bool active);
     void updateProgram(uint8_t id);
     void updateConfig();
-    void loadProgram(uint8_t id);
+    void loadProgram(uint8_t id, bool send_midi, bool display_switches);
+    void displayProgram(bool display_switches);
 
     UsbDevice _usb;
     Switches _buttons;

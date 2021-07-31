@@ -2,6 +2,10 @@
 
 #include "hal.h"
 
+#include <functional>
+
+using namespace std::placeholders;
+
 namespace tocata {
 
 void Controller::init()
@@ -10,9 +14,9 @@ void Controller::init()
     _display.init();
     Storage::init();
     _leds.init();
+    _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     _buttons.init();
-
-    loadProgram(0);
+    loadProgram(0, true, true);
 }
 
 void Controller::run() 
@@ -28,19 +32,13 @@ void Controller::run()
     }
 }
 
-void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
+void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modified)
 {
     auto activated = status & modified;
 
-    if (activated[0] && activated[3]) // Hardcoded
+    if (activated.count() > 1)
     {
-        loadProgram((_program_id == 0) ? 98 : _program_id - 1);
-        return;
-    }
-
-    if (activated[1] && activated[4]) // Hardcoded
-    {
-        loadProgram((_program_id == 98) ? 0 : _program_id + 1);
+        changeProgramMode();
         return;
     }
 
@@ -52,6 +50,37 @@ void Controller::switchesChanged(Switches::Mask status, Switches::Mask modified)
         }
     }
     _leds.refresh();
+}
+
+void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
+{
+    auto activated = status & modified;
+
+    if (activated[kIncOneSwitch]) {
+        loadProgram((_program_id + 1) % 99, false, false);
+    } else if (activated[kIncTenSwitch]) {
+        loadProgram((_program_id + 10) % 99, false, false);
+    } else if (activated[kDecOneSwitch]) {
+        loadProgram((_program_id + 99 - 1) % 99, false, false);
+    } else if (activated[kDecTenSwitch]) {
+        loadProgram((_program_id + 99 - 10) % 99, false, false);
+    } else if (activated[kLoadSwitch]) {
+        loadProgram(_program_id, true, true);
+        _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
+    }
+}
+
+void Controller::changeProgramMode()
+{
+    loadProgram(_program_id, false, false);
+    _display.setFootswitch(kIncOneSwitch, " +1");
+    _display.setFootswitch(kIncTenSwitch, " +10");
+    _display.setFootswitch(kSetupSwitch, "SETUP");
+    _display.setFootswitch(kDecOneSwitch, " -1");
+    _display.setFootswitch(kDecTenSwitch, " -10");
+    _display.setFootswitch(kLoadSwitch, "LOAD");
+    _switches_state.reset();
+    _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
 }
 
 void Controller::changeSwitch(uint8_t id, bool active)
@@ -94,16 +123,18 @@ void Controller::programChanged(uint8_t id)
 {
     if (id == _program_id)
     {
-        loadProgram(id);
+        loadProgram(id, true, true);
     }
 }
 
-void Controller::loadProgram(uint8_t id)
-{    
+void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
+{   
     _program_id = id;
     _program.load(id);
-    _display.setProgram(id, _program);
-    if (_program.available())
+    _display.setBlink(!display_switches); 
+    displayProgram(display_switches);
+
+    if (send_midi && _program.available())
     {
         _program.run(_usb.midi());
     }
@@ -111,6 +142,12 @@ void Controller::loadProgram(uint8_t id)
     bool is_scene = (_program.mode() == Program::kScene);
     for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
     {
+        if (!display_switches)
+        {
+            _leds.setColor(id, kWhite, false);
+            continue;
+        }
+
         const auto& fs = _program.footswitch(id);
         if (id >= _program.numFootswitches() || !fs.available())
         {
@@ -123,6 +160,20 @@ void Controller::loadProgram(uint8_t id)
         }
     }
     _leds.refresh();
+}
+
+void Controller::displayProgram(bool display_switches) {
+    _display.setNumber(_program_id + 1);
+    _display.setText(_program.available() ? _program.name() : "<EMPTY>");
+    if (!display_switches)
+    {
+        return;
+    }
+
+    for (uint8_t idx = 0; idx < Program::kNumSwitches; ++idx) {
+        auto& fs = _program.footswitch(idx);
+        _display.setFootswitch(idx, fs.available() ? fs.name() : nullptr);
+    }
 }
 
 }

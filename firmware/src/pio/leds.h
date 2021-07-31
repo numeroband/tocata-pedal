@@ -38,6 +38,7 @@ private:
         [kYellow]    = { kHalf, kHalf, kOff  }, 
         [kGreen]     = { kOff,  kFull, kOff  }, 
         [kTurquoise] = { kOff,  kHalf, kHalf },
+        [kWhite] = { kHalf,  kHalf, kHalf },
     };
 
     static inline uint8_t brightness(uint8_t orig, bool active)
