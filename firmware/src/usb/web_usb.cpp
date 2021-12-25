@@ -339,7 +339,7 @@ void WebUsb::flashErase()
   }
 
   uint32_t length = (req.length + kFlashSectorSize - 1) & ~(kFlashSectorSize - 1);
-  flash_erase(req.address - kFlashAddress, req.length);
+  flash_erase(req.address - kFlashAddress, length);
   sendStatus(kOk);
 }
 
