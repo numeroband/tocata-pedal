@@ -1,7 +1,7 @@
 {
   "name": "tocata-pedal",
   "homepage": "http://numeroband.github.io/tocata-pedal",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^4.11.2",
@@ -17,12 +17,13 @@
     "web-vitals": "^0.2.4"
   },
   "scripts": {
-    "predeploy": "npm run build",
+    "predeploy": "npm run firmware && npm run build",
     "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "install": "react-scripts build ; npx gulp",
     "sim": "node sim/index.mjs",
+    "firmware": "cd public ; rm -f *.uf2 ; curl -LO https://github.com/numeroband/tocata-pedal/releases/download/v${npm_package_version}/TocataPedal-${npm_package_version}.uf2",
     "tocata-sim": "react-scripts build ; rm -Rf tocata-sim ; mkdir tocata-sim ; cp sim-package.json tocata-sim/package.json ; cp -r tocata-sim.bat sim tocata-sim/ ; cp -r build tocata-sim/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
