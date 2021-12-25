@@ -48,6 +48,7 @@ private:
 
     uint32_t _state[kNumLeds] = {};
     const HWConfigLeds& _config;
+    bool _fix_mapping = leds_fix_mapping();
 };
 
 } // namespace tocata

@@ -146,6 +146,8 @@ static inline uint32_t switches_value(const HWConfigSwitches& config)
 
 // Leds
 
+bool leds_fix_mapping();
+
 static inline void leds_init(const HWConfigLeds& config)
 {
     uint offset = pio_add_program(pio0, &ws2812b_program);

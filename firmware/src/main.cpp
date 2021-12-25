@@ -27,7 +27,7 @@ int main() {
 #include "hal.h"
 
 
-static constexpr tocata::HWConfig hw_config = {
+static tocata::HWConfig hw_config = {
   .switches = {
     .state_machine_id = 0,
     .first_input_pin = 2,
@@ -36,7 +36,6 @@ static constexpr tocata::HWConfig hw_config = {
   .leds = {
     .state_machine_id = 1,
     .data_pin = 18,
-    .mapping = {2, 1, 0, 3, 4, 5},
   },
   .display = {
     .sda_pin = 20,

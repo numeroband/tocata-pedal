@@ -24,7 +24,6 @@ struct HWConfigLeds
 {
     int state_machine_id;
     uint8_t data_pin;
-    uint8_t mapping[6];
 };
 
 // System
@@ -60,6 +59,7 @@ uint32_t switches_value(const HWConfigSwitches& config);
 // Leds
 
 static inline void leds_init(const HWConfigLeds& config) {}
+static inline bool leds_fix_mapping() { return true; }
 
 void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds);
 
