@@ -102,6 +102,17 @@ public:
         {
           _connection = hdl;
           WebUsb::singleton().connected(true);
+          _connected = true;
+        });
+
+        _server.set_close_handler([this](websocketpp::connection_hdl hdl) 
+        {
+          auto con = _server.get_con_from_hdl(hdl);
+          std::cout << "close code: " << con->get_remote_close_code() << " (" 
+            << websocketpp::close::status::get_string(con->get_remote_close_code()) 
+            << "), close reason: " << con->get_remote_close_reason() << std::endl;;
+          _connected = false;
+          WebUsb::singleton().connected(false);
         });
 
         _server.set_message_handler([this](websocketpp::connection_hdl hdl, server::message_ptr msg)
@@ -121,6 +132,18 @@ public:
     } catch (...) {
         std::cout << "other exception" << std::endl;
     }
+  }
+
+  void disconnect() {
+    if (!_connected) { return; }
+    std::cout << "Closing connection" << std::endl;
+    _connected = false;
+    _server.pause_reading(_connection);
+    while (!_messages.empty())
+    {
+      _messages.pop();
+    }
+    _server.close(_connection, websocketpp::close::status::going_away, "restarting");
   }
 
   void run() { _server.poll(); }
@@ -153,6 +176,8 @@ public:
 
   uint32_t write(const void* buffer, uint32_t bufsize)
   {
+    if (!_connected) { return 0; }
+
     try {
         _server.send(_connection, buffer, bufsize, websocketpp::frame::opcode::binary);
         return bufsize;
@@ -217,6 +242,7 @@ private:
   std::queue<std::string> _messages;
   websocketpp::connection_hdl _connection;
   std::string _http_root;
+  bool _connected = false;
 };
 
 static WebSocket ws;
@@ -309,6 +335,10 @@ uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return ws.writ
 
 void usb_midi_write(const unsigned char* message, size_t size) {
   midi.send_message(message, size);
+}
+
+void board_reset() {
+  ws.disconnect();
 }
 
 }

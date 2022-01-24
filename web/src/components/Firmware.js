@@ -43,7 +43,11 @@ export default function Firmware() {
 
   async function handleRestart() {
     setProgress(0);
-    await restart();
+    try {
+      await restart();
+    } catch (error) {
+      console.error(error);
+    }
     setProgress(-1);
   }
 

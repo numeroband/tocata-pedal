@@ -1,4 +1,4 @@
-import { connect, isSupported, isConnected, setConnectionEvent } from './Api';
+import { connect, isSupported, isConnected, setConnectionEvent, version } from './Api';
 import React from 'react';
 import PropTypes from 'prop-types';
 import AppBar from '@material-ui/core/AppBar';
@@ -29,6 +29,7 @@ const drawerWidth = 240;
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
+    margin: theme.spacing(1),
   },
   drawer: {
     [theme.breakpoints.up('sm')]: {
@@ -83,15 +84,34 @@ ListItemLink.propTypes = {
   to: PropTypes.string.isRequired,
 };
 
+function newFirmwareAvailable(initial) {
+  const {major, minor, subminor} = version();
+  const currentVersion = `${major}.${minor}.${subminor}`;
+  const latestVersion = process.env.REACT_APP_VERSION;
+
+  console.log('newFirmware initial', initial, 'current', currentVersion, 'latest', latestVersion);
+  return currentVersion !== latestVersion
+}
+
 function Navigation(props) {
+  const currentlyConnected = isConnected();
   const { window, navigation } = props
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [usbConnected, setUsbConnected] = React.useState(isConnected());
+  const [usbConnected, setUsbConnected] = React.useState(currentlyConnected);
+  const [firmwareAvailable, setFirmwareAvailable] = React.useState(currentlyConnected && newFirmwareAvailable(true));
 
   if (isSupported()) {
-    setConnectionEvent(connected => { console.log(connected ? 'connected' : 'disconnected'); setUsbConnected(connected)});
+    setConnectionEvent(connected => { 
+      console.log(connected ? 'connected' : 'disconnected'); 
+      setUsbConnected(wasConnected => {
+        if (wasConnected !== connected) {
+          setFirmwareAvailable(connected ? newFirmwareAvailable(false) : false);
+        }
+        return connected;
+      });
+    });
   }
 
   React.useEffect(() => {
@@ -141,6 +161,15 @@ function Navigation(props) {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap><Route>{getTitle}</Route></Typography>
+            {firmwareAvailable && <Button
+              color="secondary"
+              variant="contained"
+              className={classes.root}
+              component={RouterLink} 
+              to={'/firmware'}
+            >
+              New firmware available
+            </Button>}
           </Toolbar>
         </AppBar>
         <nav className={classes.drawer} aria-label="mailbox folders">

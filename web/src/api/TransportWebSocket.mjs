@@ -5,6 +5,7 @@ export default class TransportWS {
     this.connectionEvent = connectionEvent;
     this.queue = [];
     this.resolve = null;
+    this.reject = null;
   }
 
   get connected() {
@@ -18,6 +19,8 @@ export default class TransportWS {
   })
 
   async connect() {
+    console.log('Socket connect');
+
     const socket = new this.ws("ws://localhost:9002");
     socket.binaryType = "arraybuffer";
 
@@ -32,12 +35,29 @@ export default class TransportWS {
       this.socket = null;
       this.connectionEvent(false);
     };    
-    
+
+    socket.onclose = e => {
+      console.log('onclose');
+
+      while (this.queue.length > 0) {
+        this.queue.shift();
+      }
+  
+      if (this.reject) {
+        this.reject('Connection closed');
+        this.resolve = null;
+        this.reject = null;
+      }
+      this.socket = null;
+      this.connectionEvent(false);
+    };
+
     socket.onmessage = e => {
       this.queue.push(new Uint8Array(e.data));
       if (this.resolve) {
         this.resolve(this.queue.shift());
         this.resolve = null;
+        this.reject = null;
       }
     };
   }
@@ -56,6 +76,7 @@ export default class TransportWS {
     }
     return new Promise((resolve, reject) => {
       this.resolve = resolve;
+      this.reject = reject;
     });
   };
 }
