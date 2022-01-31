@@ -24,12 +24,14 @@ public:
 private:
     static constexpr uint8_t kMinValue = 0;
     static constexpr uint8_t kMaxValue = 127;
+    static constexpr int16_t kFilterRadius = 1;
 
     uint8_t calculateValue();
 
     const HWConfigExpression& _config;
     uint16_t _currentRaw;
-    uint8_t _currentValue;
+    uint8_t _currentValue = 0;
+    int16_t  _filterCenter = 0;
     uint16_t _maxRaw;
     uint16_t _minRaw;
     Callback _callback = nullptr;

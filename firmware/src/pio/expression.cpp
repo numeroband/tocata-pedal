@@ -32,8 +32,16 @@ uint8_t Expression::calculateValue() {
     float floatValue = static_cast<float>(_currentRaw - _minRaw);
     floatValue /= static_cast<float>((_maxRaw - _minRaw));
     floatValue *= static_cast<float>((kMaxValue - kMinValue) + 1);
+    int16_t intValue = static_cast<int16_t>(floatValue);
+    if (intValue > (_filterCenter + kFilterRadius)) {
+        _filterCenter = intValue - kFilterRadius;        
+    } else if (intValue < (_filterCenter - kFilterRadius)) {
+        _filterCenter = intValue + kFilterRadius;
+    } else {
+        intValue = _currentValue;
+    }
 
-    return static_cast<uint8_t>(floatValue) + kMinValue;
+    return static_cast<uint8_t>(intValue);
 }
 
 } // namespace tocata
