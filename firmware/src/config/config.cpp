@@ -231,6 +231,11 @@ void Program::run(MidiUsb& midi) const
     }
 }
 
+void Program::sendExpression(MidiUsb& midi, uint8_t value) const
+{
+    midi.sendControl(_expression, value);
+}
+
 uint8_t Program::copyName(uint8_t id, char* name)
 {
 #if FAKE_CONFIG

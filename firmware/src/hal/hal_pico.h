@@ -11,6 +11,7 @@ extern "C" {
 #include <hardware/gpio.h>
 #include <hardware/flash.h>
 #include <hardware/watchdog.h>
+#include <hardware/adc.h>
 #include <pico/bootrom.h>
 #include <pico/unique_id.h>
 }
@@ -23,26 +24,6 @@ extern "C" {
 #include <cstdint>
 
 namespace tocata {
-
-struct HWConfigI2C
-{
-    uint8_t sda_pin;
-    uint8_t scl_pin;		
-};
-
-struct HWConfigSwitches
-{
-    int state_machine_id;
-    uint8_t first_input_pin;
-    uint8_t first_output_pin;
-};
-
-struct HWConfigLeds
-{
-    int state_machine_id;
-    uint8_t data_pin;
-    uint8_t mapping[6];
-};
 
 // System
 
@@ -142,6 +123,22 @@ static inline bool switches_changed(const HWConfigSwitches& config)
 static inline uint32_t switches_value(const HWConfigSwitches& config)
 {
     return ~pio_sm_get(pio0, config.state_machine_id);
+}
+
+// Expression
+
+static inline void expression_init(const HWConfigExpression& config) 
+{
+    adc_init();
+    // Make sure GPIO is high-impedance, no pullups etc
+    adc_gpio_init(config.adc_pin);
+    // Select ADC input (starts at GPIO26)
+    adc_select_input(config.adc_pin - 26);
+}
+
+static inline uint16_t expression_read()
+{
+    return adc_read();
 }
 
 // Leds

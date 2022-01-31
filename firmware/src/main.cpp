@@ -1,31 +1,5 @@
-#define TEST_BUILD 0
-#if TEST_BUILD
-
-#include "filesystem.h"
-#include "hal.h"
-
-using namespace tocata;
-
-int main() {
-  puts("starting");
-  auto start = millis();
-
-  TocataFS.init(true);
-
-  auto end = millis();
-  printf("Storage init in ms: %u\n", end - start);
-  TocataFS.printUsage();
-
-  TocataFS.test();  
-
-  return 0;
-}
-
-#else
-
 #include "controller.h"
 #include "hal.h"
-
 
 static tocata::HWConfig hw_config = {
   .switches = {
@@ -41,6 +15,9 @@ static tocata::HWConfig hw_config = {
     .sda_pin = 20,
     .scl_pin = 21,
   },
+  .expression = {
+    .adc_pin = 26,
+  }
 };
 
 int main()
@@ -56,5 +33,3 @@ int main()
   
   return 0;
 }
-
-#endif

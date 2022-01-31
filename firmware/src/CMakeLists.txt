@@ -25,6 +25,7 @@ target_sources(${CUR_TARGET} PRIVATE
         config/filesystem.cpp
         pio/switches.cpp
         pio/leds.cpp
+        pio/expression.cpp
         display/i2c.cpp
         display/display.cpp
         )
@@ -66,6 +67,7 @@ target_link_libraries(${CUR_TARGET} PRIVATE
         hardware_i2c
         hardware_flash
         hardware_pio
+        hardware_adc
         tinyusb_device 
         tinyusb_board
         )

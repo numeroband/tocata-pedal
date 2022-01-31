@@ -7,25 +7,6 @@
 
 namespace tocata {
 
-struct HWConfigI2C
-{
-    uint8_t sda_pin;
-    uint8_t scl_pin;		
-};
-
-struct HWConfigSwitches
-{
-    int state_machine_id;
-    uint8_t first_input_pin;
-    uint8_t first_output_pin;
-};
-
-struct HWConfigLeds
-{
-    int state_machine_id;
-    uint8_t data_pin;
-};
-
 // System
 static inline uint32_t millis() { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 static inline void sleep_ms(uint32_t ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
@@ -56,6 +37,11 @@ static inline void switches_init(const HWConfigSwitches& config) {}
 bool switches_changed(const HWConfigSwitches& config);
 
 uint32_t switches_value(const HWConfigSwitches& config);
+
+// Expression
+
+static inline void expression_init(const HWConfigExpression& config) {}
+uint16_t expression_read();
 
 // Leds
 

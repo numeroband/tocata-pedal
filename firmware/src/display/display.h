@@ -19,6 +19,7 @@ public:
 	void setNumber(uint8_t number);
 	void setText(const char* text);
 	void setFootswitch(uint8_t idx, const char* text) { _fs_text[idx] = text; }
+	void clearSwitches() { _fs_text = {}; }
 	void setBlink(bool enabled);
 	
 private:

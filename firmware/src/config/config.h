@@ -143,12 +143,14 @@ public:
     bool load(uint8_t id);
 
     void run(MidiUsb& midi) const;
+    void sendExpression(MidiUsb& midi, uint8_t value) const;
     Footswitch& footswitch(uint8_t id) { return _switches[id]; }
     const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
     Mode mode() const { return _mode; }
     uint8_t expression() const { return _expression; }
+    bool expressionEnabled() const { return _expression < 128; }
     bool available() const { return _name[0]; }
     void save(uint8_t id) const;
     bool operator==(const Program& other);

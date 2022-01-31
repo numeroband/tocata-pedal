@@ -14,15 +14,16 @@ void Controller::init()
     _display.init();
     Storage::init();
     _leds.init();
-    _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
+    footswitchMode();
     _buttons.init();
-    loadProgram(0, true, true);
+    _exp.init();
 }
 
 void Controller::run() 
 {
     _usb.run();
     _buttons.run();
+    _exp.run();
 
     uint32_t now = millis();
     if (now - _last_display_update > 70)
@@ -64,14 +65,63 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
         loadProgram((_program_id + 99 - 1) % 99, false, false);
     } else if (activated[kDecTenSwitch]) {
         loadProgram((_program_id + 99 - 10) % 99, false, false);
+    } else if (activated[kSetupSwitch]) {
+        setupMode();
     } else if (activated[kLoadSwitch]) {
-        loadProgram(_program_id, true, true);
-        _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
+        footswitchMode();
     }
+}
+
+void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
+{
+    auto activated = status & modified;
+
+    if (activated[kExpMaxSwitch]) {        
+        _exp.resetMax();
+    } else if (activated[kExpMinSwitch]) {
+        _exp.resetMin();
+    } else if (activated[kExpEnabledSwitch]) {
+        _expEnabled = !_expEnabled;
+        _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
+    } else if (activated[kExitSwitch]) {
+        footswitchMode();
+    }
+}
+
+void Controller::setExpValue(uint8_t value) {
+    constexpr uint8_t kNumDigits = 3;
+    constexpr uint8_t kStart = sizeof(_expValue) - kNumDigits - 1;
+
+    uint8_t remainder = value;
+
+    for (uint8_t i = 0; i < kNumDigits; ++i)
+    {
+        uint8_t digit = remainder % 10;
+        remainder /= 10;
+        _expValue[kStart + (kNumDigits - 1 - i)] = '0' + digit;
+    }
+
+    _display.setText(_expValue);
+}
+
+void Controller::setupMode()
+{
+    loadProgram(_program_id, false, false);
+    _display.setBlink(false);
+    setExpValue(_exp.getValue());
+    _display.clearSwitches();
+    _display.setFootswitch(kExpMaxSwitch, "XPMAX");
+    _display.setFootswitch(kExpMinSwitch, "XPMIN");
+    _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
+    _display.setFootswitch(kExitSwitch, "EXIT");
+    _switches_state.reset();
+    _buttons.setCallback(std::bind(&Controller::setupCallback, this, _1, _2));
+    _exp.setCallback(std::bind(&Controller::setExpValue, this, _1));
 }
 
 void Controller::changeProgramMode()
 {
+    _display.setBlink(true); 
     loadProgram(_program_id, false, false);
     _display.setFootswitch(kIncOneSwitch, " +1");
     _display.setFootswitch(kIncTenSwitch, " +10");
@@ -81,6 +131,14 @@ void Controller::changeProgramMode()
     _display.setFootswitch(kLoadSwitch, "LOAD");
     _switches_state.reset();
     _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
+}
+
+void Controller::footswitchMode()
+{
+    _display.setBlink(false); 
+    loadProgram(_program_id, true, true);
+    _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
+    _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
 
 void Controller::changeSwitch(uint8_t id, bool active)
@@ -115,6 +173,14 @@ void Controller::changeSwitch(uint8_t id, bool active)
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 
+void Controller::sendExpression(uint8_t value) 
+{
+    if (_expEnabled && _program.available() && _program.expressionEnabled())
+    {
+        _program.sendExpression(_usb.midi(), value);
+    }
+}
+
 void Controller::configChanged()
 {
 }
@@ -131,12 +197,12 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
 {   
     _program_id = id;
     _program.load(id);
-    _display.setBlink(!display_switches); 
     displayProgram(display_switches);
 
     if (send_midi && _program.available())
     {
         _program.run(_usb.midi());
+        sendExpression(_exp.getValue());
     }
 
     bool is_scene = (_program.mode() == Program::kScene);

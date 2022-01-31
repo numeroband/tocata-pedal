@@ -341,6 +341,30 @@ void board_reset() {
   ws.disconnect();
 }
 
+uint16_t expression_read() {
+  constexpr int16_t kMargin = 1 << 5;
+  constexpr int16_t kMin = kMargin;
+  constexpr int16_t kMax = (1 << 12) - kMargin;
+  constexpr int16_t kAbsDelta = 1 << 3;
+
+  static int16_t exp_value = 0;
+  static int16_t exp_delta = kAbsDelta;
+
+  exp_value += exp_delta;
+
+  if (exp_value < kMin) {
+    exp_value = kMin;
+    exp_delta = kAbsDelta;
+  }
+
+  if (exp_value > kMax) {
+    exp_value = kMax;
+    exp_delta = -kAbsDelta;
+  }
+
+  return static_cast<uint16_t>(exp_value);
+}
+
 }
 
 #endif // HAL_HOST
