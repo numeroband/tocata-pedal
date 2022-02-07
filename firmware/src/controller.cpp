@@ -83,6 +83,10 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[kExpEnabledSwitch]) {
         _expEnabled = !_expEnabled;
         _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
+    } else if (activated[kIncExpFilterSwitch]) {
+        _exp.incFilter();
+    } else if (activated[kDecExpFilterSwitch]) {
+        _exp.decFilter();
     } else if (activated[kExitSwitch]) {
         footswitchMode();
     }
@@ -112,6 +116,8 @@ void Controller::setupMode()
     _display.clearSwitches();
     _display.setFootswitch(kExpMaxSwitch, "XPMAX");
     _display.setFootswitch(kExpMinSwitch, "XPMIN");
+    _display.setFootswitch(kIncExpFilterSwitch, "FILT+");
+    _display.setFootswitch(kDecExpFilterSwitch, "FILT-");
     _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
     _display.setFootswitch(kExitSwitch, "EXIT");
     _switches_state.reset();

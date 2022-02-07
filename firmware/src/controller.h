@@ -34,8 +34,10 @@ private:
     static constexpr uint8_t kLoadSwitch = Program::kNumSwitches / 2 + 2;
 
     static constexpr uint8_t kExpMaxSwitch = 0;
+    static constexpr uint8_t kIncExpFilterSwitch = 1;
     static constexpr uint8_t kExpEnabledSwitch = 2;
     static constexpr uint8_t kExpMinSwitch = Program::kNumSwitches / 2;
+    static constexpr uint8_t kDecExpFilterSwitch = Program::kNumSwitches / 2 + 1;
     static constexpr uint8_t kExitSwitch = Program::kNumSwitches / 2 + 2;
 
     void footswitchCallback(Switches::Mask status, Switches::Mask modified);

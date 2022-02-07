@@ -22,7 +22,7 @@ public:
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
                                 620, 400,
-                                SDL_WINDOW_ALLOW_HIGHDPI);
+                                0);
 
     if(!_window)
     {
