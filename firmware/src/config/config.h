@@ -99,7 +99,7 @@ enum Color : uint8_t
 class Program
 {
 public:
-    static constexpr size_t kNumSwitches = 6;
+    static constexpr size_t kNumSwitches = 10;
     static constexpr uint8_t kMaxNameLength = 30;
     static constexpr uint8_t kMaxPrograms = 99;
     static constexpr size_t kMaxJsonSize = 1024;

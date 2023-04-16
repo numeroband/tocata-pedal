@@ -13,7 +13,7 @@ class Display
 {
 public:
 	static constexpr uint8_t kNoNumber = 0xFF;
-	Display(const HWConfigI2C& config, const std::bitset<Program::kNumSwitches>& fs_state) : _i2c(config), _fs_state(fs_state) {}
+	Display(const HWConfigI2C& config, const std::bitset<Program::kNumSwitches>& fs_state) : _i2c{config, config}, _fs_state(fs_state) {}
 	void init();
 	void run();
 	void setNumber(uint8_t number);
@@ -24,6 +24,7 @@ public:
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;
+	static constexpr uint8_t kNumDisplays = 2;
 
 	static uint8_t i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
@@ -31,13 +32,14 @@ private:
 	void drawFootswitch(uint8_t idx, const char* text);
 	void drawScroll();
 
-	u8g2_t _u8g2;
-	I2C _i2c;
+	std::array<u8g2_t, kNumDisplays> _u8g2;
+	std::array<I2C, kNumDisplays> _i2c;
 	bool _dirty = true;
 	char _number[3] = "";
 	const char* _text = "";
 	std::array<const char*, Program::kNumSwitches> _fs_text{};
 	const std::bitset<Program::kNumSwitches>& _fs_state{};
+	std::array<std::vector<uint8_t>, kNumDisplays> _u8g2_buffers;
 
 	struct {
 		const char* text;

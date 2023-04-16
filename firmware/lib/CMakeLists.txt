@@ -107,7 +107,10 @@ target_sources(u8g2 INTERFACE
     ${U8G2_PATH}/csrc/u8x8_d_st7586s_ymc240160.c
     )
 
-target_compile_definitions(u8g2 INTERFACE U8X8_WITH_USER_PTR)
+target_compile_definitions(u8g2 INTERFACE 
+    U8X8_WITH_USER_PTR
+    U8G2_USE_DYNAMIC_ALLOC
+    )
 
 target_include_directories(u8g2 INTERFACE 
     ${U8G2_PATH}/csrc

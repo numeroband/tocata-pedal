@@ -11,7 +11,12 @@ namespace tocata {
 class Leds
 {
 public:
-    static constexpr uint8_t kNumLeds = 8;
+    static constexpr uint8_t kNumLeds = 10;
+
+    static constexpr uint8_t fixMapping(uint8_t index) {
+        constexpr uint8_t mapping[] = {4, 3, 2, 1, 0, 5, 6, 7, 8, 9};
+        return mapping[index];
+    }
 
     Leds(const HWConfigLeds& config) : _config(config) {}
 

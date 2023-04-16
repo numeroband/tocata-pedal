@@ -20,8 +20,8 @@
     "predeploy": "npm run firmware && npm run build",
     "deploy": "gh-pages -d build",
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "install": "react-scripts build ; npx gulp",
+    "build": "react-scripts --openssl-legacy-provider build",
+    "_install": "react-scripts build ; npx gulp",
     "sim": "node sim/index.mjs",
     "firmware": "cd public ; rm -f *.uf2 ; curl -LO https://github.com/numeroband/tocata-pedal/releases/download/v${npm_package_version}/TocataPedal-${npm_package_version}.uf2",
     "tocata-sim": "react-scripts build ; rm -Rf tocata-sim ; mkdir tocata-sim ; cp sim-package.json tocata-sim/package.json ; cp -r tocata-sim.bat sim tocata-sim/ ; cp -r build tocata-sim/",
@@ -52,9 +52,7 @@
     "gulp-gzip": "^1.4.2",
     "gulp-inline-source": "^4.0.0",
     "gulp-replace": "^1.0.0",
-    "midi": "^1.0.0",
     "terminal-kit": "^1.45.4",
-    "webusb": "^2.2.0",
     "ws": "^7.4.2"
   }
 }

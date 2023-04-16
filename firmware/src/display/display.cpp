@@ -59,14 +59,20 @@ uint8_t Display::gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, v
 void Display::init()
 {
 	setBlink(false);
-	u8g2_Setup_sh1106_i2c_128x64_noname_f(&_u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
-	u8g2_SetUserPtr(&_u8g2, &_i2c);
-	u8g2_InitDisplay(&_u8g2); // send init sequence to the display, display is in sleep mode after this,
-	u8g2_SetPowerSave(&_u8g2, 0); // wake up display
-    u8g2_ClearBuffer(&_u8g2);
-	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
-	u8g2_DrawStr(&_u8g2, 10, 30, "Tocata Pedal");
-    u8g2_SendBuffer(&_u8g2);
+	for (uint32_t i = 0; i < kNumDisplays; ++i) {
+		auto u8g2 = &_u8g2[i];
+		u8g2_Setup_sh1106_i2c_128x64_noname_f(u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
+		_u8g2_buffers[i].resize(u8g2_GetBufferSize(u8g2));
+		u8g2_SetBufferPtr(u8g2, _u8g2_buffers[i].data());
+		u8g2_SetI2CAddress(u8g2, 0x78 + (i << 1));
+		u8g2_SetUserPtr(u8g2, &_i2c[i]);
+		u8g2_InitDisplay(u8g2); // send init sequence to the display, display is in sleep mode after this,
+		u8g2_SetPowerSave(u8g2, 0); // wake up display
+		u8g2_ClearBuffer(u8g2);
+		u8g2_SetFont(u8g2, u8g2_font_10x20_tf);
+		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata" :  "Pedal");
+		u8g2_SendBuffer(u8g2);
+	}
 }
 
 void Display::setNumber(uint8_t number) {
@@ -97,18 +103,21 @@ void Display::setBlink(bool enabled)
 
 void Display::run()
 {
-    u8g2_ClearBuffer(&_u8g2);
-	u8g2_SetFontRefHeightExtendedText(&_u8g2);
-	u8g2_SetFontPosTop(&_u8g2);
-	u8g2_SetFontDirection(&_u8g2, 0);
-	u8g2_SetFontMode(&_u8g2, 0);  
-	u8g2_SetFont(&_u8g2, u8g2_font_7x13_mf);
+  for (auto i = 0; i < kNumDisplays; ++i) {
+	auto u8g2 = &_u8g2[i];
+	u8g2_ClearBuffer(u8g2);
+	u8g2_SetFontRefHeightExtendedText(u8g2);
+	u8g2_SetFontPosTop(u8g2);
+	u8g2_SetFontDirection(u8g2, 0);
+	u8g2_SetFontMode(u8g2, 0);  
+	u8g2_SetFont(u8g2, u8g2_font_7x13_mf);
+    u8g2_SetDrawColor(u8g2, 1);
+  }
+
 	for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
 	{
 		drawFootswitch(i, _fs_text[i]);
 	}
-
-	u8g2_SetDrawColor(&_u8g2, 1);
 
 	if (_blink.enabled)
 	{
@@ -120,36 +129,45 @@ void Display::run()
 	}
 	if (_blink.state)
 	{
-		u8g2_SetFont(&_u8g2, u8g2_font_helvB18_tf);
-		u8g2_DrawStr(&_u8g2,  0, 19, _number);
+		u8g2_SetFont(&_u8g2[0], u8g2_font_helvB24_tf);
+		u8g2_DrawStr(&_u8g2[0], 0, 17, _number);
 	}
 
 	drawScroll();
 
-    u8g2_SendBuffer(&_u8g2);
+  for (auto i = 0; i < kNumDisplays; ++i) {
+	auto u8g2 = &_u8g2[i];
+    u8g2_SendBuffer(u8g2);
+  }
 }
 
 void Display::drawScroll()
 {
-    static constexpr uint8_t font_width = 10;
-    static constexpr uint8_t font_height = 20;
-    static constexpr uint8_t max_chars = 9;
-    static constexpr uint8_t block_width = font_width * max_chars;
-    static constexpr uint8_t block_height = font_height;
-    static constexpr uint8_t start_x = 33;
-    static constexpr uint8_t start_y = 23;
+    constexpr uint8_t font_width = 10;
+    constexpr uint8_t font_height = 20;
+    constexpr uint8_t block_height = font_height;
+    constexpr uint8_t start_y = 23;
 
-	char name[max_chars + 2];
-	for (uint8_t i = 0; i < max_chars + 1; ++i)
-	{
-		name[i] = _scroll.text[_scroll.letter + i];
+	uint8_t text_offset = 0;
+	for (auto i = 0; i < kNumDisplays; ++i) {
+		const uint8_t max_chars = (i == 0) ? 8 : 11;
+		const uint8_t block_width = font_width * max_chars;
+	    const uint8_t start_x = (i == 0) ? 48 : 0;		
+		char name[max_chars + 2];
+		for (uint8_t i = 0; i < max_chars + 1; ++i)
+		{
+			name[i] = _scroll.text[_scroll.letter + text_offset + i];
+		}
+		name[max_chars + 1] = '\0';
+		text_offset += max_chars;
+
+		auto& u8g2 = _u8g2[i];
+		u8g2_SetFont(&u8g2, u8g2_font_10x20_tf);
+		u8g2_SetClipWindow(&u8g2, start_x, start_y, start_x + block_width, start_y + block_height);
+		u8g2_DrawStr(&u8g2, start_x - _scroll.pixel, start_y, name);
+		u8g2_SetMaxClipWindow(&u8g2);
 	}
-	name[max_chars + 1] = '\0';
-
-	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
-	u8g2_SetClipWindow(&_u8g2, start_x, start_y, start_x + block_width, start_y + block_height);
-	u8g2_DrawStr(&_u8g2, start_x - _scroll.pixel, start_y, name);
-	u8g2_SetMaxClipWindow(&_u8g2);
+		
 
 	if (_scroll.delay != 0)
 	{
@@ -162,12 +180,12 @@ void Display::drawScroll()
 		return;
 	}
 
-	if (_scroll.letter + max_chars >= _scroll.size)
+	if (_scroll.letter + text_offset >= _scroll.size)
 	{
 		_scroll.delay = font_width;
 		return;
 	}
-
+	
 	++_scroll.pixel;
 	if (_scroll.pixel == font_width)
 	{
@@ -195,17 +213,34 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
 	  return;
   }
 
-  uint8_t x = block_width_padded * (idx % 3);
-  uint8_t y = block_height_padded * (idx / 3);
-
-  u8g2_SetDrawColor(&_u8g2, 1);
+  struct Topology {
+	uint8_t display;
+	uint8_t x;
+	uint8_t y;
+  };
+  constexpr Topology topology[] {
+	[0] = {0, 1, 0},
+	[1] = {0, 2, 0},
+	[2] = {1, 0, 0},
+	[3] = {1, 1, 0},
+	[4] = {1, 2, 0},
+	[5] = {0, 1, 1},
+	[6] = {0, 2, 1},
+	[7] = {1, 0, 1},
+	[8] = {1, 1, 1},
+	[9] = {1, 2, 1},
+  };
   
+  uint8_t x = block_width_padded * topology[idx].x;
+  uint8_t y = block_height_padded * topology[idx].y;
+  auto u8g2 = &_u8g2[topology[idx].display];
+	
   if (_fs_state[idx])
   {
-    u8g2_DrawFrame(&_u8g2, x, y, block_width, block_height);
+    u8g2_DrawFrame(u8g2, x, y, block_width, block_height);
   }
   
-  u8g2_DrawStr(&_u8g2, x + x_padding, y + y_padding, text);
+  u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, text);
 }
 
 } // namespace tocata

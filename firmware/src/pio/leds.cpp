@@ -19,14 +19,7 @@ void Leds::setColor(uint8_t led, Color color, bool active)
     
     if (_fix_mapping)
     {
-        if (led == 0)
-        {
-            led = 2;
-        }
-        else if (led == 2)
-        {
-            led = 0;
-        }
+        led = fixMapping(led);
     }
     _state[led] = (g << 24) | (r << 16) | (b << 8);
 }

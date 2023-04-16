@@ -12,7 +12,7 @@ namespace tocata {
 class Switches
 {
 public:
-    static constexpr size_t kNumSwitches = 6;
+    static constexpr size_t kNumSwitches = 10;
     using Mask = std::bitset<kNumSwitches>;
     using SwitchesChanged = std::function<void(Mask status, Mask modified)>;
 

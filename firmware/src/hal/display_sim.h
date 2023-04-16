@@ -4,6 +4,8 @@
 
 namespace tocata {
 
+constexpr size_t kNumDisplays = 2;
+
 class DisplaySim
 {
 public:
@@ -29,10 +31,10 @@ public:
 
     void refresh(uint32_t* screen, uint8_t hw_cols, uint32_t* colors)
     {
-        // if (!_modified)
-        // {
-        //     return;
-        // }
+        if (!_modified)
+        {
+            return;
+        }
 
         _modified = false;
         for (uint8_t page = 0; page < kPages; ++page)

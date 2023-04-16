@@ -23,17 +23,18 @@ namespace tocata {
 uint8_t MemFlash[2 * 1024 * 1024];
 
 static libremidi::midi_out midi{};
-static DisplaySim display;
-static Application app{display};
+static std::array<DisplaySim, kNumDisplays> displays;
+static Application app{displays};
 
 void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 {
-    if (display.processTransfer(src, len))
+    auto idx = addr & 1;
+    if (displays[idx].processTransfer(src, len))
     {
       return;
     }
 
-    printf("Invalid I2C %u bytes to %02X: ", (uint32_t)len, addr);
+    printf("Invalid [%02X] %u bytes to %02X: ", addr, (uint32_t)len, addr);
     for (uint8_t i = 0; i < len; ++i)
     {
     	printf("%02X ", src[i]);
@@ -86,8 +87,9 @@ public:
           CFRelease(path_cfstr);
           CFRelease(url);
         } else {
-          _http_root = std::filesystem::current_path().c_str();
-          _http_root += "/build/src/TocataPedal.app/Resources/web";
+          _http_root = "/Users/lorenzo/tocata/tocata-pedal/web/build";
+          // _http_root = std::filesystem::current_path().c_str();
+          // _http_root += "/build/src/TocataPedal.app/Resources/web";
         }
 
         std::cout << "HTTP root: " << _http_root << std::endl;
@@ -235,7 +237,7 @@ public:
                     std::istreambuf_iterator<char>());
     con->set_body(response);
     con->set_status(websocketpp::http::status_code::ok);
-
+    std::cout << "Sent file " << filename << std::endl;
   }
 private:
   server _server;

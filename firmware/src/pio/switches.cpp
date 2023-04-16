@@ -37,10 +37,10 @@ void Switches::run()
     {
         _callback(_debouncing_state, _debouncing);
     }
-    printf("%u: sw %02X(%02X)\n", 
+    printf("%u: sw %03X(%03X)\n", 
         now, 
-        static_cast<uint8_t>(_debouncing_state.to_ulong()), 
-        static_cast<uint8_t>(_debouncing.to_ulong()));
+        static_cast<uint16_t>(_debouncing_state.to_ulong()), 
+        static_cast<uint16_t>(_debouncing.to_ulong()));
 
     // If the current state is different than the state at the start of the debouncing 
     // we start a new debounce with the new state
