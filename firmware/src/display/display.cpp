@@ -218,7 +218,9 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
 	uint8_t x;
 	uint8_t y;
   };
+
   constexpr Topology topology[] {
+#if TOCATA_PEDAL_LONG
 	[0] = {0, 1, 0},
 	[1] = {0, 2, 0},
 	[2] = {1, 0, 0},
@@ -229,6 +231,14 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
 	[7] = {1, 0, 1},
 	[8] = {1, 1, 1},
 	[9] = {1, 2, 1},
+#else
+	[0] = {0, 0, 0},
+	[1] = {0, 1, 0},
+	[2] = {0, 2, 0},
+	[3] = {0, 0, 1},
+	[4] = {0, 1, 1},
+	[5] = {0, 2, 1},
+#endif
   };
   
   uint8_t x = block_width_padded * topology[idx].x;

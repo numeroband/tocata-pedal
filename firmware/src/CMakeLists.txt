@@ -12,6 +12,8 @@ else()
 add_executable(${CUR_TARGET})
 endif()
 
+add_definitions (-DTOCATA_PEDAL_LONG=${TOCATA_PEDAL_LONG})
+
 target_sources(${CUR_TARGET} PRIVATE
         main.cpp
         controller.cpp

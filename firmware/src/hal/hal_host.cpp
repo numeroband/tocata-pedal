@@ -249,13 +249,14 @@ private:
 
 static WebSocket ws;
 static FILE* flash;
+constexpr const char* kFlashPath = TOCATA_PEDAL_LONG ? "/tmp/tocata_flash_long" : "/tmp/tocata_flash";
 
 void flash_init() 
 {
-  flash = fopen("/tmp/tocata_flash", "a");
+  flash = fopen(kFlashPath, "a");
   assert(flash);  
   fclose(flash);
-  flash = fopen("/tmp/tocata_flash", "r+");
+  flash = fopen(kFlashPath, "r+");
   assert(flash);  
   fseek(flash, kFlashSize - 1, SEEK_SET);
   int c = fgetc(flash);

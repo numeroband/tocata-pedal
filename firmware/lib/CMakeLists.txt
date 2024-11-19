@@ -105,6 +105,31 @@ target_sources(u8g2 INTERFACE
     ${U8G2_PATH}/csrc/u8x8_d_st75320.c
     ${U8G2_PATH}/csrc/u8x8_d_st7571.c
     ${U8G2_PATH}/csrc/u8x8_d_st7586s_ymc240160.c
+
+    # ${U8G2_PATH}/csrc/u8x8_d_ch1120.c
+    # ${U8G2_PATH}/csrc/u8x8_d_gp1247ai.c
+    # ${U8G2_PATH}/csrc/u8x8_d_gp1287ai.c
+    # ${U8G2_PATH}/csrc/u8x8_d_gp1294ai.c
+    # ${U8G2_PATH}/csrc/u8x8_d_gu800.c
+    # ${U8G2_PATH}/csrc/u8x8_d_hd44102.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ist3020.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ist3088.c
+    # ${U8G2_PATH}/csrc/u8x8_d_s1d15300.c
+    # ${U8G2_PATH}/csrc/u8x8_d_s1d15721.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ssd1306_96x40.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ssd1312.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ssd1320.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ssd1362.c
+    # ${U8G2_PATH}/csrc/u8x8_d_ssd1363.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st7302.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st75160.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st75161.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st7539.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st7586s_jlx320160.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st7586s_jlx384160.c
+    # ${U8G2_PATH}/csrc/u8x8_d_st7586s_md240128.c
+    # ${U8G2_PATH}/csrc/u8x8_d_uc1609.c
+    # ${U8G2_PATH}/csrc/u8x8_d_uc1628.c
     )
 
 target_compile_definitions(u8g2 INTERFACE 

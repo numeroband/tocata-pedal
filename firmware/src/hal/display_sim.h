@@ -1,10 +1,11 @@
 #pragma once
 
 #include <stdint.h>
+#include <cassert>
 
 namespace tocata {
 
-constexpr size_t kNumDisplays = 2;
+constexpr size_t kNumDisplays = TOCATA_PEDAL_LONG ? 2 : 1;
 
 class DisplaySim
 {

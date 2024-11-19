@@ -11,10 +11,16 @@ namespace tocata {
 class Leds
 {
 public:
-    static constexpr uint8_t kNumLeds = 10;
+    static constexpr uint8_t kNumLeds = TOCATA_PEDAL_LONG ? 10 : 6;
 
     static constexpr uint8_t fixMapping(uint8_t index) {
-        constexpr uint8_t mapping[] = {4, 3, 2, 1, 0, 5, 6, 7, 8, 9};
+        constexpr uint8_t mapping[] = {
+#if TOCATA_PEDAL_LONG
+            4, 3, 2, 1, 0, 5, 6, 7, 8, 9,
+#else
+            2, 1, 0, 3, 4, 5,
+#endif
+        };
         return mapping[index];
     }
 

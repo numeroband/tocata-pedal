@@ -22,7 +22,7 @@ public:
     _window = SDL_CreateWindow("Tocata Pedal",
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
-                                1120, 400,
+                                kWindowWidth, 400,
                                 0);
 
     if(!_window)
@@ -157,8 +157,10 @@ public:
 private:
   static constexpr size_t kDisplayRows = 64;
   static constexpr size_t kDisplayColumns = 132;
-  static constexpr size_t kDisplaySeparation = 0;
-  static constexpr size_t kSwitches = 10;
+  static constexpr size_t kDisplaySeparation = 1;
+  static constexpr size_t kDisplayStart = TOCATA_PEDAL_LONG ? 425 : 115;
+  static constexpr size_t kSwitches = TOCATA_PEDAL_LONG ? 10 : 6;
+  static constexpr size_t kWindowWidth = TOCATA_PEDAL_LONG ? 1120 : 620;
 
   void initSwitches() {
     constexpr int size = 35;
@@ -204,7 +206,7 @@ private:
       auto&  display_sim = _display_sims[i];
       display_sim.refresh(_display_buffer[i].data(), kDisplayColumns, colors);
       SDL_UpdateTexture(_display_texture[i], nullptr, _display_buffer[i].data(), kDisplayColumns * sizeof(uint32_t));
-      SDL_Rect rect{int(425 + i * (kDisplayColumns + kDisplaySeparation)), 160, kDisplayColumns, kDisplayRows};
+      SDL_Rect rect{int(kDisplayStart + i * (kDisplayColumns + kDisplaySeparation)), 160, kDisplayColumns, kDisplayRows};
       SDL_RenderCopy(_window_renderer, _display_texture[i], nullptr, &rect);
     }
   }
