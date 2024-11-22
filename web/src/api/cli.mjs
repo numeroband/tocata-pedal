@@ -1,4 +1,4 @@
-import WebUSB from 'webusb';
+import { webusb } from 'usb';
 import WebSocket from 'ws'
 import Api from './Api.mjs';
 import process from 'process';
@@ -8,7 +8,7 @@ import UF2 from './UF2.mjs'
 async function main() {
   const command = process.argv[2];
   const transport = process.env['TOCATA_TRANSPORT'] || 'usb';
-  const api = new Api((transport === 'ws') ? WebSocket : WebUSB.usb);
+  const api = new Api((transport === 'ws') ? WebSocket : webusb);
   const start = process.uptime();
 
   const connect = _ => new Promise((resolve, reject) => {

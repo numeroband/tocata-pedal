@@ -212,17 +212,18 @@ static inline uint32_t usb_vendor_available() { return tud_vendor_available(); }
 static inline uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return tud_vendor_read(buffer, bufsize); }
 static inline uint32_t usb_vendor_write_available() { return tud_vendor_write_available(); }
 static inline uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return tud_vendor_write(buffer, bufsize); }
+static inline uint32_t usb_vendor_write_flush() { return tud_vendor_write_flush(); }
 
 static inline void usb_midi_write(uint8_t val1, uint8_t val2) 
 { 
   uint8_t message[] = { val1, val2 };
-  tud_midi_write(0, message, sizeof(message));
+  tud_midi_stream_write(0, message, sizeof(message));
 }
 
 static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) 
 { 
   uint8_t message[] = { val1, val2, val3 };
-  tud_midi_write(0, message, sizeof(message));
+  tud_midi_stream_write(0, message, sizeof(message));
 }
 
 }

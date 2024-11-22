@@ -24,6 +24,9 @@ void WebUsb::sendData()
   uint32_t count = usb_vendor_write(_out_buf, _out_pending);
   _out_buf += count;
   _out_pending -= count;
+  if (_out_pending == 0) {
+    usb_vendor_write_flush();
+  }
 }
 
 void WebUsb::receiveData()

@@ -52,4 +52,4 @@ void UsbDevice::blink()
   led_state = 1 - led_state; // toggle
 }
 
-}
+} // namespace

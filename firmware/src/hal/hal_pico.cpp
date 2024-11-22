@@ -49,48 +49,62 @@ const tusb_desc_webusb_url_t desc_url =
   URL,
 };
 
-// Invoked when received VENDOR control request
-bool tud_vendor_control_request_cb(uint8_t rhport, tusb_control_request_t const * request)
+
+//--------------------------------------------------------------------+
+// WebUSB use vendor class
+//--------------------------------------------------------------------+
+
+// Invoked when a control transfer occurred on an interface of this class
+// Driver response accordingly to the request and the transfer stage (setup/data/ack)
+// return false to stall control endpoint (e.g unsupported request)
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const * request)
 {
-  switch (request->bRequest)
+  // nothing to with DATA & ACK stage
+  if (stage != CONTROL_STAGE_SETUP) return true;
+
+  switch (request->bmRequestType_bit.type)
   {
-    case VENDOR_REQUEST_WEBUSB:
-      // match vendor request in BOS descriptor
-      // Get landing page url
-      return tud_control_xfer(rhport, request, (void*)&desc_url, desc_url.bLength);
-
-    case VENDOR_REQUEST_MICROSOFT:
-      if (request->wIndex != 7)
+    case TUSB_REQ_TYPE_VENDOR:
+      switch (request->bRequest)
       {
-        return false;
+        case VENDOR_REQUEST_WEBUSB:
+          // match vendor request in BOS descriptor
+          // Get landing page url
+          return tud_control_xfer(rhport, request, (void*)(uintptr_t) &desc_url, desc_url.bLength);
+
+        case VENDOR_REQUEST_MICROSOFT:
+          if ( request->wIndex == 7 )
+          {
+            // Get Microsoft OS 2.0 compatible descriptor
+            uint16_t total_len;
+            memcpy(&total_len, desc_ms_os_20+8, 2);
+
+            return tud_control_xfer(rhport, request, (void*)(uintptr_t) desc_ms_os_20, total_len);
+          }else
+          {
+            return false;
+          }
+
+        default: break;
       }
-       
-      // Get Microsoft OS 2.0 compatible descriptor
-      uint16_t total_len;
-      memcpy(&total_len, desc_ms_os_20 + 8, 2);
+    break;
 
-      return tud_control_xfer(rhport, request, (void*)desc_ms_os_20, total_len);
+    case TUSB_REQ_TYPE_CLASS:
+      if (request->bRequest == CDC_REQUEST_SET_CONTROL_LINE_STATE)
+      {
+        // Webserial simulate the CDC_REQUEST_SET_CONTROL_LINE_STATE (0x22) to connect and disconnect.
+        tocata::WebUsb::singleton().connected(request->wValue != 0);
 
-    case CDC_REQUEST_SET_CONTROL_LINE_STATE:
-      tocata::WebUsb::singleton().connected(request->wValue != 0);
+        // response with status OK
+        return tud_control_status(rhport, request);
+      }
+    break;
 
-      // response with status OK
-      return tud_control_status(rhport, request);
-
-    default:
-      // stall unknown request
-      return false;
+    default: break;
   }
-}
 
-// Invoked when DATA Stage of VENDOR's request is complete
-bool tud_vendor_control_complete_cb(uint8_t rhport, tusb_control_request_t const * request)
-{
-  (void) rhport;
-  (void) request;
-
-  // nothing to do
-  return true;
+  // stall unknown request
+  return false;
 }
 
 } // extern "C"
@@ -135,22 +149,36 @@ void usb_init()
 {
   static struct stdio_driver usb_stdio = {
     .out_chars = [](const char *buf, int len) {
+      if (!tud_cdc_connected()) {
+        return;
+      }
+
       int sent = 0;
       bool blocked = false;
       while (sent < len)
       {
-        while (!tud_cdc_write_available())
+        while (tud_cdc_connected() && !tud_cdc_write_available())
         {
           tud_task();
         }
+
+        if (!tud_cdc_connected()) {
+          return;
+        }
+
         int written = tud_cdc_write(buf + sent, len - sent);
         sent += written;
       }
     },
     .out_flush = []() {
-      tud_cdc_write_flush();
+      if (tud_cdc_connected()) {
+        tud_cdc_write_flush();
+      }
     },
     .in_chars = [](char *buf, int len) { 
+      if (!tud_cdc_connected()) {
+        return 0;
+      }
       return (int)tud_cdc_read(buf, (uint32_t)len); 
     },
     .crlf_enabled = PICO_STDIO_DEFAULT_CRLF,
@@ -161,7 +189,16 @@ void usb_init()
   pico_unique_board_id_t board_id;
   pico_get_unique_board_id(&board_id);
   bytes_to_hex(usb_serial_number, board_id.id, sizeof(board_id.id));
-  tusb_init();
+
+  board_init();
+
+  // init device stack on configured roothub port
+  tud_init(BOARD_TUD_RHPORT);
+
+  if (board_init_after_tusb) {
+    board_init_after_tusb();
+  }
+
   stdio_set_driver_enabled(&usb_stdio, true);
 }
 
