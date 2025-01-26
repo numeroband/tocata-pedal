@@ -40,7 +40,7 @@ const scheme = {
     values: [
       {
         name: 'Program',
-        min: 1,
+        min: 0,
       },
     ],
     description: action => `${action.values[0]}`,
@@ -50,7 +50,7 @@ const scheme = {
     values: [
       {
         name: 'Control',
-        min: 1,
+        min: 0,
       },
       {
         name: 'Value',
