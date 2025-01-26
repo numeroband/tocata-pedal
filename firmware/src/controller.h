@@ -43,6 +43,7 @@ private:
     void footswitchCallback(Switches::Mask status, Switches::Mask modified);
     void programCallback(Switches::Mask status, Switches::Mask modified);
     void setupCallback(Switches::Mask status, Switches::Mask modified);
+    void midiCallback(const uint8_t* packet);
 
     void configChanged() override;
     void programChanged(uint8_t id) override;
@@ -50,7 +51,7 @@ private:
     void footswitchMode();
     void setupMode();
     void changeProgramMode();
-    void changeSwitch(uint8_t id, bool active);
+    void changeSwitch(uint8_t id, bool active, bool send_midi);
     void sendExpression(uint8_t value);
     void updateProgram(uint8_t id);
     void updateConfig();

@@ -2,9 +2,9 @@
 
 #ifdef HAL_PICO
 
-extern "C" {
-
 #include "usb_device.h"
+
+extern "C" {
 
 // Include C implementation
 #include "usb_descriptors.c"

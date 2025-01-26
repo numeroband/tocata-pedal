@@ -181,12 +181,12 @@ static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
     int ret = i2c_write_timeout_per_char_us(i2c0, addr, src, len, false, 100);
     if (ret != len)
     {
-        printf("I2C error %d with %u bytes to %02X: ", ret, (uint32_t)len, addr);
-        for (uint8_t i = 0; i < len; ++i)
-        {
-            printf("%02X ", src[i]);
-        }
-        printf("\n");
+        // printf("I2C error %d with %u bytes to %02X: ", ret, (uint32_t)len, addr);
+        // for (uint8_t i = 0; i < len; ++i)
+        // {
+        //     printf("%02X ", src[i]);
+        // }
+        // printf("\n");
     }
 }
 
@@ -224,6 +224,19 @@ static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3)
 { 
   uint8_t message[] = { val1, val2, val3 };
   tud_midi_stream_write(0, message, sizeof(message));
+}
+
+static inline bool usb_midi_read(uint8_t packet[3]) 
+{
+  uint8_t long_packet[4] = {};  
+  if (!tud_midi_available() || !tud_midi_packet_read(packet)) {
+    return false;
+  }
+  packet[0] = long_packet[1];
+  packet[1] = long_packet[2];
+  packet[2] = long_packet[3];
+
+  return true;
 }
 
 }

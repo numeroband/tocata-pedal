@@ -11,6 +11,7 @@ namespace tocata {
 void Controller::init()
 {
     _usb.init();
+    _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1));
     _display.init();
     Storage::init();
     _leds.init();
@@ -47,7 +48,7 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     {
         if (modified[sw])
         {
-            changeSwitch(sw, status[sw]);
+            changeSwitch(sw, status[sw], true);
         }
     }
     _leds.refresh();
@@ -69,6 +70,17 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
         setupMode();
     } else if (activated[kLoadSwitch]) {
         footswitchMode();
+    }
+}
+
+void Controller::midiCallback(const uint8_t* packet)
+{
+    if (packet[0] == 0xC0) {
+        loadProgram(packet[1], false, true);
+    } else if (packet[0] == 0xB0 && packet[1] == 43) {
+        changeSwitch(packet[2], true, false);
+        changeSwitch(packet[2], false, false);
+        _leds.refresh();
     }
 }
 
@@ -147,7 +159,7 @@ void Controller::footswitchMode()
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
 
-void Controller::changeSwitch(uint8_t id, bool active)
+void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
 {
     const auto& fs = _program.footswitch(id);
     bool is_scene = (_program.mode() == Program::kScene);
@@ -175,7 +187,9 @@ void Controller::changeSwitch(uint8_t id, bool active)
     }
 
     _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];
-    fs.run(_usb.midi(), _switches_state[id]);
+    if (send_midi) {
+        fs.run(_usb.midi(), _switches_state[id]);
+    }
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 

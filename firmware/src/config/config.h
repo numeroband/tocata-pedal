@@ -75,7 +75,10 @@ public:
         bool operator==(const Action& other);
 
     private:
-        Type _type = kNone;
+        Type type() const { return Type(_channel_and_type & 0x0F); }
+        uint8_t channel() const { return _channel_and_type >> 4; }
+
+        uint8_t _channel_and_type = kNone;
         uint8_t _values[2];
     } __attribute__((packed));
 
@@ -148,8 +151,9 @@ public:
     const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
-    Mode mode() const { return _mode; }
+    Mode mode() const { return Mode(_channel_and_mode & 0x0F); }
     uint8_t expression() const { return _expression; }
+    uint8_t expressionChannel() const { return _channel_and_mode >> 4; }
     bool expressionEnabled() const { return _expression < 128; }
     bool available() const { return _name[0]; }
     void save(uint8_t id) const;
@@ -174,7 +178,7 @@ private:
     uint8_t _num_switches;
     Footswitch _switches[kNumSwitches];
     Actions _actions;
-    Mode _mode;
+    Mode _channel_and_mode; // Expression channel in first most significant 4 bits
     uint8_t _expression;
 } __attribute__((packed));
 

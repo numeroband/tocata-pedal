@@ -154,13 +154,13 @@ bool Config::operator==(const Config& other)
 
 void Actions::Action::run(MidiUsb& midi) const
 {
-    switch (_type)
+    switch (type())
     {
     case kProgramChange:
-        midi.sendProgram(_values[0]);
+        midi.sendProgram(channel(), _values[0]);
         break;
     case kControlChange:
-        midi.sendControl(_values[0], _values[1]);
+        midi.sendControl(channel(), _values[0], _values[1]);
         break;
     default:
         break;
@@ -170,7 +170,7 @@ void Actions::Action::run(MidiUsb& midi) const
 bool Actions::Action::operator==(const Actions::Action& other)
 {
     return (true
-        && _type == other._type
+        && _channel_and_type == other._channel_and_type
         && memcmp(_values, other._values, sizeof(_values)) == 0
     );
 }
@@ -233,7 +233,7 @@ void Program::run(MidiUsb& midi) const
 
 void Program::sendExpression(MidiUsb& midi, uint8_t value) const
 {
-    midi.sendControl(_expression, value);
+    midi.sendControl(expressionChannel(), expression(), value);
 }
 
 uint8_t Program::copyName(uint8_t id, char* name)
@@ -390,7 +390,7 @@ bool Program::operator==(const Program& other)
 {
     if (!(true
         && available() == other.available()
-        && _mode == other._mode
+        && _channel_and_mode == other._channel_and_mode
         && _expression == other._expression
         && _num_switches == other._num_switches
         && strncmp(_name, other._name, sizeof(_name)) == 0
