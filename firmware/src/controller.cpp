@@ -32,6 +32,13 @@ void Controller::run()
         _display.run();
         _last_display_update = now;
     }
+
+    // Leds not working on init
+    static bool run_once = false;
+    if (!run_once) {
+        run_once = true;
+        _leds.refresh();
+    }
 }
 
 void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modified)

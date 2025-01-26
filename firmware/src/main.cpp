@@ -25,7 +25,7 @@ int main()
   static tocata::Controller controller{hw_config};
   controller.init();
 
-  while (1)
+  while (true)
   {
     controller.run();
     tocata::idle_loop();
