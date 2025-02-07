@@ -1,7 +1,7 @@
 {
   "name": "tocata-pedal",
   "homepage": "http://numeroband.github.io/tocata-pedal",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^4.11.2",
