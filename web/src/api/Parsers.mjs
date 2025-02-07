@@ -2,7 +2,7 @@ const MAX_PRG_NAME_SIZE = 30;
 const MAX_FS_NAME_SIZE = 5;
 const MAX_NAMES_RESPONSE = 16;
 const MAX_ACTIONS = 5;
-const MAX_SWITCHES = 10;
+const MAX_SWITCHES = 6;
 const MAX_WIFI_STR_SIZE = 63;
 
 function isEmpty(value) {
@@ -44,18 +44,46 @@ const parsers = {
       let parsed;
       try {
         [parsed, offset] = parsers[parser](view, offset, ...args);      
-        if (!isEmpty(parsed)) {
+        if (isEmpty(parsed)) {
+          continue;
+        }
+        if (Array.isArray(field)) {
+          field.map((f, i) => ret[f] = parsed[i]);
+        } else {
           ret[field] = parsed;
         }
-      } catch {}
+      } catch (error) {
+        console.error(error);
+      }
     }
     return [(scheme.valid && !scheme.valid(ret)) ? null : ret, offset];
+  },
+  compact: (view, offset, scheme) => {
+    const ret = []
+    const [compactParser, ...compactParserArgs] = scheme.parser;
+    let [value, newOffset] = parsers[compactParser](view, offset, ...compactParserArgs);
+    const newView = new DataView(new ArrayBuffer(newOffset - offset));
+    for (const [bits, parser, ...args] of scheme.fields) {
+      try {
+        const mask = (1 << bits) - 1;
+        const subValue = value & mask;
+        value >>= bits;
+        serializers[compactParser](newView, 0, subValue, ...compactParserArgs);
+        let [parsed] = parsers[parser](newView, 0, ...args)
+        if (!isEmpty(parsed)) {
+          ret.push(parsed);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return [ret, newOffset];
   },
   u32Buffer: (view, offset) => {
     const length = view.getUint32(offset, true);
     offset += 4;
     return [new Uint8Array(view.buffer, offset, length), offset + length];
-  }
+  },
 };
 
 const serializers = {
@@ -85,9 +113,24 @@ const serializers = {
   struct: (view, offset, value, scheme) => {
     value = (value && (!scheme.valid || scheme.valid(value))) ? value : {};
     for (const [field, parser, ...args] of scheme.fields) {
-      offset = serializers[parser](view, offset, value[field], ...args);
+      const fieldValue = Array.isArray(field) ? field.map(f => value[f]) : value[field]
+      offset = serializers[parser](view, offset, fieldValue, ...args);
     }
     return offset;
+  },
+  compact: (view, offset, values, scheme) => {
+    const [compactParser, ...compactParserArgs] = scheme.parser;
+    let compactValue = 0;
+    let totalBits = 0;
+    const newView = new DataView(new ArrayBuffer(8));
+    scheme.fields.forEach(([bits, parser, ...args], i) => {
+      serializers[parser](newView, 0, values[i], ...args);
+      const mask = (1 << bits) - 1;
+      const [fieldValue] = parsers[compactParser](newView, 0, ...compactParserArgs);
+      compactValue |= (fieldValue & mask) << totalBits;
+      totalBits += bits;
+    });
+    return serializers[compactParser](view, offset, compactValue, ...compactParserArgs);
   },
   u32Buffer: (view, offset, buffer) => {
     view.setUint32(offset, buffer.byteLength, true);
@@ -135,10 +178,17 @@ const config = {
   ],
 };
 
+const typeAndChannel = {
+  parser: ['uint8'],
+  fields: [
+    [4, 'enum', messageTypes],
+    [4, 'uint8'],
+  ],
+};
 
 const action = {
   fields: [
-    ['type', 'enum', messageTypes],
+    [['type', 'channel'], 'compact', typeAndChannel],
     ['values', 'array', 2, 'uint8'],
   ],
 };
@@ -162,12 +212,20 @@ const names = {
   ],
 };
 
+const modeAndChannel = {
+  parser: ['uint8'],
+  fields: [
+    [4, 'enum', mode],
+    [4, 'uint8'],
+  ],
+};
+
 const program = {
   fields: [
     ['name', 'str', MAX_PRG_NAME_SIZE],
     ['fs', 'nArray', MAX_SWITCHES, 'struct', footswitch],
     ['actions', 'nArray', MAX_ACTIONS, 'struct', action],
-    ['mode', 'enum', mode],
+    [['mode', 'expChannel'], 'compact', modeAndChannel],
     ['expression', 'uint8'],
   ],
   valid: o => o.name
