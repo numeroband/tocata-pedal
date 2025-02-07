@@ -148,12 +148,13 @@ function Footswitch(props) {
       <Actions 
         actions={footswitch.onActions} 
         setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
-        title={(mode === 'scene') ? "Scene MIDI": "On MIDI"}
+        title={(mode === 'scene') ? "Enter MIDI": "On MIDI"}
       />
-      {(mode === 'scene') ? <div/> : <Actions 
+      <Actions 
         actions={footswitch.offActions} 
         setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
-        title="Off MIDI"/>}
+        title={(mode === 'scene') ? "Exit MIDI": "Off MIDI"}
+      />
     </Grid>
   )
 }
@@ -168,7 +169,7 @@ export default function Footswitches(props) {
   useEffect(() => setFootswitchNames(createNames(footswitches)), [footswitches])
 
   function createNames(footswitches) {
-    const NUM_SWITCHES = 10
+    const NUM_SWITCHES = 6
     const names = footswitches.map(fs => fs ? { name: fs.name, color: fs.color } : null);
     for (let i = names.length; i < NUM_SWITCHES; ++i) {
       names.push(null)
@@ -180,8 +181,8 @@ export default function Footswitches(props) {
     const footswitch = newFS ? { ...newFS } : null;
     if (footswitch && !footswitches[id]) {
       // Default MIDI actions
-      footswitch.onActions = [{type: 'CC', values: [Number(id) + 32, 127]}]
-      footswitch.offActions = [{type: 'CC', values: [Number(id) + 32, 0]}]
+      footswitch.onActions = [{type: 'CC', values: [Number(id) + 32, 127], channel: 0}]
+      footswitch.offActions = [{type: 'CC', values: [Number(id) + 32, 0], channel: 0}]
     }
   
     if (footswitch) {
@@ -216,7 +217,7 @@ export default function Footswitches(props) {
     <Grid>
       <Grid>
         <TextField
-          label="Footswitch"
+          label={mode == "scene" ? "Scene" : "Footswitch"}
           className={classes.root}
           select
           value={footswitchId}

@@ -31,7 +31,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function actionDescription(action) {
-  return scheme[action.type].description(action);
+  return `${scheme[action.type].description(action)}(${action.channel + 1})`;
 }
 
 const scheme = {
@@ -60,8 +60,8 @@ const scheme = {
   },
 }
 
-function initAction(actionType = 'PC') {
-  const action = {type: actionType, values: [0, 0]}
+function initAction(actionType = 'PC', channel = 0) {
+  const action = {type: actionType, values: [0, 0], channel}
   scheme[actionType].values.forEach((current, i) => action.values[i] = (current.min || 0));
   return action;
 }
@@ -74,7 +74,7 @@ function ActionDialog(props) {
 
   function updateSelect(event) {
     const actionType = event.target.value;
-    setState((action && action.type === actionType) ? action : initAction(actionType));
+    setState((action && action.type === actionType) ? action : initAction(actionType, action.channel));
   };
 
   function updateText(event) {
@@ -82,6 +82,8 @@ function ActionDialog(props) {
     values[event.target.name] = event.target.value;
     setState({ ...state, values });
   };
+
+  const updateNumberPlusOne = event => setState({ ...state, [event.target.name]: event.target.value - 1});
 
   function update() {
     setAction(id, state);
@@ -127,6 +129,18 @@ function ActionDialog(props) {
           </TextField>
           {valueField(0)}
           {valueField(1)}
+          <TextField
+            type="number"
+            label="Channel"
+            className={classes.root}
+            name="channel"
+            value={state.channel + 1}
+            onChange={updateNumberPlusOne}
+            inputProps={{
+              min: 1,
+              max: 16,
+            }}
+          ></TextField>
         </Grid>
       </DialogContent>
       <DialogActions>

@@ -82,6 +82,7 @@ function ProgramDialog(props) {
     name: '',
     mode: MODE.stomp,
     expression: invalidCC(DEFAULT_EXP_CC),
+    expChannel: 0,
     actions: [],
     fs: [],
   }), [])
@@ -90,6 +91,7 @@ function ProgramDialog(props) {
 
   const updateText = event => setState({ ...state, [event.target.name]: event.target.value });
   const updateNumber = event => setState({ ...state, [event.target.name]: Number(event.target.value)});
+  const updateNumberPlusOne = event => setState({ ...state, [event.target.name]: event.target.value - 1});
   const updateSwitch = event => {
     const validate = event.target.checked ? validCC : invalidCC;
     setState(state => ({ ...state, [event.target.name]: validate(state.expression)}));
@@ -159,6 +161,19 @@ function ProgramDialog(props) {
                 onChange={updateSwitch}
             />          
           </div>
+          <TextField
+              type="number"
+              label="Exp channel"
+              className={classes.root}
+              disabled={!isValidCC(state.expression)}
+              name="expChannel"
+              value={state.expChannel + 1}
+              onChange={updateNumberPlusOne}
+              inputProps={{
+                min: 1,
+                max: 16,
+              }}
+            ></TextField>
         </Grid>
       </DialogContent>
       <DialogActions>
@@ -175,7 +190,7 @@ function Program(props) {
   
   if (!program.name) {
     // Set default MIDI actions for new programs
-    program.actions = [{type: 'PC', values: [Number(id) + 1]}];
+    program.actions = [{type: 'PC', values: [Number(id)], channel: 0}];
   }
 
   const defaultProgram = useMemo(() => ({
