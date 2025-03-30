@@ -28,6 +28,7 @@ public:
 	void setFootswitch(uint8_t idx, const char* text) { _fs_text[idx] = text; }
 	void clearSwitches() { _fs_text = {}; }
 	void setBlink(bool enabled);
+	void setTuner(bool enabled, uint8_t note = 0, int8_t cents = 0);
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;
@@ -38,6 +39,7 @@ private:
 	
 	void drawFootswitch(uint8_t idx, const char* text);
 	void drawScroll();
+	void drawTuner();
 
 	std::array<u8g2_t, kNumDisplays> _u8g2;
 	std::array<I2C, kNumDisplays> _i2c;
@@ -61,6 +63,20 @@ private:
 		bool enabled;
 		bool state;
 	} _blink;
+	
+	static constexpr int8_t kTunerResolution = 4;
+	struct {
+		char note[3];
+		char low[kTunerResolution + 1];
+		char high[kTunerResolution + 1];
+		bool enabled;
+		static bool isNoteValid(uint8_t note) {
+			return note >= 24;
+		}
+		static uint8_t noteInScale(uint8_t note) {
+			return (note - 24) % 12;
+		}
+	} _tuner{};
 };
 
 } // namespace tocata

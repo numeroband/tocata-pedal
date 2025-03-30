@@ -45,6 +45,10 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
 {
     auto activated = status & modified;
 
+    if (activated.any()) {
+        _display.setTuner(false);
+    }
+
     if (activated.count() > 1)
     {
         changeProgramMode();
@@ -83,11 +87,23 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
 void Controller::midiCallback(const uint8_t* packet)
 {
     if (packet[0] == 0xC0) {
+        footswitchMode();
         loadProgram(packet[1], false, true);
     } else if (packet[0] == 0xB0 && packet[1] == 43) {
+        footswitchMode();
         changeSwitch(packet[2], true, false);
         changeSwitch(packet[2], false, false);
         _leds.refresh();
+    } else if (packet[0] == 0x90) {
+        int8_t velocity = packet[2];
+        uint8_t note = packet[1];
+        if (velocity > 63) {
+            ++note;
+            velocity -= 128;
+        }
+        displayTuner(note, velocity);
+    } else if (packet[0] == 0x80 && packet[1] == 0) {
+        displayTuner(0, 0);
     }
 }
 
@@ -160,10 +176,37 @@ void Controller::changeProgramMode()
 
 void Controller::footswitchMode()
 {
+    _display.setTuner(false);
     _display.setBlink(false); 
     loadProgram(_program_id, true, true);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
+}
+
+void Controller::displayTuner(uint8_t note, int64_t cents)
+{
+    _display.setTuner(true, note, cents);
+    constexpr uint8_t columns = Leds::kNumLeds / 2;
+    for (uint8_t i = 0; i < _leds.kNumLeds; ++i)
+    {
+        if (note < 24) {
+            _leds.setColor(i, Color::kNone, false);
+            continue;
+        }
+
+        uint8_t column = i % columns;
+        // Center
+        Color color = kNone;
+        if (column == columns / 2 || column == (columns - 1) / 2) {
+            color = (cents > -4 && cents < 4) ? Color::kGreen : Color::kNone;
+        } else if (column < (columns - 1) / 2) {
+            color = (cents <= -4) ? Color::kRed : Color::kNone;
+        } else {
+            color = (cents >= 4) ? Color::kRed : Color::kNone;
+        }
+        _leds.setColor(i, color, true);
+    }
+    _leds.refresh();
 }
 
 void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
@@ -195,8 +238,12 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
 
     _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];
     if (send_midi) {
+        if (is_scene) {
+            _program.footswitch(_fs_id).run(_usb.midi(), false);
+        }
         fs.run(_usb.midi(), _switches_state[id]);
     }
+    _fs_id = id;
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 
@@ -222,7 +269,12 @@ void Controller::programChanged(uint8_t id)
 
 void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
 {   
+    if (send_midi && _program.mode() == Program::kScene)
+    {
+        _program.footswitch(_fs_id).run(_usb.midi(), false);
+    }
     _program_id = id;
+    _fs_id = 0;
     _program.load(id);
     displayProgram(display_switches);
 
@@ -248,7 +300,7 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
         }
         else
         {
-            _switches_state[id] = is_scene ? (id == 0) : fs.enabled();
+            _switches_state[id] = is_scene ? (id == _fs_id) : fs.enabled();
             _leds.setColor(id, fs.color(), _switches_state[id]);
         }
     }

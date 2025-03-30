@@ -101,6 +101,52 @@ void Display::setBlink(bool enabled)
 	_blink.state = true;
 }
 
+void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
+{
+	_tuner.enabled = enabled;
+	if (!enabled) {
+		return;
+	}
+
+	static const char none[3] = "-";
+	static const char notes[12][3] = {
+		"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", 
+	};
+
+	const char* note_ptr;
+	if (_tuner.isNoteValid(note)) {
+		note_ptr = notes[_tuner.noteInScale(note)];
+ 	} else {
+		note_ptr = none;
+		cents = 0;
+	}
+	memcpy(_tuner.note, note_ptr, sizeof(_tuner.note));
+	
+	constexpr int8_t step = 64 / kTunerResolution;
+	for (int8_t i = 0; i < kTunerResolution; ++i) {
+		if (cents > -4 && cents < 4 && _tuner.isNoteValid(note)) {
+			_tuner.low[i] = '-';
+			_tuner.high[i] = '-';
+		} else {
+			int8_t low_threshold = (i - (kTunerResolution - 1)) * step;
+			_tuner.low[i] = (cents < low_threshold) ? '>' : ' ';
+			int8_t high_threshold = i * step;
+			_tuner.high[i] = (cents > high_threshold) ? '<' : ' ';
+		}	
+	}
+	_tuner.low[kTunerResolution] = '\0';
+	_tuner.high[kTunerResolution] = '\0';
+}
+
+void Display::drawTuner()
+{
+	u8g2_SetFont(&_u8g2[0], u8g2_font_helvB24_tf);
+	u8g2_DrawStr(&_u8g2[0], _tuner.note[1] ? 44 : 52, 17, _tuner.note);
+	u8g2_SetFont(&_u8g2[0], u8g2_font_10x20_tf);
+	u8g2_DrawStr(&_u8g2[0], 0, 25, _tuner.low);
+	u8g2_DrawStr(&_u8g2[0], 89, 25, _tuner.high);
+}
+
 void Display::run()
 {
   for (auto i = 0; i < kNumDisplays; ++i) {
@@ -113,12 +159,18 @@ void Display::run()
 	u8g2_SetFont(u8g2, u8g2_font_7x13_mf);
     u8g2_SetDrawColor(u8g2, 1);
   }
+  
+  for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
+  {
+	  drawFootswitch(i, _fs_text[i]);
+  }
 
-	for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
-	{
-		drawFootswitch(i, _fs_text[i]);
-	}
-
+  if (_tuner.enabled)
+  {
+	drawTuner();
+  }
+  else 
+  {
 	if (_blink.enabled)
 	{
 		if (--_blink.ticks == 0)
@@ -134,6 +186,7 @@ void Display::run()
 	}
 
 	drawScroll();
+  }
 
   for (auto i = 0; i < kNumDisplays; ++i) {
 	auto u8g2 = &_u8g2[i];

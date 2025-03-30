@@ -58,6 +58,7 @@ private:
     void loadProgram(uint8_t id, bool send_midi, bool display_switches);
     void displayProgram(bool display_switches);
     void setExpValue(uint8_t value);
+    void displayTuner(uint8_t note, int64_t cents);
 
     UsbDevice _usb;
     Switches _buttons;
@@ -67,6 +68,7 @@ private:
     Program _program{};
     uint32_t _last_display_update;
     uint8_t _program_id = 0;
+    uint8_t _fs_id = 0;
     uint8_t _counter = 0;
     bool _expEnabled = true;
     std::bitset<Program::kNumSwitches> _switches_state{};
