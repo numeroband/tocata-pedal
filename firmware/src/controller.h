@@ -48,7 +48,7 @@ private:
     void configChanged() override;
     void programChanged(uint8_t id) override;
 
-    void footswitchMode();
+    void footswitchMode(bool send_midi = true);
     void setupMode();
     void changeProgramMode();
     void changeSwitch(uint8_t id, bool active, bool send_midi);

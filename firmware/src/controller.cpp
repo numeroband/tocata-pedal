@@ -87,12 +87,13 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
 void Controller::midiCallback(const uint8_t* packet)
 {
     if (packet[0] == 0xC0) {
-        footswitchMode();
+        footswitchMode(false);
         loadProgram(packet[1], false, true);
     } else if (packet[0] == 0xB0 && packet[1] == 43) {
-        footswitchMode();
+        footswitchMode(false);
         changeSwitch(packet[2], true, false);
         changeSwitch(packet[2], false, false);
+        sleep_ms(1);
         _leds.refresh();
     } else if (packet[0] == 0x90) {
         int8_t velocity = packet[2];
@@ -174,11 +175,11 @@ void Controller::changeProgramMode()
     _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
 }
 
-void Controller::footswitchMode()
+void Controller::footswitchMode(bool send_midi)
 {
     _display.setTuner(false);
     _display.setBlink(false); 
-    loadProgram(_program_id, true, true);
+    loadProgram(_program_id, send_midi, true);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
@@ -224,19 +225,21 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
         _switches_state.reset();
         for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
         {
-            const auto& fs = _program.footswitch(id);
-            if (id >= _program.numFootswitches() || !fs.available())
+            const auto& fs_iter = _program.footswitch(id);
+            if (id >= _program.numFootswitches() || !fs_iter.available())
             {
                 _leds.setColor(id, kNone, false);
             }
             else
             {
-                _leds.setColor(id, fs.color(), false);
+                _leds.setColor(id, fs_iter.color(), false);
             }
         }
+        _switches_state[id] = true;
+    } else {
+        _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];        
     }
 
-    _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];
     if (send_midi) {
         if (is_scene) {
             _program.footswitch(_fs_id).run(_usb.midi(), false);
