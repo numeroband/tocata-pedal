@@ -102,10 +102,9 @@ enum Color : uint8_t
 class Program
 {
 public:
-    static constexpr size_t kNumSwitches = TOCATA_PEDAL_LONG ? 10 : 6;
+    static constexpr size_t kNumSwitches = 8;
     static constexpr uint8_t kMaxNameLength = 30;
     static constexpr uint8_t kMaxPrograms = 99;
-    static constexpr size_t kMaxJsonSize = 1024;
     static constexpr size_t kMaxPathSize = 4;
     static constexpr uint8_t kInvalidId = 255;
 
@@ -118,7 +117,7 @@ public:
     class Footswitch
     {
     public:
-        static constexpr size_t kMaxNameSize = 5;
+        static constexpr size_t kMaxNameSize = 8;
 
         const char* name() const { return _name; }
         bool momentary() const { return _momentary; }

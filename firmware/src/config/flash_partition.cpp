@@ -8,7 +8,7 @@ FlashPartition::FlashPartition() : _part_offset(kFlashPartitionOffset) {}
 
 bool FlashPartition::read(size_t src_offset, void* dst_buf, size_t dst_size) const
 {
-    flash_read(_part_offset + src_offset, dst_buf, dst_size);
+    flash_read(uint32_t(_part_offset + src_offset), dst_buf, dst_size);
     return true;
 }
 
@@ -19,11 +19,11 @@ size_t FlashPartition::writePage(size_t dst_offset, const void* src_buf, size_t 
 
     // Page aligned offset and size
     uint32_t aligned_offset = dst_offset & ~(kFlashPageSize - 1);
-    uint32_t prologue = dst_offset - aligned_offset;
-    uint32_t epilogue = 0;    
+    uint32_t prologue = uint32_t(dst_offset - aligned_offset);
+    uint32_t epilogue = 0;
     if (prologue + src_size < kFlashPageSize)
     {
-        epilogue = kFlashPageSize - (prologue + src_size);
+        epilogue = uint32_t(kFlashPageSize - (prologue + src_size));
     }
     else
     {
@@ -39,7 +39,7 @@ size_t FlashPartition::writePage(size_t dst_offset, const void* src_buf, size_t 
         dst_offset = aligned_offset;
     }
 
-    flash_write(_part_offset + dst_offset, static_cast<const uint8_t*>(src_buf), kFlashPageSize);
+    flash_write(uint32_t(_part_offset + dst_offset), static_cast<const uint8_t*>(src_buf), kFlashPageSize);
     return src_size;
 }
 
@@ -59,7 +59,7 @@ bool FlashPartition::write(size_t dst_offset, const void* src_buf, size_t src_si
 
 bool FlashPartition::erase(size_t offset, size_t size) const
 {
-    flash_erase(_part_offset + offset, size);
+    flash_erase(uint32_t(_part_offset + offset), size);
     return true;
 }
 

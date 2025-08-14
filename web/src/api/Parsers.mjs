@@ -1,8 +1,8 @@
 const MAX_PRG_NAME_SIZE = 30;
-const MAX_FS_NAME_SIZE = 5;
+const MAX_FS_NAME_SIZE = 8;
 const MAX_NAMES_RESPONSE = 16;
 const MAX_ACTIONS = 5;
-const MAX_SWITCHES = 6;
+const MAX_SWITCHES = 8;
 const MAX_WIFI_STR_SIZE = 63;
 
 function isEmpty(value) {

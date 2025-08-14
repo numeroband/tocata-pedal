@@ -169,7 +169,7 @@ export default function Footswitches(props) {
   useEffect(() => setFootswitchNames(createNames(footswitches)), [footswitches])
 
   function createNames(footswitches) {
-    const NUM_SWITCHES = 6
+    const NUM_SWITCHES = 8
     const names = footswitches.map(fs => fs ? { name: fs.name, color: fs.color } : null);
     for (let i = names.length; i < NUM_SWITCHES; ++i) {
       names.push(null)

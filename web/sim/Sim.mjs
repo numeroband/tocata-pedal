@@ -2,7 +2,7 @@ import Midi from './Midi.mjs'
 import terminal_kit from 'terminal-kit'
 const term = terminal_kit.terminal;
 
-const NUM_SWITCHES = 6;
+const NUM_SWITCHES = 8;
 const MAX_PROGRAMS = 99;
 const A_CODE = 'A'.charCodeAt(0);
 const COLOR_MAP = {

@@ -166,9 +166,13 @@ static inline void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size
 
 // I2C
 
+static inline i2c_inst_t* i2c_from_index(uint8_t i2c_index) {
+    return i2c_index ? i2c1 : i2c0;
+}
+
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config)
 {
-	uint actual_baudrate = ::i2c_init(i2c0, baudrate);
+	uint actual_baudrate = ::i2c_init(i2c_from_index(config.index), baudrate);
 	gpio_set_function(config.sda_pin, GPIO_FUNC_I2C);
 	gpio_set_function(config.scl_pin, GPIO_FUNC_I2C);
 	gpio_pull_up(config.sda_pin);
@@ -176,9 +180,9 @@ static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config)
     printf("i2c initialized to %u Hz\n", actual_baudrate);
 }
 
-static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
+static inline void i2c_write(uint8_t index, uint8_t addr, const uint8_t *src, size_t len)
 {
-    int ret = i2c_write_timeout_per_char_us(i2c0, addr, src, len, false, 100);
+    int ret = i2c_write_timeout_per_char_us(i2c_from_index(index), addr, src, len, false, 100);
     if (ret != len)
     {
         // printf("I2C error %d with %u bytes to %02X: ", ret, (uint32_t)len, addr);
@@ -237,6 +241,10 @@ static inline bool usb_midi_read(uint8_t packet[3])
   packet[2] = long_packet[3];
 
   return true;
+}
+
+inline bool is_pedal_long() {
+    return false;
 }
 
 }

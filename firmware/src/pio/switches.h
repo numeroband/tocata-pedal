@@ -12,8 +12,9 @@ namespace tocata {
 class Switches
 {
 public:
-    static constexpr size_t kNumSwitches = TOCATA_PEDAL_LONG ? 10 : 6;;
-    using Mask = std::bitset<kNumSwitches>;
+    static constexpr size_t kMaxSwitches = 10;
+    const uint8_t kNumSwitches = is_pedal_long() ? 10 : 6;
+    using Mask = std::bitset<kMaxSwitches>;
     using SwitchesChanged = std::function<void(Mask status, Mask modified)>;
 
     Switches(const HWConfigSwitches& config) : _config(config) {}

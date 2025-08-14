@@ -11,17 +11,17 @@ namespace tocata {
 class Leds
 {
 public:
-    static constexpr uint8_t kNumLeds = TOCATA_PEDAL_LONG ? 10 : 6;
+    static constexpr uint8_t kMaxLeds = 8;
+    const uint8_t kNumLeds = is_pedal_long() ? 8 : 6;
 
-    static constexpr uint8_t fixMapping(uint8_t index) {
-        constexpr uint8_t mapping[] = {
-#if TOCATA_PEDAL_LONG
-            4, 3, 2, 1, 0, 5, 6, 7, 8, 9,
-#else
-            2, 1, 0, 3, 4, 5,
-#endif
-        };
-        return mapping[index];
+    static uint8_t fixMapping(uint8_t index) {
+        if (is_pedal_long()) {
+            constexpr uint8_t mapping[] = {3, 2, 1, 0, 4, 5, 6, 7,};
+            return mapping[index];
+        } else {
+            constexpr uint8_t mapping[] = {2, 1, 0, 3, 4, 5,};
+            return mapping[index];
+        }
     }
 
     Leds(const HWConfigLeds& config) : _config(config) {}
@@ -57,7 +57,7 @@ private:
         return active ? orig : (orig / kHalf);
     }
 
-    uint32_t _state[kNumLeds] = {};
+    uint32_t _state[kMaxLeds] = {};
     const HWConfigLeds& _config;
     bool _fix_mapping = leds_fix_mapping();
 };

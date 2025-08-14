@@ -55,14 +55,25 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
         return;
     }
 
-    for (uint8_t sw = 0; sw < Switches::kNumSwitches; ++sw)
+    for (uint8_t sw = 0; sw < Program::kNumSwitches; ++sw)
     {
         if (modified[sw])
         {
             changeSwitch(sw, status[sw], true);
         }
     }
-    _leds.refresh();
+    constexpr uint8_t inc_one = Program::kNumSwitches;
+    constexpr uint8_t dec_one = Program::kNumSwitches + 1;
+
+    if (activated[inc_one]) {
+        loadProgram((_program_id + 1) % 99, false, false);
+        footswitchMode();
+    } else if (activated[dec_one]) {
+        loadProgram((_program_id + 99 - 1) % 99, false, false);
+        footswitchMode();
+    } else {
+        _leds.refresh();
+    }
 }
 
 void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
@@ -165,6 +176,7 @@ void Controller::changeProgramMode()
 {
     _display.setBlink(true); 
     loadProgram(_program_id, false, false);
+    _display.clearSwitches();
     _display.setFootswitch(kIncOneSwitch, " +1");
     _display.setFootswitch(kIncTenSwitch, " +10");
     _display.setFootswitch(kSetupSwitch, "SETUP");
@@ -187,7 +199,7 @@ void Controller::footswitchMode(bool send_midi)
 void Controller::displayTuner(uint8_t note, int64_t cents)
 {
     _display.setTuner(true, note, cents);
-    constexpr uint8_t columns = Leds::kNumLeds / 2;
+    const uint8_t columns = _leds.kNumLeds / 2;
     for (uint8_t i = 0; i < _leds.kNumLeds; ++i)
     {
         if (note < 24) {
@@ -212,10 +224,15 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
 
 void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
 {
+    if (id >= _program.numFootswitches())
+    {
+        return;
+    }
+
     const auto& fs = _program.footswitch(id);
     bool is_scene = (_program.mode() == Program::kScene);
     bool momentary = !is_scene && fs.momentary();
-    if (id >= _program.numFootswitches() || !fs.available() || (!momentary && !active))
+    if (!fs.available() || (!momentary && !active))
     {
         return;
     }
@@ -223,7 +240,7 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
     if (is_scene)
     {
         _switches_state.reset();
-        for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
+        for (uint8_t id = 0; id < _leds.kNumLeds; ++id)
         {
             const auto& fs_iter = _program.footswitch(id);
             if (id >= _program.numFootswitches() || !fs_iter.available())
@@ -288,7 +305,7 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
     }
 
     bool is_scene = (_program.mode() == Program::kScene);
-    for (uint8_t id = 0; id < Switches::kNumSwitches; ++id)
+    for (uint8_t id = 0; id < _leds.kNumLeds; ++id)
     {
         if (!display_switches)
         {

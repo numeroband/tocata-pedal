@@ -64,7 +64,7 @@ void Display::init()
 		u8g2_Setup_sh1106_i2c_128x64_noname_f(u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
 		_u8g2_buffers[i].resize(u8g2_GetBufferSize(u8g2));
 		u8g2_SetBufferPtr(u8g2, _u8g2_buffers[i].data());
-		u8g2_SetI2CAddress(u8g2, 0x78 + (i << 1));
+		u8g2_SetI2CAddress(u8g2, 0x78); //  + (i << 1));
 		u8g2_SetUserPtr(u8g2, &_i2c[i]);
 		u8g2_InitDisplay(u8g2); // send init sequence to the display, display is in sleep mode after this,
 		u8g2_SetPowerSave(u8g2, 0); // wake up display
@@ -202,14 +202,20 @@ void Display::drawScroll()
     constexpr uint8_t start_y = 23;
 
 	uint8_t text_offset = 0;
+	bool found_end = false;
 	for (auto i = 0; i < kNumDisplays; ++i) {
 		const uint8_t max_chars = (i == 0) ? 8 : 11;
 		const uint8_t block_width = font_width * max_chars;
 	    const uint8_t start_x = (i == 0) ? 48 : 0;		
 		char name[max_chars + 2];
-		for (uint8_t i = 0; i < max_chars + 1; ++i)
+        name[0] = '\0';
+		for (uint8_t i = 0; !found_end && i < max_chars + 1; ++i)
 		{
 			name[i] = _scroll.text[_scroll.letter + text_offset + i];
+            if (name[i] == '\0')
+            {
+                found_end = true;
+            }
 		}
 		name[max_chars + 1] = '\0';
 		text_offset += max_chars;
@@ -254,56 +260,32 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
   static constexpr uint8_t y_padding = 2;
   static constexpr uint8_t font_width = 7;
   static constexpr uint8_t font_height = 13;
-  static constexpr uint8_t max_chars = 5;
   static constexpr uint8_t separation = 2;
-  static constexpr uint8_t block_width = (2 * x_padding) + (font_width * max_chars);
-  static constexpr uint8_t block_width_padded = block_width + separation;
-  static constexpr uint8_t block_height = (2 * y_padding) + font_height;
-  static constexpr uint8_t block_height_padded = screen_height - block_height;
+
+  const uint8_t max_chars = is_pedal_long() ? 8 : 5;
+  const uint8_t block_width = (2 * x_padding) + (font_width * max_chars);
+  const uint8_t block_width_padded = block_width + separation;
+  const uint8_t block_height = (2 * y_padding) + font_height;
+  const uint8_t block_height_padded = screen_height - block_height;
 
   if (!text)
   {
 	  return;
   }
 
-  struct Topology {
-	uint8_t display;
-	uint8_t x;
-	uint8_t y;
-  };
-
-  constexpr Topology topology[] {
-#if TOCATA_PEDAL_LONG
-	[0] = {0, 1, 0},
-	[1] = {0, 2, 0},
-	[2] = {1, 0, 0},
-	[3] = {1, 1, 0},
-	[4] = {1, 2, 0},
-	[5] = {0, 1, 1},
-	[6] = {0, 2, 1},
-	[7] = {1, 0, 1},
-	[8] = {1, 1, 1},
-	[9] = {1, 2, 1},
-#else
-	[0] = {0, 0, 0},
-	[1] = {0, 1, 0},
-	[2] = {0, 2, 0},
-	[3] = {0, 0, 1},
-	[4] = {0, 1, 1},
-	[5] = {0, 2, 1},
-#endif
-  };
-  
-  uint8_t x = block_width_padded * topology[idx].x;
-  uint8_t y = block_height_padded * topology[idx].y;
-  auto u8g2 = &_u8g2[topology[idx].display];
+  uint8_t x = block_width_padded * _topology[idx].x;
+  uint8_t y = block_height_padded * _topology[idx].y;
+  auto u8g2 = &_u8g2[_topology[idx].display];
 	
   if (_fs_state[idx])
   {
     u8g2_DrawFrame(u8g2, x, y, block_width, block_height);
   }
   
-  u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, text);
+  char trunc_text[max_chars + 1];
+  strncpy(trunc_text, text, max_chars);
+  trunc_text[max_chars] = '\0';
+  u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, trunc_text);
 }
 
 } // namespace tocata

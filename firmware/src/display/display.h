@@ -14,13 +14,30 @@ class Display
 {
 public:
 	static constexpr uint8_t kNoNumber = 0xFF;
-	Display(const HWConfigI2C& config, const std::bitset<Program::kNumSwitches>& fs_state) :
+	Display(const HWConfigI2C* config, const std::bitset<Program::kNumSwitches>& fs_state) :
 		_i2c{
-			config,
-#if TOCATA_PEDAL_LONG
-			config,
-#endif
-		}, _fs_state(fs_state) {}
+			config[0],
+			config[1],
+		}, _fs_state{fs_state} 
+	{
+		if (is_pedal_long()) {
+			_topology[0] = {0, 0, 0};
+			_topology[1] = {0, 1, 0};
+			_topology[2] = {1, 0, 0};
+			_topology[3] = {1, 1, 0};
+			_topology[4] = {0, 0, 1};
+			_topology[5] = {0, 1, 1};
+			_topology[6] = {1, 0, 1};
+			_topology[7] = {1, 1, 1};
+		} else {
+			_topology[0] = {0, 0, 0};
+			_topology[1] = {0, 1, 0};
+			_topology[2] = {0, 2, 0};
+			_topology[3] = {0, 0, 1};
+			_topology[4] = {0, 1, 1};
+			_topology[5] = {0, 2, 1};
+		}
+	}
 	void init();
 	void run();
 	void setNumber(uint8_t number);
@@ -32,7 +49,7 @@ public:
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;
-	static constexpr uint8_t kNumDisplays = TOCATA_PEDAL_LONG ? 2 : 1;
+	const uint8_t kNumDisplays = is_pedal_long() ? 2 : 1;
 
 	static uint8_t i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
@@ -41,14 +58,14 @@ private:
 	void drawScroll();
 	void drawTuner();
 
-	std::array<u8g2_t, kNumDisplays> _u8g2;
-	std::array<I2C, kNumDisplays> _i2c;
+	std::array<u8g2_t, kMaxDisplays> _u8g2{};
+	std::array<I2C, kMaxDisplays> _i2c;
 	bool _dirty = true;
 	char _number[3] = "";
 	const char* _text = "";
 	std::array<const char*, Program::kNumSwitches> _fs_text{};
 	const std::bitset<Program::kNumSwitches>& _fs_state{};
-	std::array<std::vector<uint8_t>, kNumDisplays> _u8g2_buffers;
+	std::array<std::vector<uint8_t>, kMaxDisplays> _u8g2_buffers{};
 
 	struct {
 		const char* text;
@@ -56,13 +73,13 @@ private:
 		uint8_t pixel;
 		uint8_t size;
 		uint8_t delay;
-	} _scroll;
+	} _scroll{};
 
 	struct {
 		uint8_t ticks;
 		bool enabled;
 		bool state;
-	} _blink;
+	} _blink{};
 	
 	static constexpr int8_t kTunerResolution = 4;
 	struct {
@@ -77,6 +94,14 @@ private:
 			return (note - 24) % 12;
 		}
 	} _tuner{};
+
+  struct Topology {
+	uint8_t display;
+	uint8_t x;
+	uint8_t y;
+  };
+  
+  Topology _topology[Program::kNumSwitches]{};
 };
 
 } // namespace tocata

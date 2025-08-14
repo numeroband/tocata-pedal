@@ -18,11 +18,16 @@ namespace tocata {
 class Application
 {
 public:
-  Application(std::array<DisplaySim, kNumDisplays>& display_sims) : _display_sims(display_sims) {
+  Application(std::array<DisplaySim, kMaxDisplays>& display_sims) : _display_sims(display_sims) {
+    if (!is_pedal_long()) {
+      _sw_mapping[4] = 4;
+      _sw_mapping[5] = 5;
+    }
+
     _window = SDL_CreateWindow("Tocata Pedal",
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
-                                kWindowWidth, 400,
+                                int(kWindowWidth), 400,
                                 0);
 
     if(!_window)
@@ -72,11 +77,11 @@ public:
           return false;
         case SDL_MOUSEBUTTONDOWN:
         {
-          int switch_id = checkSwitches({_window_event.button.x, _window_event.button.y});
+          int switch_id = checkNumSwitches({_window_event.button.x, _window_event.button.y});
           if (switch_id >= 0) {
             switch (_window_event.button.button) {
               case SDL_BUTTON_RIGHT:
-                _switches_state[(switch_id + (kSwitches / 2)) % kSwitches] = true;                
+                _switches_state[(switch_id + (kNumSwitches / 2)) % kNumSwitches] = true;                
               case SDL_BUTTON_LEFT:
                 _switches_state[switch_id] = true;
                 _switches_changed = true;
@@ -130,6 +135,16 @@ public:
       case SDLK_f:
         switch_id = 5;
         break;
+      case SDLK_g:
+        if (is_pedal_long()) {
+          switch_id = 6;
+        }
+        break;
+      case SDLK_h:
+        if (is_pedal_long()) {
+          switch_id = 7;
+        }
+        break;
       default:
         return;
     }
@@ -148,7 +163,7 @@ public:
   }
 
   void setLedColor(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
-    if (index >= kSwitches) {
+    if (index >= kNumLeds) {
       return;
     }
     _leds[Leds::fixMapping(index)] = {r, g, b, 0xFF};
@@ -158,15 +173,19 @@ private:
   static constexpr size_t kDisplayRows = 64;
   static constexpr size_t kDisplayColumns = 132;
   static constexpr size_t kDisplaySeparation = 1;
-  static constexpr size_t kDisplayStart = TOCATA_PEDAL_LONG ? 425 : 115;
-  static constexpr size_t kSwitches = TOCATA_PEDAL_LONG ? 10 : 6;
-  static constexpr size_t kWindowWidth = TOCATA_PEDAL_LONG ? 1120 : 620;
+  static constexpr size_t kMaxSwitches = 10;
+  static constexpr size_t kMaxLeds = 8;
+  const size_t kNumDisplays = is_pedal_long() ? 2 : 1;
+  const size_t kDisplayStart = is_pedal_long() ? 300 : 115;
+  const size_t kNumSwitches = is_pedal_long() ? 10 : 6;
+  const size_t kNumLeds = is_pedal_long() ? 8 : 6;
+  const size_t kWindowWidth = is_pedal_long() ? 1120 : 620;
 
   void initSwitches() {
     constexpr int size = 35;
     SDL_Rect start{40, 40, 250, 280};
     constexpr int rows = 2;
-    constexpr int cols = kSwitches / 2;
+    const int cols = int(kNumSwitches / 2);
     for (int row = 0; row < rows; ++row) {
       for (int col = 0; col < cols; ++col) {
         int index = row * cols + col;
@@ -175,16 +194,18 @@ private:
         rect.y = start.y + (row * start.h);
         rect.w = size;
         rect.h = size;
-        _leds[index] = {0, 0, 0, 0xFF};
+        if (index < kNumLeds) {
+          _leds[index] = {0, 0, 0, 0xFF};
+        }
       }
     }
   }
 
-  int checkSwitches(const SDL_Point& point) {
+  int checkNumSwitches(const SDL_Point& point) {
     os_log(OS_LOG_DEFAULT, "Checking switches in (%u,%u)", point.x, point.y);
-    for (int i = 0; i < kSwitches; ++i) {
+    for (int i = 0; i < kNumSwitches; ++i) {
       if (SDL_PointInRect(&point, &_switches_rect[i])) {
-        return i;
+        return _sw_mapping[i];
       }
     }
 
@@ -212,8 +233,8 @@ private:
   }
 
   void drawSwitches() {
-    for (int i = 0; i < kSwitches; ++i) {
-      if (_switches_state[i]) {
+    for (int i = 0; i < kNumSwitches; ++i) {
+      if (_switches_state[_sw_mapping[i]]) {
         SDL_SetRenderDrawColor(_window_renderer, 0xAA, 0xAA, 0xAA, 0xAA);
       } else {
         SDL_SetRenderDrawColor(_window_renderer, 0xEE, 0xEE, 0xEE, 0xFF);
@@ -226,7 +247,7 @@ private:
     SDL_Rect rect{0, 0, 15, 15};
     SDL_Rect start{50, 90, 250, 200};
     constexpr int rows = 2;
-    constexpr int cols = kSwitches / 2;
+    const int cols = int(kNumLeds / 2);
     for (int row = 0; row < rows; ++row) {
       for (int col = 0; col < cols; ++col) {
         auto& led = _leds[row * cols + col];
@@ -253,13 +274,14 @@ private:
   SDL_Window *_window;
   SDL_Renderer *_window_renderer;
   SDL_Event _window_event;
-  std::array<SDL_Texture*, kNumDisplays> _display_texture;
-  std::array<std::array<uint32_t, kDisplayRows * kDisplayColumns>, kNumDisplays> _display_buffer{};
-  std::array<DisplaySim, kNumDisplays>& _display_sims;
-  std::array<SDL_Rect, kSwitches> _switches_rect;
-  std::bitset<kSwitches> _switches_state{};
+  std::array<SDL_Texture*, kMaxDisplays> _display_texture;
+  std::array<std::array<uint32_t, kDisplayRows * kDisplayColumns>, kMaxDisplays> _display_buffer{};
+  std::array<DisplaySim, kMaxDisplays>& _display_sims;
+  std::array<SDL_Rect, kMaxSwitches> _switches_rect;
+  std::bitset<kMaxSwitches> _switches_state{};
   bool _switches_changed = false;
-  std::array<SDL_Color, kSwitches> _leds;
+  std::array<SDL_Color, kMaxLeds> _leds;
+  uint8_t _sw_mapping[kMaxSwitches]{0, 1, 2, 3, 8, 4, 5, 6, 7, 9,};
 };
 
 }

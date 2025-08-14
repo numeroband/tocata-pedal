@@ -3,7 +3,7 @@ import terminal_kit from 'terminal-kit'
 const term = terminal_kit.terminal;
 
 const MIDI_IN_PORT = 'TocataPedal IN';
-const NUM_SWITCHES = 6;
+const NUM_SWITCHES = 8;
 const MAX_PROGRAMS = 99;
 const A_CODE = 'A'.charCodeAt(0);
 const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'];

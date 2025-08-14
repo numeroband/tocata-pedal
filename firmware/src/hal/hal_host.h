@@ -8,7 +8,7 @@
 namespace tocata {
 
 // System
-static inline uint32_t millis() { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
+static inline uint32_t millis() { return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()); }
 static inline void sleep_ms(uint32_t ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
 static inline void idle_loop() { sleep_ms(1); }
 static inline void board_program() {}
@@ -53,7 +53,7 @@ void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds);
 // I2C
 
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config) {}
-void i2c_write(uint8_t addr, const uint8_t *src, size_t len);
+void i2c_write(uint8_t index, uint8_t addr, const uint8_t *src, size_t len);
 
 // BOARD LED
 
@@ -80,5 +80,7 @@ static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) {
     uint8_t msg[] = {val1, val2, val3};
     usb_midi_write(msg, sizeof(msg));
 }
+
+bool is_pedal_long();
 
 }

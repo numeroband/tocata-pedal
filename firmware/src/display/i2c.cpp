@@ -28,7 +28,7 @@ void I2C::sendBytes(const void* buf, size_t len)
 
 void I2C::endTransfer()
 {
-	i2c_write(_addr, _transfer, _transfer_len);
+	i2c_write(_config.index, _addr, _transfer, _transfer_len);
 }
 
 void I2C::delayMs(uint8_t ms)

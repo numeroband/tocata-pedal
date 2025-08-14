@@ -14,6 +14,7 @@
 #include <functional>
 #include <queue>
 #include <fstream>
+#include <cstdlib>
 
 #include <filesystem>
 #include <CoreFoundation/CoreFoundation.h>
@@ -23,13 +24,12 @@ namespace tocata {
 uint8_t MemFlash[2 * 1024 * 1024];
 
 static libremidi::midi_out midi{};
-static std::array<DisplaySim, kNumDisplays> displays;
+static std::array<DisplaySim, kMaxDisplays> displays;
 static Application app{displays};
 
-void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
+void i2c_write(uint8_t idx, uint8_t addr, const uint8_t *src, size_t len)
 {
-    auto idx = addr & 1;
-    if (displays[idx].processTransfer(src, len))
+    if (displays[idx].processTransfer(src, uint32_t(len)))
     {
       return;
     }
@@ -249,7 +249,7 @@ private:
 
 static WebSocket ws;
 static FILE* flash;
-constexpr const char* kFlashPath = TOCATA_PEDAL_LONG ? "/tmp/tocata_flash_long" : "/tmp/tocata_flash";
+constexpr const char* kFlashPath = "/tmp/tocata_flash";
 
 void flash_init() 
 {
@@ -366,6 +366,18 @@ uint16_t expression_read() {
   }
 
   return static_cast<uint16_t>(exp_value);
+}
+
+bool is_pedal_long() {
+  static bool init;
+  static bool is_long;
+
+  if (!init) {
+    is_long = std::getenv("TOCATA_PEDAL_LONG");
+    init = true;
+  }
+
+  return is_long;
 }
 
 }

@@ -26,20 +26,6 @@ public:
     void run();
 
 private:
-    static constexpr uint8_t kIncOneSwitch = 0;
-    static constexpr uint8_t kIncTenSwitch = 1;
-    static constexpr uint8_t kSetupSwitch = 2;
-    static constexpr uint8_t kDecOneSwitch = Program::kNumSwitches / 2;
-    static constexpr uint8_t kDecTenSwitch = Program::kNumSwitches / 2 + 1;
-    static constexpr uint8_t kLoadSwitch = Program::kNumSwitches / 2 + 2;
-
-    static constexpr uint8_t kExpMaxSwitch = 0;
-    static constexpr uint8_t kIncExpFilterSwitch = 1;
-    static constexpr uint8_t kExpEnabledSwitch = 2;
-    static constexpr uint8_t kExpMinSwitch = Program::kNumSwitches / 2;
-    static constexpr uint8_t kDecExpFilterSwitch = Program::kNumSwitches / 2 + 1;
-    static constexpr uint8_t kExitSwitch = Program::kNumSwitches / 2 + 2;
-
     void footswitchCallback(Switches::Mask status, Switches::Mask modified);
     void programCallback(Switches::Mask status, Switches::Mask modified);
     void setupCallback(Switches::Mask status, Switches::Mask modified);
@@ -73,6 +59,20 @@ private:
     bool _expEnabled = true;
     std::bitset<Program::kNumSwitches> _switches_state{};
     char _expValue[sizeof(EXP_VALUE_TEXT)]{EXP_VALUE_TEXT};
+
+    static constexpr uint8_t kIncOneSwitch = 0;
+    static constexpr uint8_t kIncTenSwitch = 1;
+    static constexpr uint8_t kSetupSwitch = 2;
+    const uint8_t kDecOneSwitch = _leds.kNumLeds / 2;
+    const uint8_t kDecTenSwitch = _leds.kNumLeds / 2 + 1;
+    const uint8_t kLoadSwitch = _leds.kNumLeds / 2 + 2;
+
+    static constexpr uint8_t kExpMaxSwitch = 0;
+    static constexpr uint8_t kIncExpFilterSwitch = 1;
+    static constexpr uint8_t kExpEnabledSwitch = 2;
+    const uint8_t kExpMinSwitch = uint8_t(_buttons.kNumSwitches / 2);
+    const uint8_t kDecExpFilterSwitch = uint8_t(_buttons.kNumSwitches / 2 + 1);
+    const uint8_t kExitSwitch = uint8_t(_buttons.kNumSwitches / 2 + 2);
 };
 
 }
