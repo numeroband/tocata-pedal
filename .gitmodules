@@ -13,3 +13,12 @@
 [submodule "firmware/lib/SDL"]
 	path = firmware/lib/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "firmware/lib/ioLibrary_Driver"]
+	path = firmware/lib/ioLibrary_Driver
+	url = https://github.com/Wiznet/ioLibrary_Driver.git
+[submodule "firmware/lib/Arduino-AppleMIDI-Library"]
+	path = firmware/lib/Arduino-AppleMIDI-Library
+	url = https://github.com/lathoub/Arduino-AppleMIDI-Library.git
+[submodule "firmware/lib/arduino_midi_library"]
+	path = firmware/lib/arduino_midi_library
+	url = https://github.com/FortySevenEffects/arduino_midi_library.git

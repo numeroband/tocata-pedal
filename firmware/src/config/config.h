@@ -5,7 +5,7 @@
 
 namespace tocata {
 
-class MidiUsb;
+class MidiSender;
 
 class Storage
 {
@@ -56,7 +56,7 @@ class Actions
 public:
     static constexpr size_t kMaxActions = 5;
 
-    void run(MidiUsb& midi) const;
+    void run(MidiSender& midi) const;
     bool operator==(const Actions& other);
 
     class Action
@@ -71,7 +71,7 @@ public:
             kNoteOff,
         };
 
-        void run(MidiUsb& midi) const;
+        void run(MidiSender& midi) const;
         bool operator==(const Action& other);
 
     private:
@@ -124,7 +124,7 @@ public:
         bool enabled() const { return _enabled; }
         Color color() const { return _color; }
         bool available() const { return _name[0]; }
-        void run(MidiUsb& midi, bool active) const;
+        void run(MidiSender& midi, bool active) const;
         bool operator==(const Footswitch& other);
 
     private:
@@ -144,8 +144,8 @@ public:
 
     bool load(uint8_t id);
 
-    void run(MidiUsb& midi) const;
-    void sendExpression(MidiUsb& midi, uint8_t value) const;
+    void run(MidiSender& midi) const;
+    void sendExpression(MidiSender& midi, uint8_t value) const;
     Footswitch& footswitch(uint8_t id) { return _switches[id]; }
     const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }
     uint8_t numFootswitches() const { return _num_switches; }

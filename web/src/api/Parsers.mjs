@@ -263,3 +263,31 @@ export const serializeConfig = value => serializeStruct(new Uint8Array(512).buff
 export const serializeProgram = value => serializeStruct(new Uint8Array(512).buffer, value, idPlusProgram);
 export const serializeAddrPayload = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndPayload);
 export const serializeAddrLength = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndLength);
+
+const sizeOf = {
+  uint8: () => 1,
+  uint16: () => 2,
+  uint32: () => 4,
+  bool: () => 1,
+  enum: () => 1,
+  str: size => size + 1,
+  array: (numElems, parser, ...args) => {
+    var size = 0;
+    for (let i = 0; i < numElems; ++i) {
+      size += sizeOf[parser](...args);
+    }
+    return size;
+  },
+  nArray: (...args) => 1 + sizeOf.array(...args),
+  struct: (scheme) => {
+    var size = 0;
+    for (const [_, parser, ...args] of scheme.fields) {
+      size += sizeOf[parser](...args);
+    }
+    return size;
+  },
+  compact: (scheme) => sizeOf[scheme.parser](),
+  u32Buffer: () => 0,
+};
+
+export const sizeOfStruct = parser => sizeOf.struct(parser);

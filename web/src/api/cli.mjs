@@ -5,6 +5,11 @@ import process from 'process';
 import fs from 'fs';
 import UF2 from './UF2.mjs'
 
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 async function main() {
   const command = process.argv[2];
   const transport = process.env['TOCATA_TRANSPORT'] || 'usb';
@@ -122,6 +127,7 @@ async function main() {
         await api.flashFirmware(uf2);
         console.log('Verifying firmware');
         await api.verifyFirmware(uf2);
+        await sleep(1000);
         console.log('Restarting');
         await api.restart();
         break;
@@ -148,6 +154,21 @@ async function main() {
         const addr = Number(process.argv[3]);
         const length = Number(process.argv[4]);
         await api.flashErase(addr, length);
+        break;
+      }
+      case 'uf2-info':
+      {
+        const path = process.argv[3];
+        const content = fs.readFileSync(path);
+        const uf2 = new UF2(content.buffer);
+        for (const [index, block] of uf2.blocks.entries()) {
+          console.log(`--- Block ${index}:`)
+          console.log(`flags=0x${block.flags.toString(16)}`);
+          console.log(`family=0x${block.familyId.toString(16)}`);
+          console.log(`address=0x${block.address.toString(16)}`);
+          console.log(`size=${block.payload.length}`);
+          console.log();
+        }
         break;
       }
       default:

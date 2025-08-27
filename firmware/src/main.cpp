@@ -11,7 +11,7 @@ int main()
     },
     .leds = {
       .state_machine_id = 1,
-      .data_pin = 18,
+      .data_pin = 28,
     },
     .display = {
       {
@@ -21,8 +21,8 @@ int main()
       },
       {
         .index = 1,
-        .sda_pin = 22,
-        .scl_pin = 23,
+        .sda_pin = 18,
+        .scl_pin = 19,
       },
     },
     .expression = {

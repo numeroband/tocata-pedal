@@ -36,6 +36,7 @@ target_include_directories(${CUR_TARGET} PRIVATE
         config 
         pio
         display
+        ethernet
         hal
         ../lib/websocketpp
         ../lib/asio/asio/include
@@ -64,14 +65,36 @@ pico_enable_stdio_usb(${CUR_TARGET} 0)
 target_link_libraries(${CUR_TARGET} PRIVATE 
         pico_stdlib 
         pico_unique_id
+        pico_cyw43_arch_none
         hardware_i2c
         hardware_flash
         hardware_pio
         hardware_adc
+        hardware_spi
         tinyusb_device 
         tinyusb_board
         )
- 
+
+# Ethernet
+set(WIZCHIP_SPI_SCLK_SPEED 43)
+add_definitions(-D_WIZCHIP_SPI_SCLK_SPEED=${WIZCHIP_SPI_SCLK_SPEED})
+set(WIZNET_CHIP W5500)
+add_definitions(-D_WIZCHIP_=5500)
+
+target_sources(${CUR_TARGET} PRIVATE
+        ethernet/wizchip_spi.c
+        ethernet/timer.c
+        ethernet/eth.cpp
+        )
+
+target_link_libraries(${CUR_TARGET} PRIVATE 
+        ETHERNET_FILES 
+        )
+
+target_link_libraries(${CUR_TARGET} PRIVATE
+        arduino_midi
+        arduino_applemidi        
+        )
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${CUR_TARGET})
 else()

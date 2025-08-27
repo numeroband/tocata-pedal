@@ -1,7 +1,7 @@
 #include <config.h>
 #include "hal.h"
 
-#include <usb_device.h>
+#include <midi_sender.h>
 #include <filesystem.h>
 
 #define _log(...) 
@@ -152,7 +152,7 @@ bool Config::operator==(const Config& other)
     );
 }
 
-void Actions::Action::run(MidiUsb& midi) const
+void Actions::Action::run(MidiSender& midi) const
 {
     switch (type())
     {
@@ -175,7 +175,7 @@ bool Actions::Action::operator==(const Actions::Action& other)
     );
 }
 
-void Actions::run(MidiUsb& midi) const
+void Actions::run(MidiSender& midi) const
 {
     for (uint8_t i = 0; i < _num_actions; ++i)
     {
@@ -218,7 +218,7 @@ void Program::initAll()
     }
 }
 
-void Program::run(MidiUsb& midi) const
+void Program::run(MidiSender& midi) const
 {
     _actions.run(midi);
     for (uint8_t i = 0; i < _num_switches; ++i)
@@ -231,7 +231,7 @@ void Program::run(MidiUsb& midi) const
     }
 }
 
-void Program::sendExpression(MidiUsb& midi, uint8_t value) const
+void Program::sendExpression(MidiSender& midi, uint8_t value) const
 {
     midi.sendControl(expressionChannel(), expression(), value);
 }
@@ -408,7 +408,7 @@ bool Program::operator==(const Program& other)
     return true;
 }
 
-void Program::Footswitch::run(MidiUsb& midi, bool active) const
+void Program::Footswitch::run(MidiSender& midi, bool active) const
 {
     if (active)
     {

@@ -18,6 +18,7 @@ void Controller::init()
     footswitchMode();
     _buttons.init();
     _exp.init();
+    _ethernet.init();
 }
 
 void Controller::run() 
@@ -25,11 +26,12 @@ void Controller::run()
     _usb.run();
     _buttons.run();
     _exp.run();
+    _ethernet.run();
 
     uint32_t now = millis();
     if (now - _last_display_update > 70)
     {
-        _display.run();
+        // _display.run();
         _last_display_update = now;
     }
 
@@ -260,8 +262,10 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
     if (send_midi) {
         if (is_scene) {
             _program.footswitch(_fs_id).run(_usb.midi(), false);
+            _program.footswitch(_fs_id).run(_ethernet, false);
         }
         fs.run(_usb.midi(), _switches_state[id]);
+        fs.run(_ethernet, _switches_state[id]);
     }
     _fs_id = id;
     _leds.setColor(id, fs.color(), _switches_state[id]);
@@ -272,6 +276,7 @@ void Controller::sendExpression(uint8_t value)
     if (_expEnabled && _program.available() && _program.expressionEnabled())
     {
         _program.sendExpression(_usb.midi(), value);
+        _program.sendExpression(_ethernet, value);
     }
 }
 
@@ -292,6 +297,7 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
     if (send_midi && _program.mode() == Program::kScene)
     {
         _program.footswitch(_fs_id).run(_usb.midi(), false);
+        _program.footswitch(_fs_id).run(_ethernet, false);
     }
     _program_id = id;
     _fs_id = 0;
@@ -301,6 +307,7 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
     if (send_midi && _program.available())
     {
         _program.run(_usb.midi());
+        _program.run(_ethernet);
         sendExpression(_exp.getValue());
     }
 
