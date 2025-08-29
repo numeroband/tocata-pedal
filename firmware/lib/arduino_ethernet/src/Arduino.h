@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IPAddress.h"
+#include <cstdio>
 
 #define HEX 0
 #define DEC 1
@@ -35,7 +36,7 @@ public:
     operator bool() { return true; }
 };
 
-_serial Serial;
+extern _serial Serial;
 
 // #include <inttypes.h>
 #include <stdint.h>
@@ -55,23 +56,28 @@ typedef uint8_t byte;
 // 	return 0.0f;
 // }
 
-unsigned long millis()
+inline unsigned long millis()
 {
     return to_ms_since_boot(get_absolute_time());     
 }
 
-void randomSeed(float)
+inline void randomSeed(float)
 {
     srand(static_cast<unsigned int>(millis()));
 }
 
-int random(int min, int max)
+inline int random(int min, int max)
 {
 	return RAND_MAX % std::rand() % (max-min) + min;
 }
 
 template <class T> const T& min(const T& a, const T& b) {
     return !(b < a) ? a : b;     // or: return !comp(b,a)?a:b; for version (2)
+}
+
+inline void delay(uint32_t ms)
+{
+    sleep_ms(ms);
 }
 
 #define F(x) x

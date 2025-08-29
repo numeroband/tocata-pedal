@@ -226,8 +226,6 @@ void wizchip_spi_initialize(void)
     // make the SPI pins available to picotool
     bi_decl(bi_1pin_with_name(PIN_CS, "W5x00 CHIP SELECT"));
 
-    gpio_init(PIN_INT);
-
 #ifdef USE_SPI_DMA
     dma_tx = dma_claim_unused_channel(true);
     dma_rx = dma_claim_unused_channel(true);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <cstdint>
 
 class IPAddress
 {
@@ -21,10 +22,18 @@ public:
         addr[0] = address[0];
         addr[1] = address[1];
         addr[2] = address[2];
-        addr[3] = address[4];
+        addr[3] = address[3];
     };
     operator uint32_t() const { return _addr; }
     operator uint32_t()       { return _addr; }
+
+    // Overloaded index operator to allow getting and setting individual octets of the address
+    uint8_t operator[](int index) const {
+        return raw_address()[index];
+    }
+    uint8_t& operator[](int index) {
+        return raw_address()[index];
+    }
 
     uint8_t* raw_address() { return reinterpret_cast<uint8_t*>(&_addr); }
     const uint8_t* raw_address() const { return reinterpret_cast<const uint8_t*>(&_addr); }

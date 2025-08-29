@@ -293,12 +293,27 @@ add_library(arduino_applemidi INTERFACE
     ${ARDUINO_APPLEMIDI_PATH}/rtpMIDI_Parser_JournalSection.hpp
     ${ARDUINO_APPLEMIDI_PATH}/rtpMIDI_Parser.h
 )
-target_include_directories(arduino_applemidi INTERFACE ${ARDUINO_APPLEMIDI_PATH})
+target_include_directories(arduino_applemidi INTERFACE 
+    ${ARDUINO_APPLEMIDI_PATH}
+    ${ARDUINO_BONJOUR_PATH}
+    )
 target_link_libraries(arduino_applemidi INTERFACE 
     arduino_ethernet
     arduino_midi
     )
 
+set(ARDUINO_BONJOUR_PATH ${PROJECT_SOURCE_DIR}/lib/EthernetBonjour)
+add_library(arduino_bonjour INTERFACE
+)
+#     ${ARDUINO_BONJOUR_PATH}/EthernetBonjour.cpp
+#     ${ARDUINO_BONJOUR_PATH}/EthernetBonjour.h
+#     ${ARDUINO_BONJOUR_PATH}/utility/EthernetUtil.c
+#     ${ARDUINO_BONJOUR_PATH}/utility/EthernetUtil.h
+# )
+target_include_directories(arduino_bonjour INTERFACE ${ARDUINO_BONJOUR_PATH})
+# target_link_libraries(arduino_bonjour INTERFACE 
+#     arduino_ethernet
+#     )
 
 else()
 add_subdirectory(libremidi)

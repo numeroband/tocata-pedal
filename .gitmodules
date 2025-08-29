@@ -22,3 +22,6 @@
 [submodule "firmware/lib/arduino_midi_library"]
 	path = firmware/lib/arduino_midi_library
 	url = https://github.com/FortySevenEffects/arduino_midi_library.git
+[submodule "firmware/lib/EthernetBonjour"]
+	path = firmware/lib/EthernetBonjour
+	url = https://github.com/TrippyLighting/EthernetBonjour.git

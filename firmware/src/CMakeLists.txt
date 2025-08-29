@@ -28,6 +28,8 @@ target_sources(${CUR_TARGET} PRIVATE
         pio/expression.cpp
         display/i2c.cpp
         display/display.cpp
+        network/network.cpp
+        network/apple_midi.cpp
         )
 
 target_include_directories(${CUR_TARGET} PRIVATE 
@@ -36,7 +38,7 @@ target_include_directories(${CUR_TARGET} PRIVATE
         config 
         pio
         display
-        ethernet
+        network
         hal
         ../lib/websocketpp
         ../lib/asio/asio/include
@@ -82,18 +84,17 @@ set(WIZNET_CHIP W5500)
 add_definitions(-D_WIZCHIP_=5500)
 
 target_sources(${CUR_TARGET} PRIVATE
-        ethernet/wizchip_spi.c
-        ethernet/timer.c
-        ethernet/eth.cpp
+        network/wizchip_spi.c
+        network/timer.c
+        ../lib/EthernetBonjour/EthernetBonjour.cpp
+        ../lib/EthernetBonjour/utility/EthernetUtil.c
         )
 
 target_link_libraries(${CUR_TARGET} PRIVATE 
         ETHERNET_FILES 
-        )
-
-target_link_libraries(${CUR_TARGET} PRIVATE
+        arduino_bonjour
         arduino_midi
-        arduino_applemidi        
+        arduino_applemidi
         )
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${CUR_TARGET})

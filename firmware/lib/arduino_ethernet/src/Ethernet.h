@@ -4,12 +4,24 @@
 
 #include "socket.h"
 #include "wizchip_conf.h"
+#include <hardware/gpio.h>
 
 #include <array>
 #include <cstdint>
 
 #define DEFAULT_CONTROL_PORT 5004
 #define TCT_UDP_DEBUG 0
+#define PIN_INT 14
+
+class EthernetClass {
+public:
+    void setLocalIP(IPAddress addr) { _local_ip = addr; }
+    IPAddress localIP() { return _local_ip; }
+private:
+    IPAddress _local_ip{};
+};
+
+extern EthernetClass Ethernet;
 
 class EthernetUDP
 {
@@ -23,25 +35,12 @@ private:
 public:
     void begin(uint16_t port)
     {
-        if (_socket >= 0) {
-            stop();
-        }
+        beginAny({}, port);
+    }
 
-        int next_socket = firstAvailableSocket(this);
-        if (next_socket < 0) {
-            printf("No sockets available\n");
-            return;
-        }
-
-        _socket = socket(next_socket, Sn_MR_UDP, port, SOCK_IO_NONBLOCK);
-        if (_socket < 0)
-        {
-            printf("[%d] socket() failed: %d\n", next_socket, _socket);
-            return;
-        }
-        changeState(kIdle);
-
-        printf("[%d] UDP socket opened\n", _socket);
+    int beginMulticast(IPAddress multicast_ip, uint16_t multicast_port)
+    {
+        return beginAny(multicast_ip, multicast_port);
     }
 
     bool beginPacket(uint32_t addr, uint16_t port)
@@ -62,14 +61,18 @@ public:
     {
         if (_socket < 0) { return 0; }
         auto total_interrupts = _total_interrupts;
-        if (total_interrupts == _processed_interrupts) {
+        if (total_interrupts != _processed_interrupts) {
+#if TCT_UDP_DEBUG
+            printf("[%d] total_ints %u processed %u\n", _socket, total_interrupts, _processed_interrupts);
+#endif
+            _data_available = true;
+            _processed_interrupts = total_interrupts;
+        }
+
+        if (!_data_available) {
             return 0;
         }
 
-#if TCT_UDP_DEBUG
-        printf("[%d] total_ints %u processed %u\n", total_interrupts, _processed_interrupts);
-#endif
-        _processed_interrupts = total_interrupts;
         int32_t received = recvfrom(_socket, _buffer.data(), _buffer.size(), _remote_addr.raw_address(), &_remote_port);
         if (received < 0) {
             printf("[%d] recvfrom() failed: %d\n", _socket, received);
@@ -78,6 +81,7 @@ public:
         }
 
         if (received == 0) {
+            _data_available = false;
             return 0;
         }
 
@@ -85,6 +89,9 @@ public:
         _buffer_size = size_t(received);
 
 #if TCT_UDP_DEBUG
+        auto ip = _remote_addr.raw_address();
+        printf("\n[%d] RX from %u.%u.%u.%u:%u %u bytes", 
+            _socket, ip[0], ip[1], ip[2], ip[3], _remote_port, _buffer_size);
         for (size_t i = 0; i < _buffer_size; ++i) {
             if ((i % 16) == 0) {
                 printf("\n[%d] RX: ", _socket);
@@ -160,6 +167,9 @@ public:
         }
 
 #if TCT_UDP_DEBUG
+        auto ip = _remote_addr.raw_address();
+        printf("\n[%d] TX to %u.%u.%u.%u:%u %u bytes", 
+            _socket, ip[0], ip[1], ip[2], ip[3], _remote_port, _buffer_size);
         for (size_t i = 0; i < _buffer_size; ++i) {
             if ((i % 16) == 0) {
                 printf("\n[%d] TX:", _socket);
@@ -216,6 +226,48 @@ private:
         return -1;
     }
 
+    int beginAny(IPAddress multicast_ip, uint16_t port)
+    {
+        if (_socket >= 0) {
+            stop();
+        }
+
+        int next_socket = firstAvailableSocket(this);
+        if (next_socket < 0) {
+            printf("No sockets available\n");
+            return -1;
+        }
+
+        uint8_t flag = SF_IO_NONBLOCK;
+        bool is_multicast = uint32_t(multicast_ip) != 0;
+        if (is_multicast)
+        {
+            setSn_DIPR(next_socket, multicast_ip.raw_address());
+            setSn_DPORT(next_socket, port);
+            flag |= SF_MULTI_ENABLE;
+
+        	// Calculate MAC address from Multicast IP Address
+    	    byte mac[] = {  0x01, 0x00, 0x5E, 0x00, 0x00, 0x00 };
+    	    mac[3] = multicast_ip[1] & 0x7F;
+    	    mac[4] = multicast_ip[2];
+    	    mac[5] = multicast_ip[3];
+            setSn_DHAR(next_socket, mac);
+
+        }
+
+        _socket = socket(next_socket, Sn_MR_UDP, port, flag);
+        if (_socket < 0)
+        {
+            printf("[%d] socket() failed: %d\n", next_socket, _socket);
+            return -1;
+        }
+        changeState(kIdle);
+
+        printf("[%d] UDP socket opened%s\n", _socket, is_multicast ? "(MC)" : "");
+
+        return 0;
+    }
+
     void changeState(State state) {
         _buffer_size = 0;
         _buffer_offset = 0;
@@ -235,6 +287,12 @@ private:
             }
         }
         wizchip_setinterruptmask(intr_kind(intr_mask));
+
+        static bool init = false;
+        if (!init) {
+            init = true;
+            gpio_init(PIN_INT);
+        }
 
         gpio_set_irq_enabled_with_callback(PIN_INT, GPIO_IRQ_EDGE_FALL, true, interruptCallback);
     }
@@ -265,6 +323,7 @@ private:
     State _state{kIdle};
     uint32_t _processed_interrupts{0};
     uint32_t _total_interrupts{0};
+    bool _data_available{false};
     IPAddress _remote_addr{};
     uint16_t _remote_port{};
 };

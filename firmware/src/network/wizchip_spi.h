@@ -27,7 +27,6 @@ extern "C" {
 #define PIN_MISO 12
 #define PIN_CS 13
 #define PIN_RST 15
-#define PIN_INT 14
 
 /* Use SPI DMA */
 //#define USE_SPI_DMA // if you want to use SPI DMA, uncomment.

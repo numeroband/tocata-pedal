@@ -6,7 +6,7 @@
 #include "usb_device.h"
 #include "display.h"
 #include "config.h"
-#include "eth.h"
+#include "network.h"
 #include "hal.h"
 
 #define EXP_VALUE_PREFIX "EXP = "
@@ -53,7 +53,7 @@ private:
     Leds _leds;
     Display _display;
     Program _program{};
-    Ethernet _ethernet{};
+    Network _network{};
     uint32_t _last_display_update;
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
