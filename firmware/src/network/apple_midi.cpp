@@ -18,11 +18,11 @@ void AppleMidi::init()
 
   _midi_session.setHandleConnected([](const APPLEMIDI_NAMESPACE::ssrc_t & ssrc, const char* name) {
     AppleMidi::sharedInstance()._connected++;
-    printf("[AM%u] Connected to session %s\n");
+    printf("[AM%u] Connected to session %s\n", ssrc, name);
   });
   _midi_session.setHandleDisconnected([](const APPLEMIDI_NAMESPACE::ssrc_t & ssrc) {
     AppleMidi::sharedInstance()._connected--;
-    printf("[AM%u] Disconnected\n");
+    printf("[AM%u] Disconnected\n"), ssrc;
   });
 
   _midi.setHandleControlChange([](Channel channel, byte v1, byte v2) {
