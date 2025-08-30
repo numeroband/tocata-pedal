@@ -28,6 +28,7 @@ private:
     MidiSession _midi_session{"TocataPedal", DEFAULT_CONTROL_PORT};
     MidiInterface _midi{_midi_session};
     size_t _connected{0};
+    bool _initialized = false;
 };
 
 }

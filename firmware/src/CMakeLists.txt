@@ -67,7 +67,7 @@ pico_enable_stdio_usb(${CUR_TARGET} 0)
 target_link_libraries(${CUR_TARGET} PRIVATE 
         pico_stdlib 
         pico_unique_id
-        pico_cyw43_arch_none
+        hardware_dma
         hardware_i2c
         hardware_flash
         hardware_pio
@@ -76,6 +76,12 @@ target_link_libraries(${CUR_TARGET} PRIVATE
         tinyusb_device 
         tinyusb_board
         )
+
+if ("${PICO_BOARD}" STREQUAL "pico2_w")
+target_link_libraries(${CUR_TARGET} PRIVATE 
+        pico_cyw43_arch_none
+        )
+endif()
 
 # Ethernet
 set(WIZCHIP_SPI_SCLK_SPEED 43)

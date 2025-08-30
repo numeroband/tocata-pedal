@@ -11,7 +11,11 @@ int main()
     },
     .leds = {
       .state_machine_id = 1,
+#ifdef CYW43_WL_GPIO_LED_PIN    
       .data_pin = 28,
+#else
+      .data_pin = 18,
+#endif
     },
     .display = {
       {
@@ -21,8 +25,13 @@ int main()
       },
       {
         .index = 1,
+#ifdef CYW43_WL_GPIO_LED_PIN    
         .sda_pin = 18,
         .scl_pin = 19,
+#else
+        .sda_pin = 22,
+        .scl_pin = 23,
+#endif
       },
     },
     .expression = {

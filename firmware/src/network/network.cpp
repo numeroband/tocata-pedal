@@ -77,6 +77,9 @@ static void repeating_timer_callback(void);
 namespace tocata {
 
 void Network::init() {
+    if (!_supported) {
+        return;
+    }
     printf("Initializing ethernet...\n");
 
     set_clock_khz();
@@ -108,6 +111,10 @@ void Network::postInit() {
 }
 
 void Network::run() {
+    if (!_supported) {
+        return;
+    }
+    
     if (!_init) {
       if ((millis() - _init_millis) < 3000) {
           return;

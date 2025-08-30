@@ -42,6 +42,7 @@ void AppleMidi::init()
   });
 
   _midi_session.sendInvite({192, 168, 1, 98}, DEFAULT_CONTROL_PORT); // port is 5004 by default
+  _initialized = true;
 }
 
 void AppleMidi::run() {
@@ -50,11 +51,13 @@ void AppleMidi::run() {
 }
 
 void AppleMidi::sendProgram(uint8_t channel, uint8_t program) {
+    if (!_initialized) { return; }
     printf("sendprogram %u\n", program);
     _midi.sendProgramChange(program, channel + 1);
 }
 
 void AppleMidi::sendControl(uint8_t channel, uint8_t control, uint8_t value) {
+    if (!_initialized) { return; }
     printf("sendcontrol %u\n", control);
     _midi.sendControlChange(control, value, channel + 1);
 }

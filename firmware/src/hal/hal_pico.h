@@ -19,7 +19,9 @@ extern "C" {
 #include <pico/stdio.h>
 #include <pico/stdio/driver.h>
 #include <pico/time.h>
+#ifdef CYW43_WL_GPIO_LED_PIN
 #include <pico/cyw43_arch.h>
+#endif
 
 #include <tusb.h>
 #include <cstdint>
@@ -199,15 +201,21 @@ static inline void i2c_write(uint8_t index, uint8_t addr, const uint8_t *src, si
 
 static inline void board_led_init()
 {
-    // gpio_init(PICO_DEFAULT_LED_PIN);
-    // gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
+#ifdef CYW43_WL_GPIO_LED_PIN
     cyw43_arch_init();
+#else
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
+#endif
 }
 
 static inline void board_led_enable(bool enabled)
 {
-    // gpio_put(PICO_DEFAULT_LED_PIN, enabled);
+#ifdef CYW43_WL_GPIO_LED_PIN
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, enabled ? 1 : 0);
+#else
+    gpio_put(PICO_DEFAULT_LED_PIN, enabled);
+#endif
 }
 
 // USB
@@ -247,7 +255,11 @@ static inline bool usb_midi_read(uint8_t packet[3])
 }
 
 inline bool is_pedal_long() {
+#ifdef CYW43_WL_GPIO_LED_PIN    
     return true;
+#else
+    return false;
+#endif
 }
 
 }
