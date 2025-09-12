@@ -1,5 +1,6 @@
 import TransportUsb from './TransportUsb.mjs';
 import TransportWebSocket from './TransportWebSocket.mjs';
+import TransportMidi  from './TransportMidi.mjs';
 
 const LENGTH_OFFSET = 0;
 const COMMAND_OFFSET = 2;
@@ -8,7 +9,13 @@ const MSG_HEADER_SIZE = 4;
 
 export default class Protocol {
   constructor(transport, connectionEvent) {
-    this.transport = ("requestDevice" in transport) ? new TransportUsb(transport, connectionEvent) : new TransportWebSocket(transport, connectionEvent);
+    if ("requestDevice" in transport) {
+      this.transport = new TransportUsb(transport, connectionEvent);
+    } else if ("toMIDIChannels" in transport) {
+      this.transport = new TransportMidi(transport, connectionEvent);
+    } else {
+      this.transport = new TransportWebSocket(transport, connectionEvent);
+    }
     this.buffer = new Uint8Array();
   }
 

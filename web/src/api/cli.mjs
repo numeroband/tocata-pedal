@@ -4,7 +4,7 @@ import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
 import UF2 from './UF2.mjs'
-
+import { WebMidi } from 'webmidi';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -12,8 +12,20 @@ function sleep(ms) {
 
 async function main() {
   const command = process.argv[2];
-  const transport = process.env['TOCATA_TRANSPORT'] || 'usb';
-  const api = new Api((transport === 'ws') ? WebSocket : webusb);
+  const transport = process.env['TOCATA_TRANSPORT'] || 'usb';  
+  let transportClass;
+  switch (transport) {
+    case 'ws':
+      transportClass = WebSocket;
+      break;
+    case 'midi':
+      transportClass = WebMidi;
+      break;
+    default:
+      transportClass = webusb;
+      break;
+  }
+  const api = new Api(transportClass);
   const start = process.uptime();
 
   const connect = _ => new Promise((resolve, reject) => {

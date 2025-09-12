@@ -65,12 +65,14 @@ static inline void board_led_enable(bool enabled) {}
 void usb_init();
 void usb_run();
 
+// USB web
 uint32_t usb_vendor_available();
 uint32_t usb_vendor_read(void* buffer, uint32_t bufsize);
 uint32_t usb_vendor_write_available();
 uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize);
-static inline uint32_t usb_vendor_write_flush() { return 0; }
+uint32_t usb_vendor_write_flush();
 
+// USB midi
 void usb_midi_write(const unsigned char* message, size_t size);
 static inline void usb_midi_write(uint8_t val1, uint8_t val2) { 
     uint8_t msg[] = {val1, val2};
@@ -81,6 +83,7 @@ static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3) {
     usb_midi_write(msg, sizeof(msg));
 }
 
+//
 bool is_pedal_long();
 
 }

@@ -28,8 +28,6 @@ target_sources(${CUR_TARGET} PRIVATE
         pio/expression.cpp
         display/i2c.cpp
         display/display.cpp
-        network/network.cpp
-        network/apple_midi.cpp
         )
 
 target_include_directories(${CUR_TARGET} PRIVATE 
@@ -90,6 +88,8 @@ set(WIZNET_CHIP W5500)
 add_definitions(-D_WIZCHIP_=5500)
 
 target_sources(${CUR_TARGET} PRIVATE
+        network/network.cpp
+        network/apple_midi.cpp
         network/wizchip_spi.c
         network/timer.c
         ../lib/EthernetBonjour/EthernetBonjour.cpp

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "midi_sender.h"
 #include <cstdint>
+
+#ifdef PICO_BUILD
 
 #include "apple_midi.h"
 
@@ -28,4 +31,24 @@ private:
     AppleMidi& _midi = AppleMidi::sharedInstance();
 };
 
+} // namespace tocata
+
+#else // PICO_BUILD
+
+namespace tocata {
+class Network {
+private:
+    class DummyMidi : public MidiSender {
+	    void sendProgram(uint8_t channel, uint8_t program) override {}
+	    void sendControl(uint8_t channel, uint8_t control, uint8_t value) override {}
+    };
+public:
+    void init() {}
+    void run() {}
+    MidiSender& midi() { return _midi; }
+    const MidiSender& midi() const { return _midi; }
+    DummyMidi _midi;
+};
 }
+
+#endif // PICO_BUILD

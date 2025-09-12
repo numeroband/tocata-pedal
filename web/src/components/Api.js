@@ -1,10 +1,23 @@
 import Api from '../api/Api.mjs';
+import { WebMidi } from 'webmidi';
 
 const NUM_PROGRAMS = 99;
 
 const urlParams = new URLSearchParams(window.location.search);
 const transport = urlParams.get('transport') || 'usb';
-const api = (transport === 'ws') ? new Api(WebSocket) : (navigator.usb ? new Api(navigator.usb) : null);
+let transportClass;
+switch (transport) {
+  case 'ws':
+    transportClass = WebSocket;
+    break;
+  case 'midi':
+    transportClass = WebMidi;
+    break;
+  default:
+    transportClass = navigator.usb;
+    break;
+}
+const api = new Api(transportClass);
 
 export const isSupported = () => (transport === 'ws' || 'usb' in navigator);
 export const isConnected = () => api && api.connected;

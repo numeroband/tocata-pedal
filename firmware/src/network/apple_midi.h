@@ -6,7 +6,7 @@
 
 #include <cstdint>
 #include <midi_sender.h>
-
+#include <midi_sysex.h>
 
 namespace tocata {
 
@@ -22,8 +22,11 @@ public:
 	void sendControl(uint8_t channel, uint8_t control, uint8_t value) override;
 
 private:
+    struct MidiSettings : public APPLEMIDI_NAMESPACE::AppleMIDISettings
+    {
+        static const unsigned SysExMaxSize = MidiSysExWriter::bytesRequired(512);
+    };
     using MidiSession = APPLEMIDI_NAMESPACE::AppleMIDISession<EthernetUDP>;
-    using MidiSettings = APPLEMIDI_NAMESPACE::AppleMIDISettings;
     using MidiInterface = MIDI_NAMESPACE::MidiInterface<MidiSession, MidiSettings>;
     MidiSession _midi_session{"TocataPedal", DEFAULT_CONTROL_PORT};
     MidiInterface _midi{_midi_session};
