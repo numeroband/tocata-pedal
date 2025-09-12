@@ -281,7 +281,7 @@ const sizeOf = {
   nArray: (...args) => 1 + sizeOf.array(...args),
   struct: (scheme) => {
     var size = 0;
-    for (const [_, parser, ...args] of scheme.fields) {
+    for (const [, parser, ...args] of scheme.fields) {
       size += sizeOf[parser](...args);
     }
     return size;

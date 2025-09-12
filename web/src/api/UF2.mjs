@@ -14,7 +14,7 @@ export default class UF2 {
     this.blocks = [];
     for (let i = 0; i < numBlocks; ++i) {
       const block = this.getBlock(i);
-      if (block.familyId != UF2.FAMILY_RP2XXX_ABSOLUTE) {
+      if (block.familyId !== UF2.FAMILY_RP2XXX_ABSOLUTE) {
         this.flashStart = Math.min(this.flashStart, block.address);
         this.flashEnd = Math.max(this.flashEnd, block.address + block.payload.byteLength);
       }
@@ -45,9 +45,9 @@ export default class UF2 {
       throw new Error(`${idx}: Invalid block payload size`);
     }
     const familyId = view.getUint32(28, true);
-    if (familyId != UF2.FAMILY_RP2040 &&
-        familyId != UF2.FAMILY_RP2035_ARM_S &&
-        familyId != UF2.FAMILY_RP2XXX_ABSOLUTE) {
+    if (familyId !== UF2.FAMILY_RP2040 &&
+        familyId !== UF2.FAMILY_RP2035_ARM_S &&
+        familyId !== UF2.FAMILY_RP2XXX_ABSOLUTE) {
       throw new Error(`${idx}: Invalid block family id (0x${familyId.toString(16)})`);
     }
     const finalMagic = view.getUint32(508, true);

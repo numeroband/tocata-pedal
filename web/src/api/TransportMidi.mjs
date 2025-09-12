@@ -1,7 +1,3 @@
-const EP_SIZE = 64
-const VENDOR_ID = 0xcafe;
-const IFACE_CLASS = 0xFF;
-
 export default class TransportMidi {
   constructor(WebMidi, connectionEvent) {
     this.WebMidi = WebMidi
@@ -85,13 +81,13 @@ function toSysEx(buffer) {
   for (let b of buffer) {
     sysex[offset++] |= b >> ++bits
     sysex[offset] = ~0x80 & (b << (7 - bits))
-    if (bits == 7) {
+    if (bits === 7) {
       bits = 0
       sysex[++offset] = 0
     }
   }
 
-  if (bits != 0) {
+  if (bits !== 0) {
     ++offset
   }
   
@@ -117,7 +113,7 @@ function fromSysEx(sysex) {
   for (let i = 0; i < buffer.length; ++i) {
     let b = content[offset++] << ++bits
     b |= content[offset] >> (7 - bits)
-    if (bits == 7) {
+    if (bits === 7) {
       bits = 0;
       ++offset;
     }

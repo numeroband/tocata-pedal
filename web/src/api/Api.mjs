@@ -182,7 +182,7 @@ export default class Api {
   async flashFirmware(uf2) {
     await this.flashErase(uf2.flashStart, uf2.flashEnd - uf2.flashStart);
     for (const block of uf2.blocks) {
-      if (block.familyId != UF2.FAMILY_RP2XXX_ABSOLUTE) {
+      if (block.familyId !== UF2.FAMILY_RP2XXX_ABSOLUTE) {
         await this.memWrite(block.address, block.payload);
       }
     }

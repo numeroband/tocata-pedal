@@ -217,7 +217,7 @@ export default function Footswitches(props) {
     <Grid>
       <Grid>
         <TextField
-          label={mode == "scene" ? "Scene" : "Footswitch"}
+          label={mode === "scene" ? "Scene" : "Footswitch"}
           className={classes.root}
           select
           value={footswitchId}
