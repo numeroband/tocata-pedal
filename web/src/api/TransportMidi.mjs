@@ -22,12 +22,14 @@ export default class TransportMidi {
   async connect() {
     console.log('Connecting MIDI ...');
     await this.WebMidi.enable({sysex: true})
-    this.input = this.WebMidi.getInputByName("Tocata Pedal");
-    this.output = this.WebMidi.getOutputByName("Tocata Pedal");
+    const name = this.WebMidi.deviceName
+    this.input = this.WebMidi.getInputByName(name);
+    this.output = this.WebMidi.getOutputByName(name);
     if (!this.input || !this.output) {
-      throw new Error("Cannot find Tocata Pedal");
+      throw new Error(`Cannot find MIDI device '${name}'`);
     }
     this.input.addListener("sysex", e => {
+      console.log('Received sysex', e.data)
       const buffer = fromSysEx(e.data)
       if (!buffer) {
         console.log('Invalid sysex')

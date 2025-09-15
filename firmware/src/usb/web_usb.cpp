@@ -1,5 +1,6 @@
 #include "web_usb.h"
 #include "hal.h"
+#include "midi_sysex.h"
 
 #include <cassert>
 
@@ -33,8 +34,8 @@ void WebUsb::receiveData()
 {  
   while (_out_pending == 0 && usb_vendor_available())
   {
-    const Message& msg = reinterpret_cast<const Message&>(_in_out_buf);
-    uint32_t count = usb_vendor_read(_in_out_buf + _in_length, sizeof(_in_out_buf) - _in_length);
+    const Message& msg = *reinterpret_cast<const Message*>(_in_out_buf.data());
+    uint32_t count = usb_vendor_read(_in_out_buf.data() + _in_length, _in_out_buf.size() - _in_length);
     if (count == 0)
     {
       return;
@@ -112,8 +113,8 @@ void WebUsb::processRequest()
       flashErase();
       break;
     default:
-      memmove(_in_out_buf + sizeof(msg), _in_out_buf, sizeof(_in_out_buf) - sizeof(msg));
-      sendResponse(sizeof(_in_out_buf) - sizeof(msg), kInvalidCommand);
+      memmove(_in_out_buf.data() + sizeof(msg), _in_out_buf.data(), _in_out_buf.size() - sizeof(msg));
+      sendResponse(_in_out_buf.size() - sizeof(msg), kInvalidCommand);
       break;
   }
 }
@@ -351,12 +352,33 @@ void WebUsb::flashErase()
 
 void WebUsb::sendResponse(uint16_t length, Status status)
 {
-  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  Message& msg = *reinterpret_cast<Message*>(_in_out_buf.data());
   msg.length = length;
   msg.status = status;
 
-  _out_buf = _in_out_buf;
+  _out_buf = _in_out_buf.data();
   _out_pending = sizeof(Message) + msg.length;
+}
+
+
+size_t WebUsb::processSysEx(std::span<uint8_t> buffer, size_t size)
+{
+  MidiSysExParser parser;
+  if (!parser.init({buffer.data(), size})) {
+    return 0;
+  }
+
+  _in_length = uint32_t(parser.read(_in_out_buf));
+  processRequest();
+  if (_out_pending == 0) {
+    return 0;
+  }
+  MidiSysExWriter writer;
+  writer.init(buffer);
+  writer.write({_out_buf, _out_pending});
+  writer.finish();
+  _out_pending = 0;
+  return writer.size();
 }
 
 }

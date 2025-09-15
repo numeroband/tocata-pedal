@@ -43,8 +43,8 @@ static wiz_NetInfo g_net_info =
         .sn = {255, 255, 255, 0},                    // Subnet Mask
         .gw = {192, 168, 2, 1},                     // Gateway
         .dns = {192, 168, 2, 1},                         // DNS server
-        .dhcp = NETINFO_DHCP,
-        // .dhcp = NETINFO_STATIC,
+        // .dhcp = NETINFO_DHCP,
+        .dhcp = NETINFO_STATIC,
 };
 static uint8_t g_ethernet_buf[ETHERNET_BUF_MAX_SIZE] = {
     0,

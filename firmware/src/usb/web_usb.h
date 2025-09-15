@@ -4,6 +4,8 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <span>
+#include <array>
 
 namespace tocata
 {
@@ -27,6 +29,8 @@ public:
     _connected = connected; 
     reset();
   }
+
+  size_t processSysEx(std::span<uint8_t> buffer, size_t size);
   
 private:
   static constexpr size_t kBuffSize = 512;
@@ -144,7 +148,7 @@ private:
   uint8_t* _out_buf;
   uint32_t _out_pending = 0;
   uint32_t _in_length = 0;
-  uint8_t _in_out_buf[kBuffSize];
+  std::array<uint8_t, kBuffSize> _in_out_buf;
   bool _connected = false;
 };
 

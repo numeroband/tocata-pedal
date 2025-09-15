@@ -6,8 +6,12 @@ _serial Serial;
 
 namespace tocata {
 
+static AppleMidi* _apple_midi;
+
 void AppleMidi::init()
 {
+  // Hack for the callbacks
+  _apple_midi = this;
   EthernetBonjour.begin("TocataPedal");
 
   EthernetBonjour.addServiceRecord("TocataPedal._apple-midi",
@@ -40,8 +44,13 @@ void AppleMidi::init()
   _midi.setHandleNoteOff([](byte channel, byte note, byte velocity) {
     printf("NoteOff %u %u %u\n", channel, note, velocity);
   });
+  _midi.setHandleSystemExclusive([](byte* array, unsigned size) {
+    if (_apple_midi->_sysExHandler) {
+      _apple_midi->_sysExHandler({array, size}, *_apple_midi);
+    }
+  });
 
-  _midi_session.sendInvite({192, 168, 1, 98}, DEFAULT_CONTROL_PORT); // port is 5004 by default
+  _midi_session.sendInvite({192, 168, 2, 20}, DEFAULT_CONTROL_PORT); // port is 5004 by default
   _initialized = true;
 }
 
@@ -60,6 +69,10 @@ void AppleMidi::sendControl(uint8_t channel, uint8_t control, uint8_t value) {
     if (!_initialized) { return; }
     printf("sendcontrol %u\n", control);
     _midi.sendControlChange(control, value, channel + 1);
+}
+
+void AppleMidi::sendSysEx(std::span<uint8_t> sysex) {
+  _midi.sendSysEx(sysex.size(), sysex.data(), true);
 }
 
 } // namespace tocata

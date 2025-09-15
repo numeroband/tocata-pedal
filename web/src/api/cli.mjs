@@ -19,6 +19,7 @@ async function main() {
       transportClass = WebSocket;
       break;
     case 'midi':
+      WebMidi.deviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal';  
       transportClass = WebMidi;
       break;
     default:

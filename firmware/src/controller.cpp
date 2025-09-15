@@ -3,6 +3,7 @@
 #include "hal.h"
 
 #include <functional>
+#include <midi_sysex.h>
 
 using namespace std::placeholders;
 
@@ -11,7 +12,7 @@ namespace tocata {
 void Controller::init()
 {
     _usb.init();
-    _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1));
+    _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2));
     _display.init();
     Storage::init();
     _leds.init();
@@ -19,6 +20,14 @@ void Controller::init()
     _buttons.init();
     _exp.init();
     _network.init();
+    _network.midi().setSysExHandler([this](std::span<uint8_t> sysex, MidiSender& sender){
+        std::array<uint8_t, MidiSysExWriter::bytesRequired(512)> buffer;
+        std::copy(sysex.begin(), sysex.end(), buffer.begin());
+        size_t response = _usb.web().processSysEx(buffer, sysex.size());
+        if (response > 0) {
+            sender.sendSysEx({buffer.data(), response});
+        }
+    });
 }
 
 void Controller::run() 
@@ -31,7 +40,7 @@ void Controller::run()
     uint32_t now = millis();
     if (now - _last_display_update > 70)
     {
-        // _display.run();
+         _display.run();
         _last_display_update = now;
     }
 
@@ -97,7 +106,7 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
     }
 }
 
-void Controller::midiCallback(const uint8_t* packet)
+void Controller::midiCallback(std::span<uint8_t> packet, MidiSender& sender)
 {
     if (packet[0] == 0xC0) {
         footswitchMode(false);
@@ -118,6 +127,12 @@ void Controller::midiCallback(const uint8_t* packet)
         displayTuner(note, velocity);
     } else if (packet[0] == 0x80 && packet[1] == 0) {
         displayTuner(0, 0);
+    } else if (packet[0] == 0xF0) {
+        auto response = _usb.web().processSysEx({packet.data(), 591}, packet.size());
+        printf("sysex responose with %zu bytes\n", response);
+        if (response > 0) {
+            sender.sendSysEx({packet.data(), response});
+        }
     }
 }
 

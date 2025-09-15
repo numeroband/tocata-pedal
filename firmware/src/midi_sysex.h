@@ -1,3 +1,5 @@
+#pragma once
+
 #include <span>
 #include <array>
 #include <cstdint>
@@ -50,7 +52,8 @@ public:
         return written;
     }
 
-    std::span<const uint8_t> buffer() { return {_buffer.data(), _offset}; }
+    size_t size() const { return _offset; }
+    std::span<const uint8_t> buffer() { return {_buffer.data(), size()}; }
     
     size_t available() {
         auto in_buffer = _buffer.size() - _offset;

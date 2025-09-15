@@ -20,6 +20,10 @@ public:
     void run();
 	void sendProgram(uint8_t channel, uint8_t program) override;
 	void sendControl(uint8_t channel, uint8_t control, uint8_t value) override;
+	void sendSysEx(std::span<uint8_t> sysex) override;
+    void setSysExHandler(SysExHandler handler) override {
+        _sysExHandler = handler;
+    }
 
 private:
     struct MidiSettings : public APPLEMIDI_NAMESPACE::AppleMIDISettings
@@ -32,6 +36,7 @@ private:
     MidiInterface _midi{_midi_session};
     size_t _connected{0};
     bool _initialized = false;
+    SysExHandler _sysExHandler{};
 };
 
 }

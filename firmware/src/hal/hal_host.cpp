@@ -388,8 +388,9 @@ void usb_run() {
   }
 }
 
-void usb_midi_write(const unsigned char* message, size_t size) {
+size_t usb_midi_write(const unsigned char* message, size_t size) {
   midi.send_message(message, size);
+  return size;
 }
 
 void board_reset() {
