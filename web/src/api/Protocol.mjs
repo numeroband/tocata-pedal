@@ -11,7 +11,7 @@ export default class Protocol {
   constructor(transport, connectionEvent) {
     if ("requestDevice" in transport) {
       this.transport = new TransportUsb(transport, connectionEvent);
-    } else if ("toMIDIChannels" in transport) {
+    } else if ("requestMIDIAccess" in transport) {
       this.transport = new TransportMidi(transport, connectionEvent);
     } else {
       this.transport = new TransportWebSocket(transport, connectionEvent);

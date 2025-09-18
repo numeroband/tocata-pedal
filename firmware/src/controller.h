@@ -30,7 +30,7 @@ private:
     void footswitchCallback(Switches::Mask status, Switches::Mask modified);
     void programCallback(Switches::Mask status, Switches::Mask modified);
     void setupCallback(Switches::Mask status, Switches::Mask modified);
-    void midiCallback(std::span<uint8_t> packet, MidiSender& sender);
+    void midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender);
 
     void configChanged() override;
     void programChanged(uint8_t id) override;

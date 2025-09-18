@@ -1,16 +1,17 @@
 export default class TransportMidi {
-  constructor(WebMidi, connectionEvent) {
-    this.WebMidi = WebMidi
-    this.connectionEvent = connectionEvent;
-    this.input = null;
-    this.output = null;
-    this.queue = [];
-    this.resolve = null;
-    this.reject = null;
+  constructor(navigator, connectionEvent) {
+    this.navigator = navigator
+    this.connectionEvent = connectionEvent
+    this.midi = null
+    this.input = null
+    this.output = null
+    this.queue = []
+    this.resolve = null
+    this.reject = null
   }
 
   get connected() {
-    return this.input != null;
+    return this.input != null
   }
 
   version = _ => ({
@@ -21,39 +22,46 @@ export default class TransportMidi {
 
   async connect() {
     console.log('Connecting MIDI ...');
-    await this.WebMidi.enable({sysex: true})
-    const name = this.WebMidi.deviceName
-    this.input = this.WebMidi.getInputByName(name);
-    this.output = this.WebMidi.getOutputByName(name);
+    this.midi = await this.navigator.requestMIDIAccess({sysex: true})
+    const name = this.navigator.midiDeviceName
+    
+    console.log('inputs')
+    this.midi.inputs.values().forEach(k => console.log(k))
+    console.log('outputs')
+    this.midi.outputs.values().forEach(k => console.log(k))
+
+    this.input = this.midi.inputs.values().find(x => x.name === name)
+    this.output = this.midi.outputs.values().find(x => x.name === name)
     if (!this.input || !this.output) {
-      throw new Error(`Cannot find MIDI device '${name}'`);
+      throw new Error(`Cannot find MIDI device '${name}'`)
     }
-    this.input.addListener("sysex", e => {
-      console.log('Received sysex', e.data)
+    this.input.onmidimessage = e => {
+      console.log('Received midi message', e.data)
       const buffer = fromSysEx(e.data)
       if (!buffer) {
         console.log('Invalid sysex')
         return
       }
       const data = new DataView(buffer.buffer)
-      this.queue.push(data);
+      this.queue.push(data)
       if (this.resolve) {
-        this.resolve(this.queue.shift());
-        this.resolve = null;
-        this.reject = null;
+        this.resolve(this.queue.shift())
+        this.resolve = null
+        this.reject = null
       }
-    })
+    }
     this.connectionEvent(true);
   }
 
   async reconnect() {
-    return this.connect();
+    return this.connect()
   }
 
   async send(data) {
     const buffer = new Uint8Array(data.buffer)
     const sysex = toSysEx(buffer)
-    this.output.send(sysex)
+    console.log('sending', Array.from(sysex))
+    await this.output.send(Array.from(sysex))
   };
 
   async receive() {

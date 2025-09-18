@@ -1,5 +1,4 @@
 import Api from '../api/Api.mjs';
-import { WebMidi } from 'webmidi';
 
 const NUM_PROGRAMS = 99;
 
@@ -11,7 +10,8 @@ switch (transport) {
     transportClass = WebSocket;
     break;
   case 'midi':
-    transportClass = WebMidi;
+    navigator.midiDeviceName = urlParams.get('device') || 'Tocata Pedal'
+    transportClass = navigator;
     break;
   default:
     transportClass = navigator.usb;

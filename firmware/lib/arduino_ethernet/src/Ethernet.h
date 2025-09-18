@@ -179,7 +179,7 @@ public:
         printf("\n");
 #endif
 
-        int8_t ret = sendto(_socket, _buffer.data(), _buffer_size, _remote_addr.raw_address(), _remote_port);
+        auto ret = sendto(_socket, _buffer.data(), _buffer_size, _remote_addr.raw_address(), _remote_port);
         if (ret < 0) {
             printf("[%d] sendto() failed: %d\n", _socket, ret);
         }

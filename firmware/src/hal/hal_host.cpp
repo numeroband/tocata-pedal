@@ -329,7 +329,7 @@ uint32_t usb_vendor_write_flush() { return 0; }
 #else
 static MidiSysExWriter sysex_writer{};
 static MidiSysExParser sysex_parser{};
-static std::array<uint8_t, MidiSysExWriter::bytesRequired(512)> sysex_buffer;
+static std::array<uint8_t, kMidiSysExMaxSize> sysex_buffer;
 static libremidi::midi_in midi_in{
   libremidi::input_configuration{ 
     .on_message = [](const libremidi::message& message) {
@@ -376,8 +376,8 @@ uint32_t usb_vendor_write_flush() {
 void usb_init() {
   ws.init();
   flash_init();
-  midi.open_virtual_port("Tocata Pedal");
-  midi_in.open_virtual_port("Tocata Pedal");
+  midi.open_virtual_port("Virtual Tocata Pedal");
+  midi_in.open_virtual_port("Virtual Tocata Pedal");
   WebUsb::singleton().connected(true);
 }
 

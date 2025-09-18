@@ -12,7 +12,7 @@ namespace tocata {
 void Controller::init()
 {
     _usb.init();
-    _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2));
+    _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
     _display.init();
     Storage::init();
     _leds.init();
@@ -20,14 +20,7 @@ void Controller::init()
     _buttons.init();
     _exp.init();
     _network.init();
-    _network.midi().setSysExHandler([this](std::span<uint8_t> sysex, MidiSender& sender){
-        std::array<uint8_t, MidiSysExWriter::bytesRequired(512)> buffer;
-        std::copy(sysex.begin(), sysex.end(), buffer.begin());
-        size_t response = _usb.web().processSysEx(buffer, sysex.size());
-        if (response > 0) {
-            sender.sendSysEx({buffer.data(), response});
-        }
-    });
+    _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
 }
 
 void Controller::run() 
@@ -106,8 +99,9 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
     }
 }
 
-void Controller::midiCallback(std::span<uint8_t> packet, MidiSender& sender)
+void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender)
 {
+    printf("midiCallback with %zu bytes\n", packet.size());
     if (packet[0] == 0xC0) {
         footswitchMode(false);
         loadProgram(packet[1], false, true);
@@ -128,10 +122,10 @@ void Controller::midiCallback(std::span<uint8_t> packet, MidiSender& sender)
     } else if (packet[0] == 0x80 && packet[1] == 0) {
         displayTuner(0, 0);
     } else if (packet[0] == 0xF0) {
-        auto response = _usb.web().processSysEx({packet.data(), 591}, packet.size());
-        printf("sysex responose with %zu bytes\n", response);
-        if (response > 0) {
-            sender.sendSysEx({packet.data(), response});
+        auto response = _usb.web().processSysEx(packet, buffer);
+        printf("sysex respnose with %zu bytes\n", response.size());
+        if (response.size() > 0) {
+            sender.sendSysEx(response);
         }
     }
 }

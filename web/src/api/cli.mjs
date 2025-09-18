@@ -4,7 +4,7 @@ import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
 import UF2 from './UF2.mjs'
-import { WebMidi } from 'webmidi';
+import navigator  from 'jzz';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -16,14 +16,14 @@ async function main() {
   let transportClass;
   switch (transport) {
     case 'ws':
-      transportClass = WebSocket;
+      transportClass = WebSocket
       break;
     case 'midi':
-      WebMidi.deviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal';  
-      transportClass = WebMidi;
+      navigator.midiDeviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal';  
+      transportClass = navigator
       break;
     default:
-      transportClass = webusb;
+      transportClass = webusb
       break;
   }
   const api = new Api(transportClass);

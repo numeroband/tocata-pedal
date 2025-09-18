@@ -232,7 +232,7 @@ static inline uint32_t usb_vendor_write_flush() { return tud_vendor_write_flush(
 
 static inline size_t usb_midi_write(const unsigned char* message, size_t size) 
 {    
-  return tud_midi_stream_write(0, message, size);
+  return size == 0 ? 0 : tud_midi_stream_write(0, message, size);
 }
 
 static inline void usb_midi_write(uint8_t val1, uint8_t val2) 

@@ -45,9 +45,9 @@ void AppleMidi::init()
     printf("NoteOff %u %u %u\n", channel, note, velocity);
   });
   _midi.setHandleSystemExclusive([](byte* array, unsigned size) {
-    if (_apple_midi->_sysExHandler) {
-      _apple_midi->_sysExHandler({array, size}, *_apple_midi);
-    }
+    if (!_apple_midi->_callback) { return; }
+    std::span<uint8_t> buffer{array, kMidiSysExMaxSize};
+    _apple_midi->_callback({array, size}, buffer, *_apple_midi);
   });
 
   _midi_session.sendInvite({192, 168, 2, 20}, DEFAULT_CONTROL_PORT); // port is 5004 by default
@@ -71,7 +71,13 @@ void AppleMidi::sendControl(uint8_t channel, uint8_t control, uint8_t value) {
     _midi.sendControlChange(control, value, channel + 1);
 }
 
-void AppleMidi::sendSysEx(std::span<uint8_t> sysex) {
+void AppleMidi::sendSysEx(std::span<const uint8_t> sysex) {
+  if (sysex.size() == 0) { return; }
+  printf("APPLE MIDI OUT(%zu): %02X %02X..%02X\n", 
+      sysex.size(), 
+      sysex[0], 
+      sysex[1], 
+      sysex.back());
   _midi.sendSysEx(sysex.size(), sysex.data(), true);
 }
 

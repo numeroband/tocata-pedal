@@ -7,26 +7,25 @@
 
 namespace tocata {
 
-constexpr std::array<uint8_t, 4> kSysExPrefix = {0xF0, 0x00, 0x2F, 0x7F};
-constexpr std::array<uint8_t, 1> kSysExSuffix = {0xF7};
-constexpr auto kSysExMinSize = kSysExPrefix.size() + kSysExSuffix.size();
+constexpr std::array<uint8_t, 4> kMidiSysExPrefix = {0xF0, 0x00, 0x2F, 0x7F};
+constexpr std::array<uint8_t, 1> kMidiSysExSuffix = {0xF7};
+constexpr auto kMidiSysExMinSize = kMidiSysExPrefix.size() + kMidiSysExSuffix.size();
 
 class MidiSysExWriter {
 public:
     static constexpr size_t bytesRequired(size_t content) {
         auto total_bits = content * 8;
-        return kSysExMinSize + (total_bits + 6) / 7;
+        return kMidiSysExMinSize + (total_bits + 6) / 7;
     }
 
     bool init(std::span<uint8_t> buffer) {
-        if (buffer.size() < kSysExMinSize) {
-            printf("syses_writer buffer too small\n");
+        if (buffer.size() < kMidiSysExMinSize) {
             return false;
         }
 
         _buffer = buffer;
-        std::copy(kSysExPrefix.begin(), kSysExPrefix.end(), _buffer.begin());
-        _offset = kSysExPrefix.size();
+        std::copy(kMidiSysExPrefix.begin(), kMidiSysExPrefix.end(), _buffer.begin());
+        _offset = kMidiSysExPrefix.size();
         _buffer[_offset] = 0;
         _bits = 0;
         
@@ -37,8 +36,8 @@ public:
         if (_bits > 0) {
             ++_offset;
         }
-        std::copy(kSysExSuffix.begin(), kSysExSuffix.end(), _buffer.begin() + _offset);
-        _offset += kSysExSuffix.size();
+        std::copy(kMidiSysExSuffix.begin(), kMidiSysExSuffix.end(), _buffer.begin() + _offset);
+        _offset += kMidiSysExSuffix.size();
     }
 
     size_t write(std::span<const uint8_t> input) {
@@ -57,11 +56,11 @@ public:
     
     size_t available() {
         auto in_buffer = _buffer.size() - _offset;
-        if (in_buffer < kSysExSuffix.size()) {
+        if (in_buffer < kMidiSysExSuffix.size()) {
             return 0;
         }
         
-        in_buffer -= kSysExSuffix.size();
+        in_buffer -= kMidiSysExSuffix.size();
         if (in_buffer == 0) {
             return 0;
         }
@@ -82,7 +81,7 @@ public:
 
 private:
     bool write(uint8_t input) {
-        if (_offset + kSysExSuffix.size() >= _buffer.size()) {
+        if (_offset + kMidiSysExSuffix.size() >= _buffer.size()) {
             return false;
         }
         
@@ -104,14 +103,14 @@ private:
 class MidiSysExParser {
 public:
     bool init(std::span<const uint8_t> buffer) {
-        if (buffer.size() < kSysExMinSize || 
-            !std::equal(kSysExPrefix.begin(), kSysExPrefix.end(), buffer.begin()) ||
-            !std::equal(kSysExSuffix.begin(), kSysExSuffix.end(), buffer.end() - kSysExSuffix.size())
+        if (buffer.size() < kMidiSysExMinSize || 
+            !std::equal(kMidiSysExPrefix.begin(), kMidiSysExPrefix.end(), buffer.begin()) ||
+            !std::equal(kMidiSysExSuffix.begin(), kMidiSysExSuffix.end(), buffer.end() - kMidiSysExSuffix.size())
         ) {
             return false;
         }
 
-        _buffer = {buffer.data() + kSysExPrefix.size(), buffer.size() - kSysExMinSize};
+        _buffer = {buffer.data() + kMidiSysExPrefix.size(), buffer.size() - kMidiSysExMinSize};
         _offset = 0;
         _bits = 0;
 
@@ -167,5 +166,7 @@ private:
     size_t _bits{};
     size_t _offset{};
 };
+
+constexpr auto kMidiSysExMaxSize = MidiSysExWriter::bytesRequired(512);
 
 }
