@@ -1,10 +1,10 @@
 import { toSysEx, fromSysEx } from "./MidiSysEx.mjs"
 
-export default class TransportMidi {
-  constructor(navigator, connectionEvent) {
-    this.navigator = navigator
+export default class TransportNodeMidi {
+  constructor(midi, connectionEvent) {
+    this.midiDeviceName = midi.midiDeviceName
     this.connectionEvent = connectionEvent
-    this.midi = null
+    this.midi = midi
     this.input = null
     this.output = null
     this.queue = []
@@ -24,22 +24,30 @@ export default class TransportMidi {
 
   async connect() {
     console.log('Connecting MIDI ...');
-    this.midi = await this.navigator.requestMIDIAccess({sysex: true})
-    const name = this.navigator.midiDeviceName
     
-    console.log('inputs')
-    this.midi.inputs.values().forEach(k => console.log(k))
-    console.log('outputs')
-    this.midi.outputs.values().forEach(k => console.log(k))
-
-    this.input = this.midi.inputs.values().find(x => x.name === name)
-    this.output = this.midi.outputs.values().find(x => x.name === name)
-    if (!this.input || !this.output) {
-      throw new Error(`Cannot find MIDI device '${name}'`)
+    this.input = new this.midi.Input();
+    this.output = new this.midi.Output();
+    let inputIndex = -1
+    for (let i = 0; i < this.input.getPortCount(); ++i) {
+      if (this.input.getPortName(i) === this.midiDeviceName) {
+        inputIndex = i
+        break
+      }
     }
-    this.input.onmidimessage = e => {
-      console.log('Received midi message', e.data)
-      const buffer = fromSysEx(e.data)
+    let outputIndex = -1
+    for (let i = 0; i < this.output.getPortCount(); ++i) {
+      if (this.output.getPortName(i) === this.midiDeviceName) {
+        outputIndex = i
+        break
+      }
+    }
+    if (inputIndex < 0 || outputIndex < 0) {
+      throw new Error(`Cannot find MIDI device '${this.midiDeviceName}'`)
+    }
+
+    this.input.on('message', (_, message) => {
+      // console.log('Received midi message', message)
+      const buffer = fromSysEx(message)
       if (!buffer) {
         console.log('Invalid sysex')
         return
@@ -51,7 +59,10 @@ export default class TransportMidi {
         this.resolve = null
         this.reject = null
       }
-    }
+    })
+    this.input.openPort(inputIndex)
+    this.input.ignoreTypes(false, true, true)
+    this.output.openPort(outputIndex)
     this.connectionEvent(true);
   }
 
@@ -62,7 +73,7 @@ export default class TransportMidi {
   async send(data) {
     const buffer = new Uint8Array(data.buffer)
     const sysex = toSysEx(buffer)
-    console.log('sending', Array.from(sysex))
+    // console.log('sending', Array.from(sysex))
     await this.output.send(Array.from(sysex))
   };
 

@@ -1,5 +1,6 @@
 import TransportUsb from './TransportUsb.mjs';
 import TransportWebSocket from './TransportWebSocket.mjs';
+import TransportNodeMidi  from './TransportNodeMidi.mjs';
 import TransportMidi  from './TransportMidi.mjs';
 
 const LENGTH_OFFSET = 0;
@@ -13,6 +14,8 @@ export default class Protocol {
       this.transport = new TransportUsb(transport, connectionEvent);
     } else if ("requestMIDIAccess" in transport) {
       this.transport = new TransportMidi(transport, connectionEvent);
+    } else if ("createReadStream" in transport) {
+      this.transport = new TransportNodeMidi(transport, connectionEvent);
     } else {
       this.transport = new TransportWebSocket(transport, connectionEvent);
     }
