@@ -56,16 +56,114 @@ uint8_t Display::gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, v
 	return 0;
 } // gpio_and_delay_cb
 
+/*
+ * HAL callback function as prescribed by the U8G2 library.  This callback is invoked
+ * to handle SPI communications.
+ */
+uint8_t Display::spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr) {
+	SPI* spi = static_cast<SPI*>(u8x8_GetUserPtr(u8x8));
+	assert(spi);
+
+
+	uint8_t *data;
+	uint8_t internal_spi_mode;
+ 
+	switch(msg) 
+	{
+		case U8X8_MSG_BYTE_SEND:
+			spi->sendBytes(arg_ptr, arg_int);
+      		break;
+    	case U8X8_MSG_BYTE_INIT:
+      		if ( u8x8->bus_clock == 0 ) 	/* issue 769 */
+				u8x8->bus_clock = u8x8->display_info->sck_clock_hz;
+      		/* disable chipselect */
+      		u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
+      
+      		/* no wait required here */
+			spi->init(0); // u8x8->pins[U8X8_PIN_I2C_CLOCK], MISO, u8x8->pins[U8X8_PIN_I2C_DATA]);
+			break;
+      
+    	case U8X8_MSG_BYTE_SET_DC:
+      		u8x8_gpio_SetDC(u8x8, arg_int);
+      		break;
+      
+    	case U8X8_MSG_BYTE_START_TRANSFER:
+      		/* SPI mode has to be mapped to the mode of the current controller, at least Uno, Due, 101 have different SPI_MODEx values */
+      		internal_spi_mode =  0;
+      		switch(u8x8->display_info->spi_mode)
+      		{
+//				case 0: internal_spi_mode = SPI_MODE0; break;
+//				case 1: internal_spi_mode = SPI_MODE1; break;
+//				case 2: internal_spi_mode = SPI_MODE2; break;
+//				case 3: internal_spi_mode = SPI_MODE3; break;
+                default: break;
+      		}
+      
+      		// spi->startTransactionSPI.beginTransaction(SPISettings(u8x8->bus_clock, MSBFIRST, internal_spi_mode));
+      
+			u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_enable_level);  
+			// u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->post_chip_enable_wait_ns, NULL);
+      		break;
+      
+    	case U8X8_MSG_BYTE_END_TRANSFER:      
+      		// u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->pre_chip_disable_wait_ns, NULL);
+      		u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
+			// SPI.endTransaction();
+      		break;
+    	default:
+			break;
+	}
+	return 0;
+}
+
+
+/*
+ * HAL callback function as prescribed by the U8G2 library.  This callback is invoked
+ * to handle callbacks for GPIO and delay functions.
+ */
+uint8_t Display::spi_gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr) {
+	SPI* spi = static_cast<SPI*>(u8x8_GetUserPtr(u8x8));
+	assert(spi);
+
+	switch(msg)
+	{
+		case U8X8_MSG_GPIO_AND_DELAY_INIT:
+			break;
+  
+    	case U8X8_MSG_DELAY_MILLI:
+      		spi->delayMs(arg_int);
+      		break;
+      
+	    case U8X8_MSG_GPIO_DC:
+			spi->dc(arg_int);
+			break;
+	
+    	case U8X8_MSG_GPIO_CS:
+			spi->cs(arg_int);
+			break;
+	
+    	case U8X8_MSG_GPIO_RESET:
+			spi->reset(arg_int);
+			break;
+    	default:
+            printf("!!!!! unknown gpio msg %u\n", msg);
+      		return 0;
+	}
+	return 1;
+}
+
 void Display::init()
 {
 	setBlink(false);
 	for (uint32_t i = 0; i < kNumDisplays; ++i) {
 		auto u8g2 = &_u8g2[i];
-		u8g2_Setup_sh1106_i2c_128x64_noname_f(u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
+		// u8g2_Setup_sh1106_i2c_128x64_noname_f(u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
+		u8g2_Setup_ssd1322_nhd_256x64_f(u8g2, U8G2_R0, spi_byte_cb, spi_gpio_and_delay_cb);
 		_u8g2_buffers[i].resize(u8g2_GetBufferSize(u8g2));
 		u8g2_SetBufferPtr(u8g2, _u8g2_buffers[i].data());
 		u8g2_SetI2CAddress(u8g2, 0x78); //  + (i << 1));
-		u8g2_SetUserPtr(u8g2, &_i2c[i]);
+		u8g2_SetUserPtr(u8g2, &_spi);
+		// u8g2_SetUserPtr(u8g2, &_i2c[i]);
 		u8g2_InitDisplay(u8g2); // send init sequence to the display, display is in sleep mode after this,
 		u8g2_SetPowerSave(u8g2, 0); // wake up display
 		u8g2_ClearBuffer(u8g2);

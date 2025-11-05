@@ -55,6 +55,11 @@ void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds);
 static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config) {}
 void i2c_write(uint8_t index, uint8_t addr, const uint8_t *src, size_t len);
 
+//SPI
+static inline void spi_init() {}
+void spi_transfer(const uint8_t *src, size_t len);
+void set_dc(bool enabled);
+
 // BOARD LED
 
 static inline void board_led_init() {}

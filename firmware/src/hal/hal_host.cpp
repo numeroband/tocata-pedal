@@ -43,6 +43,26 @@ void i2c_write(uint8_t idx, uint8_t addr, const uint8_t *src, size_t len)
     printf("\n");
 }
 
+void spi_transfer(const uint8_t *src, size_t len)
+{
+    if (displays[0].processTransfer(src, uint32_t(len)))
+    {
+      return;
+    }
+
+    printf("Invalid %u bytes: ", (uint32_t)len);
+    for (uint8_t i = 0; i < len; ++i)
+    {
+    	printf("%02X ", src[i]);
+    }
+    printf("\n");
+}
+
+void set_dc(bool enabled)
+{
+  displays[0].setControlData(enabled);
+}
+
 bool switches_changed(const HWConfigSwitches& config) 
 {
   return app.switchesChanged();

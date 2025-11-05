@@ -68,7 +68,7 @@ void MidiUsb::sendBytes()
   size_t sent;
   while ((sent = usb_midi_write(_buffer.data() + _write_offset, writePending()))) {
     printf("MIDI OUT(%u): %02X %02X..%02X\n", 
-      sent, 
+      (uint32_t)sent, 
       _buffer[_write_offset + 0], 
       _buffer[_write_offset + 1], 
       _buffer[_write_offset + sent - 1]);

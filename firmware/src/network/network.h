@@ -41,6 +41,8 @@ private:
     class DummyMidi : public MidiSender {
 	    void sendProgram(uint8_t channel, uint8_t program) override {}
 	    void sendControl(uint8_t channel, uint8_t control, uint8_t value) override {}
+    	void sendSysEx(std::span<const uint8_t> sysex) override {}
+        void setCallback(Callback callback) override {}
     };
 public:
     void init() {}

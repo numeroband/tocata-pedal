@@ -171,7 +171,7 @@ public:
 
 private:
   static constexpr size_t kDisplayRows = 64;
-  static constexpr size_t kDisplayColumns = 132;
+  static constexpr size_t kDisplayColumns = 256;
   static constexpr size_t kDisplaySeparation = 1;
   static constexpr size_t kMaxSwitches = 10;
   static constexpr size_t kMaxLeds = 8;

@@ -3,6 +3,7 @@
 #include <config.h>
 #include <u8g2.h>
 #include "i2c.h"
+#include "spi.h"
 
 #include <bitset>
 #include <array>
@@ -18,7 +19,8 @@ public:
 		_i2c{
 			config[0],
 			config[1],
-		}, _fs_state{fs_state} 
+        },
+        _spi{config[0]}, _fs_state{fs_state} 
 	{
 		if (is_pedal_long()) {
 			_topology[0] = {0, 0, 0};
@@ -53,13 +55,17 @@ private:
 
 	static uint8_t i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
-	
+
+	static uint8_t spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
+	static uint8_t spi_gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
+
 	void drawFootswitch(uint8_t idx, const char* text);
 	void drawScroll();
 	void drawTuner();
 
 	std::array<u8g2_t, kMaxDisplays> _u8g2{};
 	std::array<I2C, kMaxDisplays> _i2c;
+	SPI _spi;
 	bool _dirty = true;
 	char _number[3] = "";
 	const char* _text = "";

@@ -28,6 +28,7 @@ target_sources(${CUR_TARGET} PRIVATE
         pio/expression.cpp
         display/i2c.cpp
         display/display.cpp
+        display/spi.cpp
         )
 
 target_include_directories(${CUR_TARGET} PRIVATE 

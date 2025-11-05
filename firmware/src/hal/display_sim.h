@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <cassert>
 #include "hal.h"
+#include <array>
+#include <vector>
 
 namespace tocata {
 
@@ -11,25 +13,24 @@ class DisplaySim
 public:
     bool processTransfer(const uint8_t* transfer, uint32_t len)
     {
-        if (len < 2)
-        {
-            return false;
-        }
-
         _modified = true;
 
-        switch (transfer[0])
+        switch (_transferType)
         {
             case kCommand:
-                return processCommand(transfer + 1, len - 1);
+                return processCommand(transfer, len);
             case kData:
-                return processData(transfer + 1, len - 1);
+                return processData(transfer, len);
             default:
                 return false;
         }
     }
 
-    void refresh(uint32_t* screen, uint8_t hw_cols, uint32_t* colors)
+    void setControlData(bool isData) {
+        _transferType = isData ? kData : kCommand;
+    }
+
+    void refresh(uint32_t* screen, size_t hw_cols, uint32_t* colors)
     {
         if (!_modified)
         {
@@ -37,68 +38,94 @@ public:
         }
 
         _modified = false;
-        for (uint8_t page = 0; page < kPages; ++page)
-        {
-            for (uint8_t col = 0; col < hw_cols; ++col)
-            {
-                uint8_t data = _ram[page][col];
-                for (uint32_t row = 0; row < 8; ++row)
-                {
-                    screen[(page * 8 + row) * hw_cols + col] = colors[(data & 1)];
-                    data = data >> 1;
-                }
+        for (size_t row = 0; row < kRows; ++row) {
+            for (size_t col = 0; col < kCols; ++col) {
+                auto data = _ram[row][col];
+                screen[row * hw_cols + col] = colors[(data & 1)];
             }
         }
     }
 
 private:
-    static constexpr uint8_t kCols = 132;
-    static constexpr uint8_t kRows = 64;
-    static constexpr uint8_t kPages = kRows / 8;
+    static constexpr size_t kCols = 256;
+    static constexpr size_t kRows = 64;
 
     enum TransferType
     {
-        kCommand = 0x00,
-        kData = 0x40,
+        kCommand = 0,
+        kData = 1,
     };
 
     struct Command
     {
-        using CommandCb = void (DisplaySim::*)(uint8_t);
-        uint8_t start;
-        uint8_t end;
+        using CommandCb = void (DisplaySim::*)();
+        uint8_t cmd;
         CommandCb function;
-        bool doubleCmd;
+        uint8_t numBytes;
     };
 
-    void ignore(uint8_t cmd) {}
-    void lowerColAddr(uint8_t cmd) { _colAddr = (_colAddr & 0xF0) | (cmd & 0x0F); }
-    void higherColAddr(uint8_t cmd) { _colAddr = (_colAddr & 0x0F) | (cmd & 0xF0) << 4; }
-    void startLine(uint8_t cmd) { _startLine = cmd - 0x40; }
-    void pageAddr(uint8_t cmd) { _page = cmd - 0xB0; }
+    void ignore() {
+//        printf("[%02X] ", _pendingCmd->cmd);
+//        for (auto b : _data) {
+//            printf("%2X ", b);
+//        }
+//        printf("\n");
+    }
+    
+    void setColumn() {
+        _colsRange = {_data[0], _data[1]};
+        _col = _colsRange.start;
+//        printf("\ncol %zu-%zu\n", _colsRange.start, _colsRange.end);
+    }
+    void setRow() {
+        _rowsRange = {_data[0], _data[1]};
+        _row = _rowsRange.start;
+//        printf("\nrow %zu-%zu\n", _rowsRange.start, _rowsRange.end);
+    }
+    void writeData() {
+//        printf("%02X ", _data[0]);
+        size_t col = (_col - 28) * 4;
+        _ram[_row][col + 0] = _data[0] & 0x0F;
+        _ram[_row][col + 1] = _data[0] & 0xF0;
+        _ram[_row][col + 2] = _data[1] & 0x0F;
+        _ram[_row][col + 3] = _data[1] & 0xF0;
+        increase();
+    }
+    void increase() {
+        ++_col;
+        if (_col > _colsRange.end) {
+            _col = _colsRange.start;
+            ++_row;
+        }
+        if (_row > _rowsRange.end) {
+            _row = _rowsRange.start;
+        }
+    }
 
-    static constexpr Command kCommands[] = {
-        {0x00, 0x0F, &DisplaySim::lowerColAddr},
-        {0x10, 0x1F, &DisplaySim::higherColAddr},
-        {0x20, 0x20, &DisplaySim::ignore, true},
-        {0x2e, 0x2e, &DisplaySim::ignore},
-        {0x40, 0x7F, &DisplaySim::startLine},
-        {0x8d, 0x8d, &DisplaySim::ignore, true},
-        {0x81, 0x81, &DisplaySim::ignore, true},
-        {0xA0, 0xA1, &DisplaySim::ignore},
-        {0xA4, 0xA5, &DisplaySim::ignore},
-        {0xA6, 0xA7, &DisplaySim::ignore},
-        {0xA8, 0xA8, &DisplaySim::ignore, true},
-        // {0xAD, 0xAD, &DisplaySim::ignore, true},
-        {0xAE, 0xAF, &DisplaySim::ignore},
-        {0xB0, 0xB7, &DisplaySim::pageAddr},
-        {0xC0, 0xC8, &DisplaySim::ignore},
-        {0xD3, 0xD3, &DisplaySim::ignore, true},
-        {0xD5, 0xD5, &DisplaySim::ignore, true},
-        {0xD9, 0xD9, &DisplaySim::ignore, true},
-        {0xDA, 0xDA, &DisplaySim::ignore, true},
-        {0xDB, 0xDB, &DisplaySim::ignore, true},
-        // {0xE3, 0xE3, &DisplaySim::ignore},
+    static constexpr std::array<Command, 23> kCommands = {
+        Command{0x15, &DisplaySim::setColumn, 2},
+        Command{0x5C, &DisplaySim::writeData, 2},
+        Command{0x75, &DisplaySim::setRow, 2},
+        Command{0xA0, &DisplaySim::ignore, 2},
+        Command{0xA1, &DisplaySim::ignore, 1},
+        Command{0xA2, &DisplaySim::ignore, 1},
+        Command{0xA6, &DisplaySim::ignore, 0},
+        Command{0xA9, &DisplaySim::ignore, 0},
+        Command{0xAB, &DisplaySim::ignore, 1},
+        Command{0xAE, &DisplaySim::ignore, 0},
+        Command{0xAF, &DisplaySim::ignore, 0},
+        Command{0xB1, &DisplaySim::ignore, 1},
+        Command{0xB3, &DisplaySim::ignore, 1},
+        Command{0xB4, &DisplaySim::ignore, 2},
+        Command{0xB6, &DisplaySim::ignore, 1},
+        Command{0xB9, &DisplaySim::ignore, 0},
+        Command{0xBB, &DisplaySim::ignore, 1},
+        Command{0xBE, &DisplaySim::ignore, 1},
+        Command{0xC1, &DisplaySim::ignore, 1},
+        Command{0xC7, &DisplaySim::ignore, 1},
+        Command{0xCA, &DisplaySim::ignore, 1},
+        Command{0xD1, &DisplaySim::ignore, 2},
+        Command{0xFD, &DisplaySim::ignore, 1},
     };
 
     bool processCommand(const uint8_t* buf, uint32_t len)
@@ -107,50 +134,53 @@ private:
         {
             return false;
         }
+        
+        assert(_data.size() == 0);
 
         uint8_t cmd = buf[0];
-
-        if (_pendingCmd)
-        {
-            (this->*_pendingCmd->function)(cmd);
-            _pendingCmd = nullptr;
-            return true;
-        }
-
-        for (int i = 0; i < sizeof(kCommands) / sizeof(kCommands[0]); ++i)
-        {
-            const Command& cmdDef = kCommands[i];
-            if (cmd >= cmdDef.start && cmd <= cmdDef.end)
-            {
-                (this->*cmdDef.function)(cmd);
-                if (cmdDef.doubleCmd)
-                {
-                    _pendingCmd = &cmdDef;
-                }
-                return true;
+        _pendingCmd = nullptr;
+        for (auto& command : kCommands) {
+            if (command.cmd == cmd) {
+                _pendingCmd = &command;
             }
         }
+        assert(_pendingCmd);
+        
+        if (_pendingCmd->numBytes == 0) {
+            (this->*_pendingCmd->function)();
+        }
 
-        return false;
+        return true;
     }
 
     bool processData(const uint8_t* buf, uint32_t len)
     {
-        for (uint32_t i = 0; i < len; ++i)
-        {
-            _ram[_page][_colAddr++] = buf[i];
-            assert(_colAddr <= kCols);
+        assert(_pendingCmd);
+        for (uint32_t i = 0; i < len; ++i) {
+            _data.push_back(buf[i]);
+            if (_data.size() == _pendingCmd->numBytes) {
+                (this->*_pendingCmd->function)();
+                _data.clear();
+            }
         }
+        
         return true;
     }
 
-    uint8_t _ram[kPages][kCols] = {};
-    uint8_t _colAddr = 0;
-    uint8_t _startLine = 0;
-    uint8_t _page = 0;
-    uint8_t _lastCmd;
+    struct Range {
+        size_t start;
+        size_t end;
+    };
+
+    TransferType _transferType = kCommand;
+    std::array<std::array<uint8_t, kCols>, kRows> _ram{};
+    Range _rowsRange{};
+    Range _colsRange{};
+    size_t _row = 0;
+    size_t _col = 0;
     const Command* _pendingCmd = nullptr;
     bool _modified = false;
+    std::vector<uint8_t> _data;
 };
 
 }
