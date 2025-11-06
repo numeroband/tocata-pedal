@@ -286,6 +286,8 @@ void Display::run()
 	drawScroll();
   }
 
+
+
   for (auto i = 0; i < kNumDisplays; ++i) {
 	auto u8g2 = &_u8g2[i];
     u8g2_SendBuffer(u8g2);
@@ -302,7 +304,7 @@ void Display::drawScroll()
 	uint8_t text_offset = 0;
 	bool found_end = false;
 	for (auto i = 0; i < kNumDisplays; ++i) {
-		const uint8_t max_chars = (i == 0) ? 8 : 11;
+		const uint8_t max_chars = 19; // (i == 0) ? 8 : 11;
 		const uint8_t block_width = font_width * max_chars;
 	    const uint8_t start_x = (i == 0) ? 48 : 0;		
 		char name[max_chars + 2];

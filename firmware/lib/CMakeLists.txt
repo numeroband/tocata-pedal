@@ -135,6 +135,7 @@ target_sources(u8g2 INTERFACE
 target_compile_definitions(u8g2 INTERFACE 
     U8X8_WITH_USER_PTR
     U8G2_USE_DYNAMIC_ALLOC
+    U8G2_16BIT
     )
 
 target_include_directories(u8g2 INTERFACE 

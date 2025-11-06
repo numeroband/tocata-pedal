@@ -45,6 +45,9 @@ public:
             }
         }
     }
+    
+    size_t numRows() const { return kRows; }
+    size_t numColumns() const { return kCols; }
 
 private:
     static constexpr size_t kCols = 256;
@@ -75,20 +78,20 @@ private:
     void setColumn() {
         _colsRange = {_data[0], _data[1]};
         _col = _colsRange.start;
-//        printf("\ncol %zu-%zu\n", _colsRange.start, _colsRange.end);
+//       printf("\ncol %zu-%zu\n", _colsRange.start, _colsRange.end);
     }
     void setRow() {
         _rowsRange = {_data[0], _data[1]};
         _row = _rowsRange.start;
-//        printf("\nrow %zu-%zu\n", _rowsRange.start, _rowsRange.end);
+//       printf("\nrow %zu-%zu\n", _rowsRange.start, _rowsRange.end);
     }
     void writeData() {
-//        printf("%02X ", _data[0]);
+//       printf("%02X %02X ", _data[0], _data[1]);
         size_t col = (_col - 28) * 4;
-        _ram[_row][col + 0] = _data[0] & 0x0F;
-        _ram[_row][col + 1] = _data[0] & 0xF0;
-        _ram[_row][col + 2] = _data[1] & 0x0F;
-        _ram[_row][col + 3] = _data[1] & 0xF0;
+        _ram[_row][col + 0] = _data[0] >> 4;
+        _ram[_row][col + 1] = _data[0] & 0x0F;
+        _ram[_row][col + 2] = _data[1] >> 4;
+        _ram[_row][col + 3] = _data[1] & 0x0F;
         increase();
     }
     void increase() {

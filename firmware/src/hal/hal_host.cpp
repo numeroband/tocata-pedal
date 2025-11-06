@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <queue>
+#include <vector>
 #include <fstream>
 #include <cstdlib>
 
@@ -25,7 +26,7 @@ namespace tocata {
 uint8_t MemFlash[2 * 1024 * 1024];
 
 static libremidi::midi_out midi{};
-static std::array<DisplaySim, kMaxDisplays> displays;
+static std::vector<DisplaySim> displays(is_pedal_long() ? 1 : 1);
 static Application app{displays};
 
 void i2c_write(uint8_t idx, uint8_t addr, const uint8_t *src, size_t len)

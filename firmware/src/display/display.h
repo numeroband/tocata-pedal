@@ -23,15 +23,23 @@ public:
         _spi{config[0]}, _fs_state{fs_state} 
 	{
 		if (is_pedal_long()) {
+			// _topology[0] = {0, 0, 0};
+			// _topology[1] = {0, 1, 0};
+			// _topology[2] = {1, 0, 0};
+			// _topology[3] = {1, 1, 0};
+			// _topology[4] = {0, 0, 1};
+			// _topology[5] = {0, 1, 1};
+			// _topology[6] = {1, 0, 1};
+			// _topology[7] = {1, 1, 1};
 			_topology[0] = {0, 0, 0};
 			_topology[1] = {0, 1, 0};
-			_topology[2] = {1, 0, 0};
-			_topology[3] = {1, 1, 0};
+			_topology[2] = {0, 2, 0};
+			_topology[3] = {0, 3, 0};
 			_topology[4] = {0, 0, 1};
 			_topology[5] = {0, 1, 1};
-			_topology[6] = {1, 0, 1};
-			_topology[7] = {1, 1, 1};
-		} else {
+			_topology[6] = {0, 2, 1};
+			_topology[7] = {0, 3, 1};
+} else {
 			_topology[0] = {0, 0, 0};
 			_topology[1] = {0, 1, 0};
 			_topology[2] = {0, 2, 0};
@@ -51,7 +59,7 @@ public:
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;
-	const uint8_t kNumDisplays = is_pedal_long() ? 2 : 1;
+	const uint8_t kNumDisplays = is_pedal_long() ? 1 : 1;
 
 	static uint8_t i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);

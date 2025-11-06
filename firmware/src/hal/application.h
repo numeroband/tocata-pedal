@@ -10,6 +10,7 @@
 #include <bitset>
 #include <chrono>
 #include <os/log.h>
+#include <span>
 
 using namespace std::chrono_literals;
 
@@ -18,12 +19,18 @@ namespace tocata {
 class Application
 {
 public:
-  Application(std::array<DisplaySim, kMaxDisplays>& display_sims) : _display_sims(display_sims) {
+  Application(std::span<DisplaySim> display_sims) : _display_sims(display_sims) {
     if (!is_pedal_long()) {
       _sw_mapping[4] = 4;
       _sw_mapping[5] = 5;
     }
 
+    for (size_t i = 0; i < _display_sims.size(); ++i)
+    {
+        auto& display = _display_sims[i];
+        _display_buffer[i].resize(display.numRows() * display.numColumns());
+    }
+    
     _window = SDL_CreateWindow("Tocata Pedal",
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
@@ -48,7 +55,7 @@ public:
     
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     for (auto& texture : _display_texture) {
-      texture = SDL_CreateTexture(_window_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, kDisplayColumns, kDisplayRows);
+      texture = SDL_CreateTexture(_window_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, int(_display_sims[0].numColumns()), int(_display_sims[0].numRows()));
       if (!texture) {
         std::cout << "Failed to create screen texture\n";
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
@@ -170,12 +177,9 @@ public:
   }
 
 private:
-  static constexpr size_t kDisplayRows = 64;
-  static constexpr size_t kDisplayColumns = 256;
   static constexpr size_t kDisplaySeparation = 1;
   static constexpr size_t kMaxSwitches = 10;
   static constexpr size_t kMaxLeds = 8;
-  const size_t kNumDisplays = is_pedal_long() ? 2 : 1;
   const size_t kDisplayStart = is_pedal_long() ? 300 : 115;
   const size_t kNumSwitches = is_pedal_long() ? 10 : 6;
   const size_t kNumLeds = is_pedal_long() ? 8 : 6;
@@ -223,11 +227,11 @@ private:
 
   void drawDisplay() {
     static uint32_t colors[] = {0x000011FF, 0xEEEEFFFF};
-    for (uint8_t i = 0; i < kNumDisplays; ++i) {
+    for (uint8_t i = 0; i < _display_sims.size(); ++i) {
       auto&  display_sim = _display_sims[i];
-      display_sim.refresh(_display_buffer[i].data(), kDisplayColumns, colors);
-      SDL_UpdateTexture(_display_texture[i], nullptr, _display_buffer[i].data(), kDisplayColumns * sizeof(uint32_t));
-      SDL_Rect rect{int(kDisplayStart + i * (kDisplayColumns + kDisplaySeparation)), 160, kDisplayColumns, kDisplayRows};
+      display_sim.refresh(_display_buffer[i].data(), display_sim.numColumns(), colors);
+      SDL_UpdateTexture(_display_texture[i], nullptr, _display_buffer[i].data(), int(display_sim.numColumns() * sizeof(uint32_t)));
+      SDL_Rect rect{int(kDisplayStart + i * (display_sim.numColumns() + kDisplaySeparation)), 160, int(display_sim.numColumns()), int(display_sim.numRows())};
       SDL_RenderCopy(_window_renderer, _display_texture[i], nullptr, &rect);
     }
   }
@@ -275,8 +279,8 @@ private:
   SDL_Renderer *_window_renderer;
   SDL_Event _window_event;
   std::array<SDL_Texture*, kMaxDisplays> _display_texture;
-  std::array<std::array<uint32_t, kDisplayRows * kDisplayColumns>, kMaxDisplays> _display_buffer{};
-  std::array<DisplaySim, kMaxDisplays>& _display_sims;
+  std::array<std::vector<uint32_t>, kMaxDisplays> _display_buffer{};
+  std::span<DisplaySim> _display_sims;
   std::array<SDL_Rect, kMaxSwitches> _switches_rect;
   std::bitset<kMaxSwitches> _switches_state{};
   bool _switches_changed = false;
