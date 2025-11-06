@@ -169,7 +169,7 @@ void Display::init()
 		u8g2_ClearBuffer(u8g2);
 		u8g2_SetFont(u8g2, u8g2_font_10x20_tf);
 		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata" :  "Pedal");
-		u8g2_SendBuffer(u8g2);
+        sendBuffer(i);
 	}
 }
 
@@ -289,8 +289,7 @@ void Display::run()
 
 
   for (auto i = 0; i < kNumDisplays; ++i) {
-	auto u8g2 = &_u8g2[i];
-    u8g2_SendBuffer(u8g2);
+      sendBuffer(i);
   }
 }
 
@@ -386,6 +385,68 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
   strncpy(trunc_text, text, max_chars);
   trunc_text[max_chars] = '\0';
   u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, trunc_text);
+}
+
+void Display::startTransfer(u8x8_t* u8x8) {
+    spi_byte_cb(u8x8, U8X8_MSG_BYTE_START_TRANSFER, 0, nullptr);
+}
+
+void Display::endTransfer(u8x8_t* u8x8) {
+    spi_byte_cb(u8x8, U8X8_MSG_BYTE_END_TRANSFER, 0, nullptr);
+}
+
+void Display::sendCommand(u8x8_t* u8x8, uint8_t command) {
+    spi_byte_cb(u8x8, U8X8_MSG_BYTE_SET_DC, 0, nullptr);
+    spi_byte_cb(u8x8, U8X8_MSG_BYTE_SEND, 1, &command);
+}
+
+void Display::sendData(u8x8_t* u8x8, std::span<uint8_t> data) {
+    spi_byte_cb(u8x8, U8X8_MSG_BYTE_SET_DC, 1, nullptr);
+    _spi.sendBytes(data.data(), data.size());
+}
+
+void Display::fillBuffer(size_t idx) {
+    const uint8_t* tiles = _u8g2_buffers[idx].data();
+    constexpr size_t cols = kColumns / kColsPerByte;
+    constexpr size_t rows = kRows;
+    constexpr size_t rowsPerByte = 8;
+    size_t row = 0;
+    size_t col = 0;
+    for (size_t i = 0; i < kColumns * kRows / rowsPerByte; i = i + 4) {
+        const uint8_t* col_tiles = tiles + i;
+        for (size_t bit = 0; bit < rowsPerByte; ++bit) {
+            size_t bit_row = row + bit;
+            uint8_t* ram = &_spi_buffer[bit_row * cols + col];
+            ram[0] = 0;
+            ram[1] = 0;
+            if ((col_tiles[0] >> bit) & 1) { ram[0] |= 0xF0; }
+            if ((col_tiles[1] >> bit) & 1) { ram[0] |= 0x0F; }
+            if ((col_tiles[2] >> bit) & 1) { ram[1] |= 0xF0; }
+            if ((col_tiles[3] >> bit) & 1) { ram[1] |= 0x0F; }
+        }
+        col += kColsPerByte;
+        if (col >= cols) {
+            row += rowsPerByte;
+            col = 0;
+        }
+    }
+}
+
+void Display::sendBuffer(size_t idx)
+{
+    fillBuffer(idx);
+    auto u8g2 = &_u8g2[idx];
+    auto u8x8 = u8g2_GetU8x8(u8g2);
+    startTransfer(u8x8);
+    std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
+    std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
+    sendCommand(u8x8, kSetRowAddressCommand);
+    sendData(u8x8, rowRange);
+    sendCommand(u8x8, kSetColumnAddressCommand);
+    sendData(u8x8, colRange);
+    sendCommand(u8x8, kWriteRamCommand);
+    sendData(u8x8, _spi_buffer);
+    endTransfer(u8x8);
 }
 
 } // namespace tocata

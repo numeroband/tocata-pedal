@@ -8,6 +8,7 @@
 #include <bitset>
 #include <array>
 #include <vector>
+#include <span>
 
 namespace tocata {
 
@@ -59,8 +60,17 @@ public:
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;
-	const uint8_t kNumDisplays = is_pedal_long() ? 1 : 1;
-
+    static constexpr size_t kColumns = 256;
+    static constexpr size_t kRows = 64;
+    static constexpr size_t kRamRows = kRows;
+    static constexpr size_t kRamColumns = kColumns / 4;
+    static constexpr size_t kColsPerByte = 2;
+    static constexpr size_t kColsOffset = 28;
+    static constexpr uint8_t kSetRowAddressCommand = 0x75;
+    static constexpr uint8_t kSetColumnAddressCommand = 0x15;
+    static constexpr uint8_t kWriteRamCommand = 0x5C;
+    const uint8_t kNumDisplays = 1;
+    
 	static uint8_t i2c_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 
@@ -70,6 +80,12 @@ private:
 	void drawFootswitch(uint8_t idx, const char* text);
 	void drawScroll();
 	void drawTuner();
+    void sendBuffer(size_t idx);
+    void fillBuffer(size_t idx);
+    void startTransfer(u8x8_t* u8x8);
+    void endTransfer(u8x8_t* u8x8);
+    void sendCommand(u8x8_t* u8x8, uint8_t command);
+    void sendData(u8x8_t* u8x8, std::span<uint8_t> data);
 
 	std::array<u8g2_t, kMaxDisplays> _u8g2{};
 	std::array<I2C, kMaxDisplays> _i2c;
@@ -80,6 +96,7 @@ private:
 	std::array<const char*, Program::kNumSwitches> _fs_text{};
 	const std::bitset<Program::kNumSwitches>& _fs_state{};
 	std::array<std::vector<uint8_t>, kMaxDisplays> _u8g2_buffers{};
+    std::array<uint8_t, (kColumns / kColsPerByte) * kRows> _spi_buffer;
 
 	struct {
 		const char* text;
