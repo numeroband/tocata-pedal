@@ -80,7 +80,7 @@ uint8_t Display::spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *a
       		u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
       
       		/* no wait required here */
-			spi->init(0); // u8x8->pins[U8X8_PIN_I2C_CLOCK], MISO, u8x8->pins[U8X8_PIN_I2C_DATA]);
+			spi->init(); // u8x8->pins[U8X8_PIN_I2C_CLOCK], MISO, u8x8->pins[U8X8_PIN_I2C_DATA]);
 			break;
       
     	case U8X8_MSG_BYTE_SET_DC:
@@ -434,19 +434,21 @@ void Display::fillBuffer(size_t idx) {
 
 void Display::sendBuffer(size_t idx)
 {
-    fillBuffer(idx);
     auto u8g2 = &_u8g2[idx];
-    auto u8x8 = u8g2_GetU8x8(u8g2);
-    startTransfer(u8x8);
-    std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
-    std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
-    sendCommand(u8x8, kSetRowAddressCommand);
-    sendData(u8x8, rowRange);
-    sendCommand(u8x8, kSetColumnAddressCommand);
-    sendData(u8x8, colRange);
-    sendCommand(u8x8, kWriteRamCommand);
-    sendData(u8x8, _spi_buffer);
-    endTransfer(u8x8);
+	u8g2_SendBuffer(u8g2);
+
+    // fillBuffer(idx);
+    // auto u8x8 = u8g2_GetU8x8(u8g2);
+    // startTransfer(u8x8);
+    // std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
+    // std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
+    // sendCommand(u8x8, kSetRowAddressCommand);
+    // sendData(u8x8, rowRange);
+    // sendCommand(u8x8, kSetColumnAddressCommand);
+    // sendData(u8x8, colRange);
+    // sendCommand(u8x8, kWriteRamCommand);
+    // sendData(u8x8, _spi_buffer);
+    // endTransfer(u8x8);
 }
 
 } // namespace tocata

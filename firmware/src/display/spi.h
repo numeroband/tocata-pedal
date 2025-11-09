@@ -10,12 +10,20 @@ class SPI
 {
 public:
 	SPI(const HWConfigI2C& config) : _config(config) {}
-	void init(uint32_t baudrate);
+	void init();
 	void sendBytes(const void* buf, size_t len);
 	void delayMs(uint8_t ms);
-	void cs(bool enabled);
-	void dc(bool enabled);
-	void reset(bool enabled);
+	void cs(bool enabled) {
+		spi_set_cs(enabled);
+	}
+
+	void dc(bool enabled) {
+		spi_set_dc(enabled);
+	}
+
+	void reset(bool enabled) {
+		spi_set_reset(enabled);
+	}
 
 private:
 	static constexpr unsigned int kI2CTimeout = 1000;

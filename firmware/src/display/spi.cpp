@@ -6,11 +6,9 @@
 
 namespace tocata {
 
-void SPI::init(uint32_t baudrate)
+void SPI::init()
 {
-	i2c_init(baudrate, _config);
-
-	printf("Init I2C with %u baudrate\n", baudrate);
+	spi_init();
 }
 	
 void SPI::sendBytes(const void* buf, size_t len)
@@ -21,16 +19,6 @@ void SPI::sendBytes(const void* buf, size_t len)
 void SPI::delayMs(uint8_t ms)
 {
 	sleep_ms(ms);
-}
-
-void SPI::cs(bool enabled) {
-}
-
-void SPI::dc(bool enabled) {
-    set_dc(enabled);
-}
-
-void SPI::reset(bool enabled) {
 }
 
 } // namespace tocata
