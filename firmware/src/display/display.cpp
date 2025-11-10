@@ -168,7 +168,7 @@ void Display::init()
 		u8g2_SetPowerSave(u8g2, 0); // wake up display
 		u8g2_ClearBuffer(u8g2);
 		u8g2_SetFont(u8g2, u8g2_font_10x20_tf);
-		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata" :  "Pedal");
+		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata Pedal" : "");
         sendBuffer(i);
 	}
 }
@@ -435,20 +435,20 @@ void Display::fillBuffer(size_t idx) {
 void Display::sendBuffer(size_t idx)
 {
     auto u8g2 = &_u8g2[idx];
-	u8g2_SendBuffer(u8g2);
+	// u8g2_SendBuffer(u8g2);
 
-    // fillBuffer(idx);
-    // auto u8x8 = u8g2_GetU8x8(u8g2);
-    // startTransfer(u8x8);
-    // std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
-    // std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
-    // sendCommand(u8x8, kSetRowAddressCommand);
-    // sendData(u8x8, rowRange);
-    // sendCommand(u8x8, kSetColumnAddressCommand);
-    // sendData(u8x8, colRange);
-    // sendCommand(u8x8, kWriteRamCommand);
-    // sendData(u8x8, _spi_buffer);
-    // endTransfer(u8x8);
+    fillBuffer(idx);
+    auto u8x8 = u8g2_GetU8x8(u8g2);
+    startTransfer(u8x8);
+    std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
+    std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
+    sendCommand(u8x8, kSetRowAddressCommand);
+    sendData(u8x8, rowRange);
+    sendCommand(u8x8, kSetColumnAddressCommand);
+    sendData(u8x8, colRange);
+    sendCommand(u8x8, kWriteRamCommand);
+    sendData(u8x8, _spi_buffer);
+    endTransfer(u8x8);
 }
 
 } // namespace tocata

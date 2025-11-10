@@ -13,6 +13,7 @@ extern "C" {
 #include <hardware/flash.h>
 #include <hardware/watchdog.h>
 #include <hardware/adc.h>
+#include <hardware/dma.h>
 #include <pico/bootrom.h>
 #include <pico/unique_id.h>
 #include <pico/binary_info.h>
@@ -207,46 +208,66 @@ static inline void i2c_write(uint8_t index, uint8_t addr, const uint8_t *src, si
 #define DISPLAY_SPI_DC_PIN 14
 #define DISPLAY_SPI_RESET_PIN 15
 
+static uint display_dma;
+
 static inline void spi_init() {
-    // spi_init(DISPLAY_SPI, 10 * 1000 * 1000);
-    // gpio_set_function(DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI);
-    // gpio_set_function(DISPLAY_SPI_TX_PIN, GPIO_FUNC_SPI);
+    spi_init(DISPLAY_SPI, 10 * 1000 * 1000);
+    gpio_set_function(DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(DISPLAY_SPI_TX_PIN, GPIO_FUNC_SPI);
 
-    // // Make the SPI pins available to picotool
-    // bi_decl(bi_2pins_with_func(DISPLAY_SPI_TX_PIN, DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI));
+    // Make the SPI pins available to picotool
+    bi_decl(bi_2pins_with_func(DISPLAY_SPI_TX_PIN, DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI));
 
-    // // Chip select is active-low, so we'll initialise it to a driven-high state
-    // gpio_init(DISPLAY_SPI_CS_PIN);
-    // gpio_set_dir(DISPLAY_SPI_CS_PIN, GPIO_OUT);
-    // gpio_put(DISPLAY_SPI_CS_PIN, 1);
-    // gpio_init(DISPLAY_SPI_RESET_PIN);
-    // gpio_set_dir(DISPLAY_SPI_RESET_PIN, GPIO_OUT);
-    // gpio_put(DISPLAY_SPI_RESET_PIN, 1);
-    // gpio_init(DISPLAY_SPI_DC_PIN);
-    // gpio_set_dir(DISPLAY_SPI_DC_PIN, GPIO_OUT);
-    // gpio_put(DISPLAY_SPI_DC_PIN, 1);
+    // Chip select is active-low, so we'll initialise it to a driven-high state
+    gpio_init(DISPLAY_SPI_CS_PIN);
+    gpio_set_dir(DISPLAY_SPI_CS_PIN, GPIO_OUT);
+    gpio_put(DISPLAY_SPI_CS_PIN, 0);
+    gpio_init(DISPLAY_SPI_RESET_PIN);
+    gpio_set_dir(DISPLAY_SPI_RESET_PIN, GPIO_OUT);
+    gpio_put(DISPLAY_SPI_RESET_PIN, 1);
+    gpio_init(DISPLAY_SPI_DC_PIN);
+    gpio_set_dir(DISPLAY_SPI_DC_PIN, GPIO_OUT);
+    gpio_put(DISPLAY_SPI_DC_PIN, 1);
 
-    // // Make the CS pin available to picotool
-    // bi_decl(bi_1pin_with_name(DISPLAY_SPI_CS_PIN, "DISPLAY CS"));
-    // bi_decl(bi_1pin_with_name(DISPLAY_SPI_RESET_PIN, "DISPLAY RESET"));
-    // bi_decl(bi_1pin_with_name(DISPLAY_SPI_DC_PIN, "DISPLAY DC"));
+    // Make the CS pin available to picotool
+    bi_decl(bi_1pin_with_name(DISPLAY_SPI_CS_PIN, "DISPLAY CS"));
+    bi_decl(bi_1pin_with_name(DISPLAY_SPI_RESET_PIN, "DISPLAY RESET"));
+    bi_decl(bi_1pin_with_name(DISPLAY_SPI_DC_PIN, "DISPLAY DC"));
 
+    // Grab some unused dma channels
+    display_dma = dma_claim_unused_channel(true);
+
+    dma_channel_config config = dma_channel_get_default_config(display_dma);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
+    channel_config_set_dreq(&config, spi_get_dreq(DISPLAY_SPI, true));
+    dma_channel_configure(display_dma, &config,
+                        &spi_get_hw(DISPLAY_SPI)->dr, // write address
+                        nullptr, // read address
+                        0, // element count (each element is of size transfer_data_size)
+                        false); // start immediately
 }
 
 static inline void spi_transfer(const uint8_t *src, size_t len) {
-    // spi_write_blocking(DISPLAY_SPI, src, len);
+    dma_channel_wait_for_finish_blocking(display_dma);
+
+    if (len >= 1024) {
+        uint32_t transfer_count = dma_encode_transfer_count(len);
+        dma_channel_transfer_from_buffer_now(display_dma, src, transfer_count);
+    } else {
+        spi_write_blocking(DISPLAY_SPI, src, len);
+    }
 }
 
 static inline void spi_set_cs(bool enabled) {
-    // gpio_put(DISPLAY_SPI_CS_PIN, enabled ? 0 : 1);
+    // gpio_put(DISPLAY_SPI_CS_PIN, enabled ? 1 : 0);
 }
 
 static inline void spi_set_dc(bool enabled) {
-    // gpio_put(DISPLAY_SPI_DC_PIN, enabled ? 0 : 1);
+    gpio_put(DISPLAY_SPI_DC_PIN, enabled ? 1 : 0);
 }
 
 static inline void spi_set_reset(bool enabled) {
-    // gpio_put(DISPLAY_SPI_RESET_PIN, enabled ? 0 : 1);
+    gpio_put(DISPLAY_SPI_RESET_PIN, enabled ? 1 : 0);
 }
 
 // BOARD LED

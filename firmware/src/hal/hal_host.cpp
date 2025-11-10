@@ -59,9 +59,15 @@ void spi_transfer(const uint8_t *src, size_t len)
     printf("\n");
 }
 
-void set_dc(bool enabled)
+void spi_set_dc(bool enabled)
 {
   displays[0].setControlData(enabled);
+}
+
+void spi_set_reset(bool enabled) {
+}
+
+void spi_set_cs(bool enabled) {
 }
 
 bool switches_changed(const HWConfigSwitches& config) 

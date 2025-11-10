@@ -20,7 +20,8 @@ private:
     void postInit();
     void runDHCP();
 
-#ifdef CYW43_WL_GPIO_LED_PIN
+// #ifdef CYW43_WL_GPIO_LED_PIN
+#if 0
     bool _supported = true;
 #else
     bool _supported = false;

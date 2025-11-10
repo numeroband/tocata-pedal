@@ -24,17 +24,25 @@ void Controller::init()
 }
 
 void Controller::run() 
-{
+{    
     _usb.run();
     _buttons.run();
     _exp.run();
     _network.run();
 
     uint32_t now = millis();
-    if (now - _last_display_update > 70)
+    if (now - _last_display_update > 50)
     {
+        static uint32_t display_runs = 0;
+        static uint32_t total_time = 0;
          _display.run();
         _last_display_update = now;
+        total_time += millis() - now;
+        if (++display_runs >= 20) {
+            printf("display average: %u\n", (total_time * 1000) / 20);
+            total_time = 0;
+            display_runs = 0;
+        }
     }
 
     // Leds not working on init
