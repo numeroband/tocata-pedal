@@ -169,11 +169,12 @@ void Display::init()
 		u8g2_ClearBuffer(u8g2);
 		u8g2_SetFont(u8g2, u8g2_font_10x20_tf);
 		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata Pedal" : "");
-        sendBuffer(i);
+		u8g2_SendBuffer(u8g2);
 	}
 }
 
 void Display::setNumber(uint8_t number) {
+	_dirty = true;
 	if (number == kNoNumber) {
 		_number[0] = '\0';
 	} else {
@@ -238,15 +239,17 @@ void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
 
 void Display::drawTuner()
 {
+	uint32_t note_start = 11 * kTunerResolution;
 	u8g2_SetFont(&_u8g2[0], u8g2_font_helvB24_tf);
-	u8g2_DrawStr(&_u8g2[0], _tuner.note[1] ? 44 : 52, 17, _tuner.note);
+	u8g2_DrawStr(&_u8g2[0], _tuner.note[1] ? note_start : note_start + 8, 17, _tuner.note);
 	u8g2_SetFont(&_u8g2[0], u8g2_font_10x20_tf);
 	u8g2_DrawStr(&_u8g2[0], 0, 25, _tuner.low);
-	u8g2_DrawStr(&_u8g2[0], 89, 25, _tuner.high);
+	u8g2_DrawStr(&_u8g2[0], note_start + 45, 25, _tuner.high);
 }
 
 void Display::run()
 {
+	if (_dirty || _tuner.enabled) {
   for (auto i = 0; i < kNumDisplays; ++i) {
 	auto u8g2 = &_u8g2[i];
 	u8g2_ClearBuffer(u8g2);
@@ -286,11 +289,19 @@ void Display::run()
 	drawScroll();
   }
 
+	fillBuffer(0);
+  }
 
+  for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
+  {
+	  drawFootswitch(i, _fs_text[i], true);
+  }
 
   for (auto i = 0; i < kNumDisplays; ++i) {
       sendBuffer(i);
   }
+
+  _dirty = _tuner.enabled;
 }
 
 void Display::drawScroll()
@@ -352,7 +363,21 @@ void Display::drawScroll()
 	}
 }
 
-void Display::drawFootswitch(uint8_t idx, const char* text)
+void Display::drawFrame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, bool enabled)
+{
+	uint32_t start = y * (kColumns / kColsPerByte) + (x / kColsPerByte);
+	memset(&_spi_buffer[start], enabled ? 0xFF : 0, width / kColsPerByte);
+	start = (y + height - 1) * (kColumns / kColsPerByte) + (x / kColsPerByte);
+	memset(&_spi_buffer[start], enabled ? 0xFF : 0, width / kColsPerByte);
+	for (uint32_t side_y = y + 1; side_y < (y + height - 1); ++side_y) {
+		start = side_y * (kColumns / kColsPerByte) + (x / kColsPerByte);
+		_spi_buffer[start] = enabled ? 0xF0 : 0;
+		start += (width - 2) / 2;
+		_spi_buffer[start] = enabled ? 0x0F : 0;
+	}
+}
+
+void Display::drawFootswitch(uint8_t idx, const char* text, bool draw_frame)
 {
   static constexpr uint8_t screen_height = 64;
   static constexpr uint8_t x_padding = 3;
@@ -367,24 +392,24 @@ void Display::drawFootswitch(uint8_t idx, const char* text)
   const uint8_t block_height = (2 * y_padding) + font_height;
   const uint8_t block_height_padded = screen_height - block_height;
 
-  if (!text)
-  {
-	  return;
-  }
-
   uint8_t x = block_width_padded * _topology[idx].x;
   uint8_t y = block_height_padded * _topology[idx].y;
-  auto u8g2 = &_u8g2[_topology[idx].display];
-	
-  if (_fs_state[idx])
+  if (draw_frame)
   {
-    u8g2_DrawFrame(u8g2, x, y, block_width, block_height);
+	drawFrame(x, y, block_width, block_height, text && _fs_state[idx]);
+	return;
   }
-  
-  char trunc_text[max_chars + 1];
-  strncpy(trunc_text, text, max_chars);
-  trunc_text[max_chars] = '\0';
-  u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, trunc_text);
+
+	if (!text) {
+		return;
+	}
+
+	auto u8g2 = &_u8g2[_topology[idx].display];
+
+	char trunc_text[max_chars + 1];
+	strncpy(trunc_text, text, max_chars);
+	trunc_text[max_chars] = '\0';
+	u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, trunc_text);
 }
 
 void Display::startTransfer(u8x8_t* u8x8) {
@@ -437,7 +462,6 @@ void Display::sendBuffer(size_t idx)
     auto u8g2 = &_u8g2[idx];
 	// u8g2_SendBuffer(u8g2);
 
-    fillBuffer(idx);
     auto u8x8 = u8g2_GetU8x8(u8g2);
     startTransfer(u8x8);
     std::array<uint8_t, 2> rowRange{0, kRamRows - 1};

@@ -53,7 +53,7 @@ public:
 	void run();
 	void setNumber(uint8_t number);
 	void setText(const char* text);
-	void setFootswitch(uint8_t idx, const char* text) { _fs_text[idx] = text; }
+	void setFootswitch(uint8_t idx, const char* text) { _fs_text[idx] = text; _dirty = true; }
 	void clearSwitches() { _fs_text = {}; }
 	void setBlink(bool enabled);
 	void setTuner(bool enabled, uint8_t note = 0, int8_t cents = 0);
@@ -77,7 +77,8 @@ private:
 	static uint8_t spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 	static uint8_t spi_gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 
-	void drawFootswitch(uint8_t idx, const char* text);
+	void drawFootswitch(uint8_t idx, const char* text, bool draw_frame = false);
+	void drawFrame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, bool enabled);
 	void drawScroll();
 	void drawTuner();
     void sendBuffer(size_t idx);
@@ -112,7 +113,7 @@ private:
 		bool state;
 	} _blink{};
 	
-	static constexpr int8_t kTunerResolution = 4;
+	static constexpr int8_t kTunerResolution = 10;
 	struct {
 		char note[3];
 		char low[kTunerResolution + 1];
