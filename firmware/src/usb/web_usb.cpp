@@ -41,7 +41,6 @@ void WebUsb::receiveData()
       return;
     }
 
-    printf("USB Read %u bytes\n", count);
     _in_length += count;
 
     if (_in_length >= sizeof(Message) && _in_length >= (sizeof(Message) + msg.length))

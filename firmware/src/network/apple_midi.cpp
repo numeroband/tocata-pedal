@@ -73,11 +73,6 @@ void AppleMidi::sendControl(uint8_t channel, uint8_t control, uint8_t value) {
 
 void AppleMidi::sendSysEx(std::span<const uint8_t> sysex) {
   if (sysex.size() == 0) { return; }
-  printf("APPLE MIDI OUT(%zu): %02X %02X..%02X\n", 
-      sysex.size(), 
-      sysex[0], 
-      sysex[1], 
-      sysex.back());
   _midi.sendSysEx(sysex.size(), sysex.data(), true);
 }
 

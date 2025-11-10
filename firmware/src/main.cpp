@@ -18,21 +18,8 @@ int main()
 #endif
     },
     .display = {
-      {
-        .index = 0,
-        .sda_pin = 20,
-        .scl_pin = 21,
-      },
-      {
-        .index = 1,
-#ifdef CYW43_WL_GPIO_LED_PIN    
-        .sda_pin = 18,
-        .scl_pin = 19,
-#else
-        .sda_pin = 22,
-        .scl_pin = 23,
-#endif
-      },
+      .sda_pin = 20,
+      .scl_pin = 21,
     },
     .expression = {
       .adc_pin = 26,

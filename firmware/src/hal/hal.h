@@ -4,13 +4,19 @@
 
 namespace tocata {
 
-static constexpr uint8_t kMaxDisplays = 2;
-
 struct HWConfigI2C
 {
-    uint8_t index;
     uint8_t sda_pin;
     uint8_t scl_pin;		
+};
+
+struct HWConfigSPI
+{
+    uint8_t clk_pin;
+    uint8_t tx_pin;
+    uint8_t rx_pin;
+    uint8_t cs_pin;
+    uint8_t reset_pin;
 };
 
 struct HWConfigSwitches
@@ -35,7 +41,7 @@ struct HWConfig
 {
     HWConfigSwitches switches;
     HWConfigLeds leds;
-    HWConfigI2C display[kMaxDisplays];
+    HWConfigI2C display;
     HWConfigExpression expression;
 }; 
 

@@ -1,15 +1,13 @@
 #pragma once
 
-#include <stdint.h>
-#include <cassert>
-#include "hal.h"
+#include "display_sim.h"
 
 namespace tocata {
 
-class DisplaySim
+class DisplaySimSH1106 : public DisplaySim
 {
 public:
-    bool processTransfer(const uint8_t* transfer, uint32_t len)
+    bool processTransfer(const uint8_t* transfer, uint32_t len) override
     {
         if (len < 2)
         {
@@ -29,7 +27,7 @@ public:
         }
     }
 
-    void refresh(uint32_t* screen, uint8_t hw_cols, uint32_t* colors)
+    void refresh(uint32_t* screen, size_t hw_cols, uint32_t* colors) override
     {
         if (!_modified)
         {
@@ -51,6 +49,10 @@ public:
         }
     }
 
+    void setControlData(bool isData) override {}
+    size_t numRows() const override { return kRows; }
+    size_t numColumns() const override { return kCols; }
+
 private:
     static constexpr uint8_t kCols = 132;
     static constexpr uint8_t kRows = 64;
@@ -64,7 +66,7 @@ private:
 
     struct Command
     {
-        using CommandCb = void (DisplaySim::*)(uint8_t);
+        using CommandCb = void (DisplaySimSH1106::*)(uint8_t);
         uint8_t start;
         uint8_t end;
         CommandCb function;
@@ -78,27 +80,27 @@ private:
     void pageAddr(uint8_t cmd) { _page = cmd - 0xB0; }
 
     static constexpr Command kCommands[] = {
-        {0x00, 0x0F, &DisplaySim::lowerColAddr},
-        {0x10, 0x1F, &DisplaySim::higherColAddr},
-        {0x20, 0x20, &DisplaySim::ignore, true},
-        {0x2e, 0x2e, &DisplaySim::ignore},
-        {0x40, 0x7F, &DisplaySim::startLine},
-        {0x8d, 0x8d, &DisplaySim::ignore, true},
-        {0x81, 0x81, &DisplaySim::ignore, true},
-        {0xA0, 0xA1, &DisplaySim::ignore},
-        {0xA4, 0xA5, &DisplaySim::ignore},
-        {0xA6, 0xA7, &DisplaySim::ignore},
-        {0xA8, 0xA8, &DisplaySim::ignore, true},
-        // {0xAD, 0xAD, &DisplaySim::ignore, true},
-        {0xAE, 0xAF, &DisplaySim::ignore},
-        {0xB0, 0xB7, &DisplaySim::pageAddr},
-        {0xC0, 0xC8, &DisplaySim::ignore},
-        {0xD3, 0xD3, &DisplaySim::ignore, true},
-        {0xD5, 0xD5, &DisplaySim::ignore, true},
-        {0xD9, 0xD9, &DisplaySim::ignore, true},
-        {0xDA, 0xDA, &DisplaySim::ignore, true},
-        {0xDB, 0xDB, &DisplaySim::ignore, true},
-        // {0xE3, 0xE3, &DisplaySim::ignore},
+        {0x00, 0x0F, &DisplaySimSH1106::lowerColAddr},
+        {0x10, 0x1F, &DisplaySimSH1106::higherColAddr},
+        {0x20, 0x20, &DisplaySimSH1106::ignore, true},
+        {0x2e, 0x2e, &DisplaySimSH1106::ignore},
+        {0x40, 0x7F, &DisplaySimSH1106::startLine},
+        {0x8d, 0x8d, &DisplaySimSH1106::ignore, true},
+        {0x81, 0x81, &DisplaySimSH1106::ignore, true},
+        {0xA0, 0xA1, &DisplaySimSH1106::ignore},
+        {0xA4, 0xA5, &DisplaySimSH1106::ignore},
+        {0xA6, 0xA7, &DisplaySimSH1106::ignore},
+        {0xA8, 0xA8, &DisplaySimSH1106::ignore, true},
+     // {0xAD, 0xAD, &DisplaySimSH1106::ignore, true},
+        {0xAE, 0xAF, &DisplaySimSH1106::ignore},
+        {0xB0, 0xB7, &DisplaySimSH1106::pageAddr},
+        {0xC0, 0xC8, &DisplaySimSH1106::ignore},
+        {0xD3, 0xD3, &DisplaySimSH1106::ignore, true},
+        {0xD5, 0xD5, &DisplaySimSH1106::ignore, true},
+        {0xD9, 0xD9, &DisplaySimSH1106::ignore, true},
+        {0xDA, 0xDA, &DisplaySimSH1106::ignore, true},
+        {0xDB, 0xDB, &DisplaySimSH1106::ignore, true},
+     // {0xE3, 0xE3, &DisplaySimSH1106::ignore},
     };
 
     bool processCommand(const uint8_t* buf, uint32_t len)

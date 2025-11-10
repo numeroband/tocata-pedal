@@ -12,7 +12,7 @@ function sleep(ms) {
 
 async function main() {
   const command = process.argv[2];
-  const transport = process.env['TOCATA_TRANSPORT'] || 'usb';  
+  const transport = process.env['TOCATA_TRANSPORT'] || 'midi';
   let transportClass;
   switch (transport) {
     case 'ws':
@@ -22,9 +22,12 @@ async function main() {
       midi.midiDeviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal'
       transportClass = midi
       break;
-    default:
+    case 'usb':
       transportClass = webusb
       break;
+    default:
+      console.error('Wrong transportClass', transportClass);
+      process.exit(1);
   }
   const api = new Api(transportClass);
   const start = process.uptime();

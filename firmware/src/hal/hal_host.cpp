@@ -1,7 +1,8 @@
 #include "hal.h"
 #ifndef HAL_PICO
 
-#include "display_sim.h"
+#include "display_sim_sh1106.h"
+#include "display_sim_ssd1322.h"
 #include "application.h"
 
 #define ASIO_STANDALONE
@@ -26,12 +27,14 @@ namespace tocata {
 uint8_t MemFlash[2 * 1024 * 1024];
 
 static libremidi::midi_out midi{};
-static std::vector<DisplaySim> displays(is_pedal_long() ? 1 : 1);
-static Application app{displays};
+static DisplaySimSSD1322 display_ssd1322{};
+static DisplaySimSH1106 display_sh1106{};
+static DisplaySim& display = is_pedal_long() ? (DisplaySim&)display_ssd1322 : (DisplaySim&)display_sh1106;
+static Application app{display};
 
-void i2c_write(uint8_t idx, uint8_t addr, const uint8_t *src, size_t len)
+void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 {
-    if (displays[idx].processTransfer(src, uint32_t(len)))
+    if (display.processTransfer(src, uint32_t(len)))
     {
       return;
     }
@@ -46,7 +49,7 @@ void i2c_write(uint8_t idx, uint8_t addr, const uint8_t *src, size_t len)
 
 void spi_transfer(const uint8_t *src, size_t len)
 {
-    if (displays[0].processTransfer(src, uint32_t(len)))
+    if (display.processTransfer(src, uint32_t(len)))
     {
       return;
     }
@@ -61,7 +64,7 @@ void spi_transfer(const uint8_t *src, size_t len)
 
 void spi_set_dc(bool enabled)
 {
-  displays[0].setControlData(enabled);
+  display.setControlData(enabled);
 }
 
 void spi_set_reset(bool enabled) {
@@ -403,8 +406,8 @@ uint32_t usb_vendor_write_flush() {
 void usb_init() {
   ws.init();
   flash_init();
-  midi.open_virtual_port("Virtual Tocata Pedal");
-  midi_in.open_virtual_port("Virtual Tocata Pedal");
+  midi.open_virtual_port("Tocata Pedal");
+  midi_in.open_virtual_port("Tocata Pedal");
   WebUsb::singleton().connected(true);
 }
 

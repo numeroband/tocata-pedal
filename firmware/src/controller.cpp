@@ -109,7 +109,6 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
 
 void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender)
 {
-    printf("midiCallback with %zu bytes\n", packet.size());
     if (packet[0] == 0xC0) {
         footswitchMode(false);
         loadProgram(packet[1], false, true);
@@ -131,7 +130,6 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
         displayTuner(0, 0);
     } else if (packet[0] == 0xF0) {
         auto response = _usb.web().processSysEx(packet, buffer);
-        printf("sysex respnose with %zu bytes\n", response.size());
         if (response.size() > 0) {
             sender.sendSysEx(response);
         }

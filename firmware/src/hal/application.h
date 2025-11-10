@@ -19,17 +19,13 @@ namespace tocata {
 class Application
 {
 public:
-  Application(std::span<DisplaySim> display_sims) : _display_sims(display_sims) {
+  Application(DisplaySim& display_sim) : _display_sim(display_sim) {
     if (!is_pedal_long()) {
       _sw_mapping[4] = 4;
       _sw_mapping[5] = 5;
     }
 
-    for (size_t i = 0; i < _display_sims.size(); ++i)
-    {
-        auto& display = _display_sims[i];
-        _display_buffer[i].resize(display.numRows() * display.numColumns());
-    }
+    _display_buffer.resize(display_sim.numRows() * display_sim.numColumns());
     
     _window = SDL_CreateWindow("Tocata Pedal",
                                 SDL_WINDOWPOS_CENTERED,
@@ -54,22 +50,18 @@ public:
     }
     
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-    for (auto& texture : _display_texture) {
-      texture = SDL_CreateTexture(_window_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, int(_display_sims[0].numColumns()), int(_display_sims[0].numRows()));
-      if (!texture) {
-        std::cout << "Failed to create screen texture\n";
-        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
-        return;
-      }
+    _display_texture = SDL_CreateTexture(_window_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, int(_display_sim.numColumns()), int(_display_sim.numRows()));
+    if (!_display_texture) {
+      std::cout << "Failed to create screen texture\n";
+      std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
+      return;
     }
 
     initSwitches();
   }      
 
   ~Application() {
-    for (auto& texture : _display_texture) {
-      SDL_DestroyTexture(texture);
-    }
+    SDL_DestroyTexture(_display_texture);
     SDL_DestroyRenderer(_window_renderer);
     SDL_DestroyWindow(_window);
   }
@@ -177,7 +169,6 @@ public:
   }
 
 private:
-  static constexpr size_t kDisplaySeparation = 1;
   static constexpr size_t kMaxSwitches = 10;
   static constexpr size_t kMaxLeds = 8;
   const size_t kDisplayStart = is_pedal_long() ? 300 : 115;
@@ -227,13 +218,10 @@ private:
 
   void drawDisplay() {
     static uint32_t colors[] = {0x000011FF, 0xEEEEFFFF};
-    for (uint8_t i = 0; i < _display_sims.size(); ++i) {
-      auto&  display_sim = _display_sims[i];
-      display_sim.refresh(_display_buffer[i].data(), display_sim.numColumns(), colors);
-      SDL_UpdateTexture(_display_texture[i], nullptr, _display_buffer[i].data(), int(display_sim.numColumns() * sizeof(uint32_t)));
-      SDL_Rect rect{int(kDisplayStart + i * (display_sim.numColumns() + kDisplaySeparation)), 160, int(display_sim.numColumns()), int(display_sim.numRows())};
-      SDL_RenderCopy(_window_renderer, _display_texture[i], nullptr, &rect);
-    }
+    _display_sim.refresh(_display_buffer.data(), _display_sim.numColumns(), colors);
+    SDL_UpdateTexture(_display_texture, nullptr, _display_buffer.data(), int(_display_sim.numColumns() * sizeof(uint32_t)));
+    SDL_Rect rect{int(kDisplayStart), 160, int(_display_sim.numColumns()), int(_display_sim.numRows())};
+    SDL_RenderCopy(_window_renderer, _display_texture, nullptr, &rect);
   }
 
   void drawSwitches() {
@@ -278,9 +266,9 @@ private:
   SDL_Window *_window;
   SDL_Renderer *_window_renderer;
   SDL_Event _window_event;
-  std::array<SDL_Texture*, kMaxDisplays> _display_texture;
-  std::array<std::vector<uint32_t>, kMaxDisplays> _display_buffer{};
-  std::span<DisplaySim> _display_sims;
+  SDL_Texture* _display_texture;
+  std::vector<uint32_t> _display_buffer{};
+  DisplaySim& _display_sim;
   std::array<SDL_Rect, kMaxSwitches> _switches_rect;
   std::bitset<kMaxSwitches> _switches_state{};
   bool _switches_changed = false;

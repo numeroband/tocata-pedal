@@ -3,7 +3,7 @@ import Api from '../api/Api.mjs';
 const NUM_PROGRAMS = 99;
 
 const urlParams = new URLSearchParams(window.location.search);
-const transport = urlParams.get('transport') || 'usb';
+const transport = urlParams.get('transport') || 'midi';
 let transportClass;
 switch (transport) {
   case 'ws':
@@ -13,8 +13,11 @@ switch (transport) {
     navigator.midiDeviceName = urlParams.get('device') || 'Tocata Pedal'
     transportClass = navigator;
     break;
-  default:
+  case 'usb':
     transportClass = navigator.usb;
+    break;
+  default:
+    console.error('Wrong transport class', transportClass);
     break;
 }
 const api = new Api(transportClass);

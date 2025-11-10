@@ -88,27 +88,11 @@ uint8_t Display::spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *a
       		break;
       
     	case U8X8_MSG_BYTE_START_TRANSFER:
-      		/* SPI mode has to be mapped to the mode of the current controller, at least Uno, Due, 101 have different SPI_MODEx values */
-      		internal_spi_mode =  0;
-      		switch(u8x8->display_info->spi_mode)
-      		{
-//				case 0: internal_spi_mode = SPI_MODE0; break;
-//				case 1: internal_spi_mode = SPI_MODE1; break;
-//				case 2: internal_spi_mode = SPI_MODE2; break;
-//				case 3: internal_spi_mode = SPI_MODE3; break;
-                default: break;
-      		}
-      
-      		// spi->startTransactionSPI.beginTransaction(SPISettings(u8x8->bus_clock, MSBFIRST, internal_spi_mode));
-      
 			u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_enable_level);  
-			// u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->post_chip_enable_wait_ns, NULL);
       		break;
       
     	case U8X8_MSG_BYTE_END_TRANSFER:      
-      		// u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->pre_chip_disable_wait_ns, NULL);
       		u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
-			// SPI.endTransaction();
       		break;
     	default:
 			break;
@@ -155,22 +139,22 @@ uint8_t Display::spi_gpio_and_delay_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_in
 void Display::init()
 {
 	setBlink(false);
-	for (uint32_t i = 0; i < kNumDisplays; ++i) {
-		auto u8g2 = &_u8g2[i];
-		// u8g2_Setup_sh1106_i2c_128x64_noname_f(u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
-		u8g2_Setup_ssd1322_nhd_256x64_f(u8g2, U8G2_R0, spi_byte_cb, spi_gpio_and_delay_cb);
-		_u8g2_buffers[i].resize(u8g2_GetBufferSize(u8g2));
-		u8g2_SetBufferPtr(u8g2, _u8g2_buffers[i].data());
-		u8g2_SetI2CAddress(u8g2, 0x78); //  + (i << 1));
-		u8g2_SetUserPtr(u8g2, &_spi);
-		// u8g2_SetUserPtr(u8g2, &_i2c[i]);
-		u8g2_InitDisplay(u8g2); // send init sequence to the display, display is in sleep mode after this,
-		u8g2_SetPowerSave(u8g2, 0); // wake up display
-		u8g2_ClearBuffer(u8g2);
-		u8g2_SetFont(u8g2, u8g2_font_10x20_tf);
-		u8g2_DrawStr(u8g2, 10, 30, i == 0 ? "Tocata Pedal" : "");
-		u8g2_SendBuffer(u8g2);
+	if (is_pedal_long()) {
+		u8g2_Setup_ssd1322_nhd_256x64_f(&_u8g2, U8G2_R0, spi_byte_cb, spi_gpio_and_delay_cb);
+		u8g2_SetUserPtr(&_u8g2, &_spi);
+	} else {
+		u8g2_Setup_sh1106_i2c_128x64_noname_f(&_u8g2, U8G2_R0, i2c_byte_cb, gpio_and_delay_cb);
+		u8g2_SetUserPtr(&_u8g2, &_i2c);
 	}
+	_u8g2_buffer.resize(u8g2_GetBufferSize(&_u8g2));
+	u8g2_SetBufferPtr(&_u8g2, _u8g2_buffer.data());
+	u8g2_SetI2CAddress(&_u8g2, 0x78);
+	u8g2_InitDisplay(&_u8g2); // send init sequence to the display, display is in sleep mode after this,
+	u8g2_SetPowerSave(&_u8g2, 0); // wake up display
+	u8g2_ClearBuffer(&_u8g2);
+	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
+	u8g2_DrawStr(&_u8g2, 10, 30, "Tocata Pedal");
+	u8g2_SendBuffer(&_u8g2);
 }
 
 void Display::setNumber(uint8_t number) {
@@ -240,56 +224,53 @@ void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
 void Display::drawTuner()
 {
 	uint32_t note_start = 11 * kTunerResolution;
-	u8g2_SetFont(&_u8g2[0], u8g2_font_helvB24_tf);
-	u8g2_DrawStr(&_u8g2[0], _tuner.note[1] ? note_start : note_start + 8, 17, _tuner.note);
-	u8g2_SetFont(&_u8g2[0], u8g2_font_10x20_tf);
-	u8g2_DrawStr(&_u8g2[0], 0, 25, _tuner.low);
-	u8g2_DrawStr(&_u8g2[0], note_start + 45, 25, _tuner.high);
+	u8g2_SetFont(&_u8g2, u8g2_font_helvB24_tf);
+	u8g2_DrawStr(&_u8g2, _tuner.note[1] ? note_start : note_start + 8, 17, _tuner.note);
+	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
+	u8g2_DrawStr(&_u8g2, 0, 25, _tuner.low);
+	u8g2_DrawStr(&_u8g2, note_start + 45, 25, _tuner.high);
 }
 
 void Display::run()
 {
-	if (_dirty || _tuner.enabled) {
-  for (auto i = 0; i < kNumDisplays; ++i) {
-	auto u8g2 = &_u8g2[i];
-	u8g2_ClearBuffer(u8g2);
-	u8g2_SetFontRefHeightExtendedText(u8g2);
-	u8g2_SetFontPosTop(u8g2);
-	u8g2_SetFontDirection(u8g2, 0);
-	u8g2_SetFontMode(u8g2, 0);  
-	u8g2_SetFont(u8g2, u8g2_font_7x13_mf);
-    u8g2_SetDrawColor(u8g2, 1);
-  }
+  if (_dirty || _tuner.enabled) {
+	u8g2_ClearBuffer(&_u8g2);
+	u8g2_SetFontRefHeightExtendedText(&_u8g2);
+	u8g2_SetFontPosTop(&_u8g2);
+	u8g2_SetFontDirection(&_u8g2, 0);
+	u8g2_SetFontMode(&_u8g2, 0);  
+	u8g2_SetFont(&_u8g2, u8g2_font_7x13_mf);
+    u8g2_SetDrawColor(&_u8g2, 1);
   
-  for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
-  {
-	  drawFootswitch(i, _fs_text[i]);
-  }
-
-  if (_tuner.enabled)
-  {
-	drawTuner();
-  }
-  else 
-  {
-	if (_blink.enabled)
+	for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
 	{
-		if (--_blink.ticks == 0)
+		drawFootswitch(i, _fs_text[i]);
+	}
+
+	if (_tuner.enabled)
+	{
+		drawTuner();
+	}
+	else 
+	{
+		if (_blink.enabled)
 		{
-			_blink.ticks = kBlinkTicks;
-			_blink.state = !_blink.state;
+			if (--_blink.ticks == 0)
+			{
+				_blink.ticks = kBlinkTicks;
+				_blink.state = !_blink.state;
+			}
 		}
-	}
-	if (_blink.state)
-	{
-		u8g2_SetFont(&_u8g2[0], u8g2_font_helvB24_tf);
-		u8g2_DrawStr(&_u8g2[0], 0, 17, _number);
+		if (_blink.state)
+		{
+			u8g2_SetFont(&_u8g2, u8g2_font_helvB24_tf);
+			u8g2_DrawStr(&_u8g2, 0, 17, _number);
+		}
+
+		drawScroll();
 	}
 
-	drawScroll();
-  }
-
-	fillBuffer(0);
+	fillBuffer();
   }
 
   for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
@@ -297,9 +278,7 @@ void Display::run()
 	  drawFootswitch(i, _fs_text[i], true);
   }
 
-  for (auto i = 0; i < kNumDisplays; ++i) {
-      sendBuffer(i);
-  }
+  sendBuffer();
 
   _dirty = _tuner.enabled;
 }
@@ -313,29 +292,26 @@ void Display::drawScroll()
 
 	uint8_t text_offset = 0;
 	bool found_end = false;
-	for (auto i = 0; i < kNumDisplays; ++i) {
-		const uint8_t max_chars = 19; // (i == 0) ? 8 : 11;
-		const uint8_t block_width = font_width * max_chars;
-	    const uint8_t start_x = (i == 0) ? 48 : 0;		
-		char name[max_chars + 2];
-        name[0] = '\0';
-		for (uint8_t i = 0; !found_end && i < max_chars + 1; ++i)
+	const uint8_t max_chars = 20;
+	const uint8_t block_width = font_width * max_chars;
+	const uint8_t start_x = 48;
+	char name[max_chars + 2];
+	name[0] = '\0';
+	for (uint8_t i = 0; !found_end && i < max_chars + 1; ++i)
+	{
+		name[i] = _scroll.text[_scroll.letter + text_offset + i];
+		if (name[i] == '\0')
 		{
-			name[i] = _scroll.text[_scroll.letter + text_offset + i];
-            if (name[i] == '\0')
-            {
-                found_end = true;
-            }
+			found_end = true;
 		}
-		name[max_chars + 1] = '\0';
-		text_offset += max_chars;
-
-		auto& u8g2 = _u8g2[i];
-		u8g2_SetFont(&u8g2, u8g2_font_10x20_tf);
-		u8g2_SetClipWindow(&u8g2, start_x, start_y, start_x + block_width, start_y + block_height);
-		u8g2_DrawStr(&u8g2, start_x - _scroll.pixel, start_y, name);
-		u8g2_SetMaxClipWindow(&u8g2);
 	}
+	name[max_chars + 1] = '\0';
+	text_offset += max_chars;
+
+	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
+	u8g2_SetClipWindow(&_u8g2, start_x, start_y, start_x + block_width, start_y + block_height);
+	u8g2_DrawStr(&_u8g2, start_x - _scroll.pixel, start_y, name);
+	u8g2_SetMaxClipWindow(&_u8g2);
 		
 
 	if (_scroll.delay != 0)
@@ -365,6 +341,12 @@ void Display::drawScroll()
 
 void Display::drawFrame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, bool enabled)
 {
+	if (!is_pedal_long()) {
+	    u8g2_SetDrawColor(&_u8g2, enabled);
+		u8g2_DrawFrame(&_u8g2, x, y, width, height);
+		return;
+	}
+
 	uint32_t start = y * (kColumns / kColsPerByte) + (x / kColsPerByte);
 	memset(&_spi_buffer[start], enabled ? 0xFF : 0, width / kColsPerByte);
 	start = (y + height - 1) * (kColumns / kColsPerByte) + (x / kColsPerByte);
@@ -392,8 +374,9 @@ void Display::drawFootswitch(uint8_t idx, const char* text, bool draw_frame)
   const uint8_t block_height = (2 * y_padding) + font_height;
   const uint8_t block_height_padded = screen_height - block_height;
 
-  uint8_t x = block_width_padded * _topology[idx].x;
-  uint8_t y = block_height_padded * _topology[idx].y;
+  const uint8_t blocks_per_row = is_pedal_long() ? 4 : 3;
+  uint8_t x = block_width_padded * (idx % blocks_per_row);
+  uint8_t y = block_height_padded * (idx / blocks_per_row);
   if (draw_frame)
   {
 	drawFrame(x, y, block_width, block_height, text && _fs_state[idx]);
@@ -404,12 +387,10 @@ void Display::drawFootswitch(uint8_t idx, const char* text, bool draw_frame)
 		return;
 	}
 
-	auto u8g2 = &_u8g2[_topology[idx].display];
-
 	char trunc_text[max_chars + 1];
 	strncpy(trunc_text, text, max_chars);
 	trunc_text[max_chars] = '\0';
-	u8g2_DrawStr(u8g2, x + x_padding, y + y_padding, trunc_text);
+	u8g2_DrawStr(&_u8g2, x + x_padding, y + y_padding, trunc_text);
 }
 
 void Display::startTransfer(u8x8_t* u8x8) {
@@ -430,8 +411,12 @@ void Display::sendData(u8x8_t* u8x8, std::span<uint8_t> data) {
     _spi.sendBytes(data.data(), data.size());
 }
 
-void Display::fillBuffer(size_t idx) {
-    const uint8_t* tiles = _u8g2_buffers[idx].data();
+void Display::fillBuffer() {
+	if (!is_pedal_long()) {
+		return;
+	}
+
+    const uint8_t* tiles = _u8g2_buffer.data();
     constexpr size_t cols = kColumns / kColsPerByte;
     constexpr size_t rows = kRows;
     constexpr size_t rowsPerByte = 8;
@@ -457,12 +442,14 @@ void Display::fillBuffer(size_t idx) {
     }
 }
 
-void Display::sendBuffer(size_t idx)
+void Display::sendBuffer()
 {
-    auto u8g2 = &_u8g2[idx];
-	// u8g2_SendBuffer(u8g2);
+	if (!is_pedal_long()) {
+		u8g2_SendBuffer(&_u8g2);
+		return;
+	}
 
-    auto u8x8 = u8g2_GetU8x8(u8g2);
+    auto u8x8 = u8g2_GetU8x8(&_u8g2);
     startTransfer(u8x8);
     std::array<uint8_t, 2> rowRange{0, kRamRows - 1};
     std::array<uint8_t, 2> colRange{kColsOffset, kRamColumns - 1 + kColsOffset};
