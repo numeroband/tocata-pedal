@@ -22,9 +22,6 @@ extern "C" {
 #include <pico/stdio.h>
 #include <pico/stdio/driver.h>
 #include <pico/time.h>
-#ifdef CYW43_WL_GPIO_LED_PIN
-#include <pico/cyw43_arch.h>
-#endif
 
 #include <tusb.h>
 #include <cstdint>
@@ -117,7 +114,7 @@ static inline void flash_erase(uint32_t flash_offs, size_t count)
 static inline void switches_init(const HWConfigSwitches& config)
 {
     uint offset = pio_add_program(pio0, &switches_program);
-    switches_program_init(pio0, config.state_machine_id, offset, config.first_input_pin, config.first_output_pin);
+    switches_program_init(pio0, config.state_machine_id, offset, config.first_input_pin);
     printf("Configured switches program in sm %u offset %u\n", config.state_machine_id, offset);
 }
 
@@ -148,8 +145,6 @@ static inline uint16_t expression_read()
 }
 
 // Leds
-
-bool leds_fix_mapping();
 
 static inline void leds_init(const HWConfigLeds& config)
 {
@@ -198,45 +193,40 @@ static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 
 //SPI
 #define DISPLAY_SPI spi1
-#define DISPLAY_SPI_SCK_PIN 10
-#define DISPLAY_SPI_TX_PIN 11
-#define DISPLAY_SPI_CS_PIN 13
-#define DISPLAY_SPI_DC_PIN 14
-#define DISPLAY_SPI_RESET_PIN 15
 
 static uint display_dma;
+static uint8_t display_reset_pin;
+static uint8_t display_dc_pin;
 
-static inline void spi_init() {
+static inline void spi_init(const HWConfigDisplaySPI& config) {
     spi_init(DISPLAY_SPI, 10 * 1000 * 1000);
-    gpio_set_function(DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(DISPLAY_SPI_TX_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(config.clk_pin, GPIO_FUNC_SPI);
+    gpio_set_function(config.tx_pin, GPIO_FUNC_SPI);
 
     // Make the SPI pins available to picotool
-    bi_decl(bi_2pins_with_func(DISPLAY_SPI_TX_PIN, DISPLAY_SPI_SCK_PIN, GPIO_FUNC_SPI));
+    bi_decl(bi_2pins_with_func(config.tx_pin, config.clk_pin, GPIO_FUNC_SPI));
 
-    // Chip select is active-low, so we'll initialise it to a driven-high state
-    gpio_init(DISPLAY_SPI_CS_PIN);
-    gpio_set_dir(DISPLAY_SPI_CS_PIN, GPIO_OUT);
-    gpio_put(DISPLAY_SPI_CS_PIN, 0);
-    gpio_init(DISPLAY_SPI_RESET_PIN);
-    gpio_set_dir(DISPLAY_SPI_RESET_PIN, GPIO_OUT);
-    gpio_put(DISPLAY_SPI_RESET_PIN, 1);
-    gpio_init(DISPLAY_SPI_DC_PIN);
-    gpio_set_dir(DISPLAY_SPI_DC_PIN, GPIO_OUT);
-    gpio_put(DISPLAY_SPI_DC_PIN, 1);
+    // Chip select is hard wired to ground
+    display_reset_pin = config.reset_pin;
+    gpio_init(config.reset_pin);
+    gpio_set_dir(config.reset_pin, GPIO_OUT);
+    gpio_put(config.reset_pin, 1);
+    display_dc_pin = config.dc_pin;
+    gpio_init(config.dc_pin);
+    gpio_set_dir(config.dc_pin, GPIO_OUT);
+    gpio_put(config.dc_pin, 1);
 
     // Make the CS pin available to picotool
-    bi_decl(bi_1pin_with_name(DISPLAY_SPI_CS_PIN, "DISPLAY CS"));
-    bi_decl(bi_1pin_with_name(DISPLAY_SPI_RESET_PIN, "DISPLAY RESET"));
-    bi_decl(bi_1pin_with_name(DISPLAY_SPI_DC_PIN, "DISPLAY DC"));
+    bi_decl(bi_1pin_with_name(config.reset_pin, "DISPLAY RESET"));
+    bi_decl(bi_1pin_with_name(config.dc_pin, "DISPLAY DC"));
 
     // Grab some unused dma channels
     display_dma = dma_claim_unused_channel(true);
 
-    dma_channel_config config = dma_channel_get_default_config(display_dma);
-    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
-    channel_config_set_dreq(&config, spi_get_dreq(DISPLAY_SPI, true));
-    dma_channel_configure(display_dma, &config,
+    dma_channel_config dma_config = dma_channel_get_default_config(display_dma);
+    channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
+    channel_config_set_dreq(&dma_config, spi_get_dreq(DISPLAY_SPI, true));
+    dma_channel_configure(display_dma, &dma_config,
                         &spi_get_hw(DISPLAY_SPI)->dr, // write address
                         nullptr, // read address
                         0, // element count (each element is of size transfer_data_size)
@@ -255,36 +245,27 @@ static inline void spi_transfer(const uint8_t *src, size_t len) {
 }
 
 static inline void spi_set_cs(bool enabled) {
-    // gpio_put(DISPLAY_SPI_CS_PIN, enabled ? 1 : 0);
 }
 
 static inline void spi_set_dc(bool enabled) {
-    gpio_put(DISPLAY_SPI_DC_PIN, enabled ? 1 : 0);
+    gpio_put(display_dc_pin, enabled ? 1 : 0);
 }
 
 static inline void spi_set_reset(bool enabled) {
-    gpio_put(DISPLAY_SPI_RESET_PIN, enabled ? 1 : 0);
+    gpio_put(display_reset_pin, enabled ? 1 : 0);
 }
 
 // BOARD LED
 
 static inline void board_led_init()
 {
-#ifdef CYW43_WL_GPIO_LED_PIN
-    cyw43_arch_init();
-#else
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
-#endif
 }
 
 static inline void board_led_enable(bool enabled)
 {
-#ifdef CYW43_WL_GPIO_LED_PIN
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, enabled ? 1 : 0);
-#else
     gpio_put(PICO_DEFAULT_LED_PIN, enabled);
-#endif
 }
 
 // USB
@@ -330,7 +311,7 @@ static inline bool usb_midi_read(uint8_t packet[3])
 }
 
 inline bool is_pedal_long() {
-#ifdef CYW43_WL_GPIO_LED_PIN    
+#ifdef RASPBERRYPI_PICO2    
     return true;
 #else
     return false;

@@ -24,7 +24,7 @@ change:
 #include "hardware/gpio.h"
 
 
-static inline void switches_program_init(PIO pio, uint sm, uint offset, uint in_pins_start, uint out_pins_start) 
+static inline void switches_program_init(PIO pio, uint sm, uint offset, uint in_pins_start) 
 {
     pio_sm_config c = switches_program_get_default_config(offset);
 

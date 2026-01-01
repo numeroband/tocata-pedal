@@ -19,10 +19,12 @@ class Controller : public WebUsb::Delegate
 public:
     Controller(const HWConfig& config) : 
         _usb(*this), 
-        _buttons(config.switches), 
+        _buttons(config.switches),
+        _sw_map{config.switches.map}, 
         _exp(config.expression),
         _leds(config.leds), 
-        _display(config.display, _switches_state) {}
+        _display(config.displayI2C, config.displaySPI, _switches_state),
+        _network(config.ethernet) {}
     void init();
     void run();
 
@@ -46,14 +48,16 @@ private:
     void displayProgram(bool display_switches);
     void setExpValue(uint8_t value);
     void displayTuner(uint8_t note, int64_t cents);
+    uint8_t swMap(uint8_t sw) { return _sw_map[sw]; }
 
     UsbDevice _usb;
     Switches _buttons;
+    const uint8_t* _sw_map;
     Expression _exp;
     Leds _leds;
     Display _display;
+    Network _network;
     Program _program{};
-    Network _network{};
     uint32_t _last_display_update;
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;

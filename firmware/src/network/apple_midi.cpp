@@ -26,7 +26,8 @@ void AppleMidi::init()
   });
   _midi_session.setHandleDisconnected([](const APPLEMIDI_NAMESPACE::ssrc_t & ssrc) {
     AppleMidi::sharedInstance()._connected--;
-    printf("[AM%u] Disconnected\n"), ssrc;
+    printf("[AM%u] Disconnected. Reconnecting\n"), ssrc;
+    AppleMidi::sharedInstance().sendInvite();
   });
 
   _midi.setHandleControlChange([](Channel channel, byte v1, byte v2) {
@@ -50,13 +51,31 @@ void AppleMidi::init()
     _apple_midi->_callback({array, size}, buffer, *_apple_midi);
   });
 
-  _midi_session.sendInvite({192, 168, 2, 20}, DEFAULT_CONTROL_PORT); // port is 5004 by default
+  EthernetBonjour.setNameResolvedCallback([](const char* name, const byte ip[4]) {
+    if (!ip) {
+      printf("Bonjour name %s timed out\n", name);
+      AppleMidi::sharedInstance().sendInvite();
+      return;
+    }
+    printf("Resolved bonjour name: %s -> %u.%u.%u.%u\n", name, ip[0], ip[1], ip[2], ip[3]);
+    AppleMidi::sharedInstance()._midi_session.sendInvite({ip}, DEFAULT_CONTROL_PORT); // port is 5004 by default
+  });
+
   _initialized = true;
+  sendInvite();
 }
 
 void AppleMidi::run() {
     _midi.read();
     EthernetBonjour.run();
+}
+
+void AppleMidi::sendInvite() {
+  if (!EthernetBonjour.isResolvingName()) {
+    constexpr const char* name = "Lorenzos-M1-Pro";
+    printf("Finding %s\n", name);
+    EthernetBonjour.resolveName(name, 5000);
+  }
 }
 
 void AppleMidi::sendProgram(uint8_t channel, uint8_t program) {

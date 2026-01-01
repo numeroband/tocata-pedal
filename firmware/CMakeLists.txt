@@ -12,7 +12,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico2_w CACHE STRING "Board type")
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 cmake_minimum_required(VERSION 3.12)
 
 if (NOT "${PICO_BOARD}" STREQUAL "none")
@@ -33,6 +33,12 @@ if (NOT "${PICO_BOARD}" STREQUAL "none")
 # Initialize the SDK
 pico_sdk_init()
 endif()
+
+
+set(BOARD_NAME W6100_EVB_PICO2)
+set(WIZNET_CHIP W6100)
+add_definitions(-D_WIZCHIP_=W6100)
+add_definitions(-DDEVICE_BOARD_NAME=W6100_EVB_PICO2)
 
 # Add libs
 add_subdirectory(lib)

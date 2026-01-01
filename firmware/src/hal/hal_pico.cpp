@@ -111,14 +111,6 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
 
 namespace tocata {
 
-bool leds_fix_mapping()
-{
-  static pico_unique_board_id_t swapped_board_id = {.id = {0xE6, 0X60, 0X38, 0XB7, 0X13, 0X90, 0X7E, 0X33}};
-  pico_unique_board_id_t board_id{};
-  pico_get_unique_board_id(&board_id);
-  return (memcmp(&board_id, &swapped_board_id, sizeof(board_id)) != 0);
-}
-
 static char nibble_to_hex(uint8_t nibble)
 {
   if (nibble < 10)

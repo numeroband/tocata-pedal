@@ -39,7 +39,7 @@ void Controller::run()
         _last_display_update = now;
         total_time += millis() - now;
         if (++display_runs >= 20) {
-            printf("display average: %u\n", (total_time * 1000) / 20);
+            // printf("display average: %u\n", (total_time * 1000) / 20);
             total_time = 0;
             display_runs = 0;
         }
@@ -69,18 +69,18 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
 
     for (uint8_t sw = 0; sw < Program::kNumSwitches; ++sw)
     {
-        if (modified[sw])
+        if (modified[swMap(sw)])
         {
-            changeSwitch(sw, status[sw], true);
+            changeSwitch(sw, status[swMap(sw)], true);
         }
     }
     constexpr uint8_t inc_one = Program::kNumSwitches;
     constexpr uint8_t dec_one = Program::kNumSwitches + 1;
 
-    if (activated[inc_one]) {
+    if (activated[swMap(inc_one)]) {
         loadProgram((_program_id + 1) % 99, false, false);
         footswitchMode();
-    } else if (activated[dec_one]) {
+    } else if (activated[swMap(dec_one)]) {
         loadProgram((_program_id + 99 - 1) % 99, false, false);
         footswitchMode();
     } else {
@@ -92,17 +92,17 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
 {
     auto activated = status & modified;
 
-    if (activated[kIncOneSwitch]) {
+    if (activated[swMap(kIncOneSwitch)]) {
         loadProgram((_program_id + 1) % 99, false, false);
-    } else if (activated[kIncTenSwitch]) {
+    } else if (activated[swMap(kIncTenSwitch)]) {
         loadProgram((_program_id + 10) % 99, false, false);
-    } else if (activated[kDecOneSwitch]) {
+    } else if (activated[swMap(kDecOneSwitch)]) {
         loadProgram((_program_id + 99 - 1) % 99, false, false);
-    } else if (activated[kDecTenSwitch]) {
+    } else if (activated[swMap(kDecTenSwitch)]) {
         loadProgram((_program_id + 99 - 10) % 99, false, false);
-    } else if (activated[kSetupSwitch]) {
+    } else if (activated[swMap(kSetupSwitch)]) {
         setupMode();
-    } else if (activated[kLoadSwitch]) {
+    } else if (activated[swMap(kLoadSwitch)]) {
         footswitchMode();
     }
 }
@@ -140,18 +140,18 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
 {
     auto activated = status & modified;
 
-    if (activated[kExpMaxSwitch]) {        
+    if (activated[swMap(kExpMaxSwitch)]) {        
         _exp.resetMax();
-    } else if (activated[kExpMinSwitch]) {
+    } else if (activated[swMap(kExpMinSwitch)]) {
         _exp.resetMin();
-    } else if (activated[kExpEnabledSwitch]) {
+    } else if (activated[swMap(kExpEnabledSwitch)]) {
         _expEnabled = !_expEnabled;
         _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
-    } else if (activated[kIncExpFilterSwitch]) {
+    } else if (activated[swMap(kIncExpFilterSwitch)]) {
         _exp.incFilter();
-    } else if (activated[kDecExpFilterSwitch]) {
+    } else if (activated[swMap(kDecExpFilterSwitch)]) {
         _exp.decFilter();
-    } else if (activated[kExitSwitch]) {
+    } else if (activated[swMap(kExitSwitch)]) {
         footswitchMode();
     }
 }

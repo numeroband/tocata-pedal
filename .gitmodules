@@ -25,3 +25,6 @@
 [submodule "firmware/lib/EthernetBonjour"]
 	path = firmware/lib/EthernetBonjour
 	url = https://github.com/TrippyLighting/EthernetBonjour.git
+[submodule "firmware/lib/WIZnet-PICO-C"]
+	path = firmware/lib/WIZnet-PICO-C
+	url = https://github.com/WIZnet-ioNIC/WIZnet-PICO-C.git

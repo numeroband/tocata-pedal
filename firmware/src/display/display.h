@@ -16,9 +16,9 @@ class Display
 {
 public:
 	static constexpr uint8_t kNoNumber = 0xFF;
-	Display(const HWConfigI2C& config, const std::bitset<Program::kNumSwitches>& fs_state) :
-		_i2c{config},
-        _spi{{}},
+	Display(const HWConfigDisplayI2C& configI2C, const HWConfigDisplaySPI& configSPI, const std::bitset<Program::kNumSwitches>& fs_state) :
+		_i2c{configI2C},
+        _spi{configSPI},
 		_fs_state{fs_state}	{}
 	void init();
 	void run();

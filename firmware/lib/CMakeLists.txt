@@ -143,115 +143,48 @@ target_include_directories(u8g2 INTERFACE
     )
 
 if(PICO_SDK)
+####################################################################
 # Ethernet
-set(WIZNET_DIR ${PROJECT_SOURCE_DIR}/lib/ioLibrary_Driver)
 
-add_library(ETHERNET_FILES STATIC)
+set(PICO_PLATFORM rp2350)
 
-target_sources(ETHERNET_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet/socket.c
-        ${WIZNET_DIR}/Ethernet/wizchip_conf.c
+# Set the project root directory if it's not already defined, as may happen if
+# the tests folder is included directly by a parent project, without including
+# the top level CMakeLists.txt.
+set(WIZNET_DIR ${CMAKE_SOURCE_DIR}/lib/ioLibrary_Driver)
+message(STATUS "WIZNET_DIR = ${WIZNET_DIR}")
+
+set(WIZNET_PICO_C_DIR ${CMAKE_SOURCE_DIR}/lib/WIZnet-PICO-C)
+
+set(PORT_DIR ${WIZNET_PICO_C_DIR}/port)
+message(STATUS "PORT_DIR = ${PORT_DIR}")
+
+# Turn off mbedtls test mode 
+set(ENABLE_PROGRAMS OFF CACHE BOOL "Build mbedtls programs")
+set(ENABLE_TESTING OFF CACHE BOOL "Build mbedtls testing")
+add_definitions(-DMBEDTLS_CONFIG_FILE="${PORT_DIR}/mbedtls/inc/ssl_config.h")
+add_definitions(-DSET_TRUSTED_CERT_IN_SAMPLES)
+add_definitions(-DPICO_USE_FASTEST_SUPPORTED_CLOCK=1)
+
+# Set compile options
+add_compile_options(
+        -Wall
+        -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
+        -Wno-unused-function # we have some for the docs that aren't called
+        -Wno-maybe-uninitialized
+        -Wno-incompatible-pointer-types
+        -Wno-implicit-function-declaration
+        -Wno-pointer-sign
         )
 
-target_include_directories(ETHERNET_FILES INTERFACE
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Ethernet/W5500
-        )
+# Hardware-specific examples in subdirectories:
+# add_subdirectory(examples)
 
-target_link_libraries(ETHERNET_FILES PUBLIC
-        W5500_FILES
-        DHCP_FILES
-        )
+# Add libraries in subdirectories
+add_subdirectory(${WIZNET_PICO_C_DIR}/libraries)
+add_subdirectory(${PORT_DIR})
 
-add_library(W5500_FILES STATIC)
-
-target_sources(W5500_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet/W5500/w5500.c
-        )
-
-target_include_directories(W5500_FILES INTERFACE
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Ethernet/W5500
-        )
-
-target_link_libraries(W5500_FILES PRIVATE
-        ETHERNET_FILES
-        )
-
-# DHCP
-add_library(AAC_FILES STATIC)
-
-target_sources(AAC_FILES PUBLIC
-        ${WIZNET_DIR}/Internet/AAC/AddressAutoConfig.c
-        )
-
-target_include_directories(AAC_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Internet/AAC
-        )
-
-
-# DHCP
-add_library(DHCP_FILES STATIC)
-
-target_sources(DHCP_FILES PUBLIC
-        ${WIZNET_DIR}/Internet/DHCP/dhcp.c
-        )
-
-target_include_directories(DHCP_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Internet/DHCP
-        )
-
-# DNS
-add_library(DNS_FILES STATIC)
-
-target_sources(DNS_FILES PUBLIC
-        ${WIZNET_DIR}/Internet/DNS/dns.c
-        )
-
-target_include_directories(DNS_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Internet/DNS
-        )
-        
-# HTTP Server
-add_library(HTTPSERVER_FILES STATIC)
-
-target_sources(HTTPSERVER_FILES PUBLIC
-        ${WIZNET_DIR}/Internet/httpServer/httpParser.c
-        ${WIZNET_DIR}/Internet/httpServer/httpServer.c
-        ${WIZNET_DIR}/Internet/httpServer/httpUtil.c
-        )
-
-target_include_directories(HTTPSERVER_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Internet/httpServer
-        )
-
-# SNTP
-add_library(SNTP_FILES STATIC)
-
-target_sources(SNTP_FILES PUBLIC
-        ${WIZNET_DIR}/Internet/SNTP/sntp.c
-        )
-
-target_include_directories(SNTP_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Internet/SNTP
-        )
-
-# Loopback
-add_library(LOOPBACK_FILES STATIC)
-
-target_sources(LOOPBACK_FILES PUBLIC
-        ${WIZNET_DIR}/Application/loopback/loopback.c
-        )
-
-target_include_directories(LOOPBACK_FILES PUBLIC
-        ${WIZNET_DIR}/Ethernet
-        ${WIZNET_DIR}/Application/loopback
-        )
+####################################################################
 
 # MIDI
 set(ARDUINO_MIDI_PATH ${PROJECT_SOURCE_DIR}/lib/arduino_midi_library/src)

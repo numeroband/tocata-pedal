@@ -8,7 +8,7 @@ namespace tocata {
 
 void SPI::init()
 {
-	spi_init();
+	spi_init(_config);
 }
 	
 void SPI::sendBytes(const void* buf, size_t len)

@@ -4,14 +4,16 @@
 
 #include "socket.h"
 #include "wizchip_conf.h"
+extern "C" {
+    #include "wizchip_spi.h"
+}
+
 #include <hardware/gpio.h>
 
 #include <array>
 #include <cstdint>
 
-#define DEFAULT_CONTROL_PORT 5004
 #define TCT_UDP_DEBUG 0
-#define PIN_INT 14
 
 class EthernetClass {
 public:
@@ -73,7 +75,8 @@ public:
             return 0;
         }
 
-        int32_t received = recvfrom(_socket, _buffer.data(), _buffer.size(), _remote_addr.raw_address(), &_remote_port);
+        uint8_t addr_len;
+        int32_t received = recvfrom(_socket, _buffer.data(), _buffer.size(), _remote_addr.raw_address(), &_remote_port, &addr_len);
         if (received < 0) {
             printf("[%d] recvfrom() failed: %d\n", _socket, received);
             changeState(kIdle);
@@ -276,44 +279,45 @@ private:
 
     static void interruptInitialize(uint8_t socket)
     {
-        uint32_t reg_val = SIK_RECEIVED; 
-        int ret_val = ctlsocket(socket, CS_SET_INTMASK, (void *)&reg_val);
+        sockint_kind reg_val = SIK_RECEIVED; 
+        int ret_val = ctlsocket(socket, CS_SET_INTMASK, &reg_val);
 
         auto& used_sockets = usedSockets();
-        uint16_t intr_mask = 0;
+        intr_kind intr_mask = intr_kind(0);
         for (size_t i = 0; i < used_sockets.size(); ++i) {
             if (used_sockets[i]) {
-                intr_mask |= IK_SOCK_0 << i;
+                intr_mask = intr_kind(intr_mask | (IK_SOCK_0 << i));
             }
         }
-        wizchip_setinterruptmask(intr_kind(intr_mask));
+        ret_val = ctlwizchip(CW_SET_INTRMASK, &intr_mask);
 
         static bool init = false;
         if (!init) {
             init = true;
-            gpio_init(PIN_INT);
+            gpio_set_dir(PIN_INT, false);
+            gpio_set_function(PIN_INT, GPIO_FUNC_SIO);
+            gpio_set_irq_enabled_with_callback(PIN_INT, GPIO_IRQ_EDGE_FALL, true, interruptCallback);
         }
-
-        gpio_set_irq_enabled_with_callback(PIN_INT, GPIO_IRQ_EDGE_FALL, true, interruptCallback);
     }
 
     static void interruptCallback(uint gpio, uint32_t events)
     {
-        intr_kind intr_mask = wizchip_getinterrupt();
-        uint16_t clr_intr_mask = 0;
+        intr_kind intr_mask;
+        ctlwizchip(CW_GET_INTERRUPT, &intr_mask);
+        intr_kind clr_intr_mask = intr_kind(0);
         auto& used_sockets = usedSockets();
         for (size_t i = 0; i < used_sockets.size(); ++i) {
-            uint16_t sock_bit = IK_SOCK_0 << i;
+            intr_kind sock_bit = intr_kind(IK_SOCK_0 << i);
             if (intr_mask & sock_bit) {
-                clr_intr_mask |= sock_bit;
-                uint32_t reg_val = SIK_RECEIVED; 
+                clr_intr_mask = intr_kind(clr_intr_mask | sock_bit);
+                sockint_kind reg_val = SIK_RECEIVED; 
                 ctlsocket(i, CS_CLR_INTERRUPT, (void *)&reg_val);
                 if (used_sockets[i]) {
                     used_sockets[i]->_total_interrupts++;
                 }
             }
         }
-        wizchip_clrinterrupt(intr_kind(clr_intr_mask));
+        ctlwizchip(CW_CLR_INTERRUPT, &clr_intr_mask);
     }
     
     int _socket{-1};

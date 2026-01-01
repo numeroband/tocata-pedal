@@ -82,27 +82,32 @@ target_link_libraries(${CUR_TARGET} PRIVATE
         )
 endif()
 
-# Ethernet
-set(WIZCHIP_SPI_SCLK_SPEED 43)
-add_definitions(-D_WIZCHIP_SPI_SCLK_SPEED=${WIZCHIP_SPI_SCLK_SPEED})
-set(WIZNET_CHIP W5500)
-add_definitions(-D_WIZCHIP_=5500)
+
+# set(WIZCHIP_SPI_SCLK_SPEED 43)
+# add_definitions(-D_WIZCHIP_SPI_SCLK_SPEED=${WIZCHIP_SPI_SCLK_SPEED})
+# set(WIZNET_CHIP W5500)
+# add_definitions(-D_WIZCHIP_=5500)
+
 
 target_sources(${CUR_TARGET} PRIVATE
         network/network.cpp
         network/apple_midi.cpp
-        network/wizchip_spi.c
-        network/timer.c
+        # network/wizchip_spi.c
+        # network/timer.c
         ../lib/EthernetBonjour/EthernetBonjour.cpp
         ../lib/EthernetBonjour/utility/EthernetUtil.c
         )
 
 target_link_libraries(${CUR_TARGET} PRIVATE 
-        ETHERNET_FILES 
+        ETHERNET_FILES
+        IOLIBRARY_FILES
+        DHCP_FILES
+        TIMER_FILES
         arduino_bonjour
         arduino_midi
         arduino_applemidi
         )
+
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${CUR_TARGET})
 else()

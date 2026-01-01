@@ -1,6 +1,8 @@
 #pragma once
 
+#include "hal.h"
 #include "midi_sender.h"
+#include "dhcp_client.h"
 #include <cstdint>
 
 #ifdef PICO_BUILD
@@ -11,25 +13,16 @@ namespace tocata {
 
 class Network {
 public:
+    Network(const HWConfigEthernet& config) : _config{config} {}
     void init();
     void run();
     MidiSender& midi() { return _midi; }
     const MidiSender& midi() const { return _midi; }
 
 private:
-    void postInit();
-    void runDHCP();
-
-// #ifdef CYW43_WL_GPIO_LED_PIN
-#if 0
-    bool _supported = true;
-#else
-    bool _supported = false;
-#endif
-    uint32_t _last_run = 0;
-    bool _init = false;
-    uint32_t _init_millis;
+    const HWConfigEthernet& _config;
     AppleMidi& _midi = AppleMidi::sharedInstance();
+    DHCPClient _dhcp;
 };
 
 } // namespace tocata

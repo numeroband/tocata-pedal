@@ -26,6 +26,8 @@ public:
     }
 
 private:
+    void sendInvite();
+
     struct MidiSettings : public APPLEMIDI_NAMESPACE::AppleMIDISettings
     {
         static const unsigned SysExMaxSize = kMidiSysExMaxSize;
