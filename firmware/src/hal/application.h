@@ -165,7 +165,8 @@ public:
     if (index >= kNumLeds) {
       return;
     }
-    _leds[Leds::fixMapping(index)] = {r, g, b, 0xFF};
+    // _leds[Leds::fixMapping(index)] = {r, g, b, 0xFF};
+    _leds[index] = {r, g, b, 0xFF};
   }
 
 private:

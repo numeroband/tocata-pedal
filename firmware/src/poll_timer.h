@@ -9,6 +9,8 @@ namespace tocata {
 
 class PollTimer {
 public:
+	PollTimer(uint32_t deadline = 0) : _deadline{deadline} {}
+
 	void restart(uint32_t interval) {
 		uint32_t start = _deadline ?: millis();
 		_deadline = start + interval;
@@ -23,7 +25,7 @@ public:
 	}
 
 private:
-	uint32_t _deadline = 0;
+	uint32_t _deadline;
 };
 
 }

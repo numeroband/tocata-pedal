@@ -75,6 +75,10 @@ public:
             return 0;
         }
 
+        // if (getSn_RX_RSR(_socket) == 0) {
+        //     return 0;
+        // }
+
         uint8_t addr_len;
         int32_t received = recvfrom(_socket, _buffer.data(), _buffer.size(), _remote_addr.raw_address(), &_remote_port, &addr_len);
         if (received < 0) {

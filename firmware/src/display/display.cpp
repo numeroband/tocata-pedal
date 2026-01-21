@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <cassert>
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 namespace tocata {
 
 /*
@@ -153,7 +156,10 @@ void Display::init()
 	u8g2_SetPowerSave(&_u8g2, 0); // wake up display
 	u8g2_ClearBuffer(&_u8g2);
 	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
-	u8g2_DrawStr(&_u8g2, 10, 30, "Tocata Pedal");
+	u8g2_DrawStr(&_u8g2, 7, 25, "Tocata Pedal");
+	const char* version = "v" STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_SUBMINOR); 
+	u8g2_SetFont(&_u8g2, u8g2_font_7x13_mf);
+	u8g2_DrawStr(&_u8g2, 20, 50, version);
 	u8g2_SendBuffer(&_u8g2);
 }
 

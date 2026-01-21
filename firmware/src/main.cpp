@@ -8,7 +8,7 @@ int main()
     .switches = {
       .state_machine_id = 0,
       .first_input_pin = 0,
-      .map = { 8, 9, 6, 7, 3, 2, 1, 0, 4, 5, },
+      .map = { 7, 6, 5, 4, 8, 9, 2, 3, 0, 1, },
     },
     .leds = {
       .state_machine_id = 1,
@@ -17,8 +17,10 @@ int main()
     },
     .displaySPI = {
       .available = true,
+      .iface = 1,
       .clk_pin = 10,
       .tx_pin = 11,
+      .cs_pin = tocata::kInvalidPin,
       .dc_pin = 14,
       .reset_pin = 15,
     },

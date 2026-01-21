@@ -1,6 +1,7 @@
 #pragma once
 
 #define APPLEMIDI_INITIATOR
+#define ONE_PARTICIPANT
 #include <Ethernet.h>
 #include <AppleMIDI.h>
 

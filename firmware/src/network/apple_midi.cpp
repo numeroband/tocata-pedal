@@ -29,21 +29,11 @@ void AppleMidi::init()
     printf("[AM%u] Disconnected. Reconnecting\n"), ssrc;
     AppleMidi::sharedInstance().sendInvite();
   });
-
-  _midi.setHandleControlChange([](Channel channel, byte v1, byte v2) {
-    printf("ControlChange %u %u %u\n", channel, v1, v2);
-  });
-  _midi.setHandleProgramChange([](Channel channel, byte v1) {
-    printf("ProgramChange %u %u\n", channel, v1);
-  });
-  _midi.setHandlePitchBend([](Channel channel, int v1) {
-    printf("PitchBend %u %u\n", channel, v1);
-  });
-  _midi.setHandleNoteOn([](byte channel, byte note, byte velocity) {
-    printf("NoteOn %u %u %u\n", channel, note, velocity);
-  });
-  _midi.setHandleNoteOff([](byte channel, byte note, byte velocity) {
-    printf("NoteOff %u %u %u\n", channel, note, velocity);
+  _midi.setHandleMessage([](const MidiInterface::MidiMessage& message) {
+    printf("HandleMessage type %u\n", message.type);
+    if (!message.isChannelMessage() || !_apple_midi->_callback) { return; }
+    std::array<uint8_t, 3> bytes = {uint8_t(message.type | (message.channel - 1)), message.data1, message.data2};
+    _apple_midi->_callback(bytes, bytes, *_apple_midi);
   });
   _midi.setHandleSystemExclusive([](byte* array, unsigned size) {
     if (!_apple_midi->_callback) { return; }
@@ -58,6 +48,7 @@ void AppleMidi::init()
       return;
     }
     printf("Resolved bonjour name: %s -> %u.%u.%u.%u\n", name, ip[0], ip[1], ip[2], ip[3]);
+    AppleMidi::sharedInstance()._midi_session.sendEndSession();
     AppleMidi::sharedInstance()._midi_session.sendInvite({ip}, DEFAULT_CONTROL_PORT); // port is 5004 by default
   });
 
@@ -71,7 +62,9 @@ void AppleMidi::run() {
 }
 
 void AppleMidi::sendInvite() {
-  if (!EthernetBonjour.isResolvingName()) {
+  if (EthernetBonjour.isResolvingName()) {
+    printf("bonjour already resolving name\n");
+  } else {
     constexpr const char* name = "Lorenzos-M1-Pro";
     printf("Finding %s\n", name);
     EthernetBonjour.resolveName(name, 5000);

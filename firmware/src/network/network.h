@@ -2,12 +2,12 @@
 
 #include "hal.h"
 #include "midi_sender.h"
-#include "dhcp_client.h"
 #include <cstdint>
 
 #ifdef PICO_BUILD
 
 #include "apple_midi.h"
+#include "dhcp_client.h"
 
 namespace tocata {
 
@@ -39,6 +39,7 @@ private:
         void setCallback(Callback callback) override {}
     };
 public:
+    Network(const HWConfigEthernet& config) {}
     void init() {}
     void run() {}
     MidiSender& midi() { return _midi; }
