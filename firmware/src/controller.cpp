@@ -13,7 +13,9 @@ void Controller::init()
 {
     _usb.init();
     _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
-    _display.init();
+    //_display.init();
+    _display_timer.start(3000);
+    //
     Storage::init();
     _leds.init();
     footswitchMode();
@@ -30,8 +32,16 @@ void Controller::run()
     _exp.run();
     _network.run();
 
+    static bool _display_init = false;
+    if (!_display_init && _display_timer.expired())
+    {
+        _display_init = true;
+        printf("Initializing display...\n");
+        _display.init();
+    }
+
     uint32_t now = millis();
-    if (now - _last_display_update > 50)
+    if (_display_init && (now - _last_display_update) > 50)
     {
         static uint32_t display_runs = 0;
         static uint32_t total_time = 0;
@@ -39,7 +49,7 @@ void Controller::run()
         _last_display_update = now;
         total_time += millis() - now;
         if (++display_runs >= 20) {
-            // printf("display average: %u\n", (total_time * 1000) / 20);
+            printf("display average: %u\n", (total_time * 1000) / 20);
             total_time = 0;
             display_runs = 0;
         }
@@ -309,6 +319,7 @@ void Controller::programChanged(uint8_t id)
 
 void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
 {   
+    printf("loadProgram %u\n", id);
     if (send_midi && _program.mode() == Program::kScene)
     {
         _program.footswitch(_fs_id).run(_usb.midi(), false);

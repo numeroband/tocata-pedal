@@ -58,6 +58,7 @@ void AppleMidi::init()
       return;
     }
     printf("Resolved bonjour name: %s -> %u.%u.%u.%u\n", name, ip[0], ip[1], ip[2], ip[3]);
+    AppleMidi::sharedInstance()._midi_session.sendEndSession();
     AppleMidi::sharedInstance()._midi_session.sendInvite({ip}, DEFAULT_CONTROL_PORT); // port is 5004 by default
   });
 
@@ -71,7 +72,9 @@ void AppleMidi::run() {
 }
 
 void AppleMidi::sendInvite() {
-  if (!EthernetBonjour.isResolvingName()) {
+  if (EthernetBonjour.isResolvingName()) {
+    printf("bonjour already resolving name\n");
+  } else {
     constexpr const char* name = "Lorenzos-M1-Pro";
     printf("Finding %s\n", name);
     EthernetBonjour.resolveName(name, 5000);

@@ -169,8 +169,6 @@ public:
         wizchip_initialize();
         wizchip_check();
 
-        _timer.start(3000);
-        _state = State::WaitForPost;
         _callback = callback;
 
         return true;
@@ -178,7 +176,29 @@ public:
 
     void run() {
         uint8_t retval = 0;
+        /* Check PHY link status */
+        uint8_t temp;
+        if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1) {
+            printf(" Unknown PHY link status\n");
+
+            return;
+        }
+        bool connected = (temp == PHY_LINK_ON);
+        if (_connected && !connected) {
+            _state = State::Disconnected;
+            _ready = false;
+            printf("Ethernet disconnected\n");
+        }
+        _connected = connected;
+        
         switch (_state) {
+            case State::Disconnected:
+                if (!_connected) {
+                    return;
+                }
+                _state = State::WaitForPost;
+                _timer.start(2000);
+                return;
             case State::WaitForPost:
                 if (!_timer.expired()) {
                     return; 
@@ -193,6 +213,7 @@ public:
 
                     /* Get network information */
                     print_network_information(g_net_info);
+                    _callback(g_net_info.ip);                    
                 }
                 _state = State::Running;
                 break;
@@ -236,16 +257,17 @@ public:
 
 private:
     enum class State {
-        Uninitialized,
+        Disconnected,
         WaitForPost,
         Running,
     };
 
-    State _state = State::Uninitialized;
+    State _state = State::Disconnected;
     PollTimer _timer{};
     uint8_t _dhcp_retry = 0;
     Callback _callback;
     bool _ready = false;
+    bool _connected = false;
 };
 
 }

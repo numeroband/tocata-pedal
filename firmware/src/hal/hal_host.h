@@ -55,7 +55,7 @@ static inline void i2c_init(uint32_t baudrate, const HWConfigI2C& config) {}
 void i2c_write(uint8_t addr, const uint8_t *src, size_t len);
 
 //SPI
-static inline void spi_init() {}
+static inline void spi_init(const HWConfigDisplaySPI& config) {}
 void spi_transfer(const uint8_t *src, size_t len);
 void spi_set_dc(bool enabled);
 void spi_set_reset(bool enabled);

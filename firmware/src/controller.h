@@ -8,6 +8,7 @@
 #include "config.h"
 #include "network.h"
 #include "hal.h"
+#include "poll_timer.h"
 
 #define EXP_VALUE_PREFIX "EXP = "
 #define EXP_VALUE_TEXT EXP_VALUE_PREFIX "127"
@@ -79,6 +80,8 @@ private:
     const uint8_t kExpMinSwitch = uint8_t(_buttons.kNumSwitches / 2);
     const uint8_t kDecExpFilterSwitch = uint8_t(_buttons.kNumSwitches / 2 + 1);
     const uint8_t kExitSwitch = uint8_t(_buttons.kNumSwitches / 2 + 2);
+
+    PollTimer _display_timer{};
 };
 
 }

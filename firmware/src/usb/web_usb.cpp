@@ -71,7 +71,7 @@ void WebUsb::reset()
 void WebUsb::processRequest()
 {
   const Message& msg = reinterpret_cast<const Message&>(_in_out_buf);
-  printf("process request %u status %u length %u\n", msg.command, msg.status, msg.length);
+  // printf("process request %u status %u length %u\n", msg.command, msg.status, msg.length);
 
   switch (msg.command)
   {

@@ -192,21 +192,31 @@ static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 }
 
 //SPI
-#define DISPLAY_SPI spi1
 
-static uint display_dma;
+// static uint display_dma;
+static uint8_t display_cs_pin;
 static uint8_t display_reset_pin;
 static uint8_t display_dc_pin;
+static spi_inst_t* display_spi;
 
 static inline void spi_init(const HWConfigDisplaySPI& config) {
-    spi_init(DISPLAY_SPI, 10 * 1000 * 1000);
+    display_spi = (config.iface == 1) ? spi1 : spi0;
+    spi_init(display_spi, 10 * 1000 * 1000);
     gpio_set_function(config.clk_pin, GPIO_FUNC_SPI);
     gpio_set_function(config.tx_pin, GPIO_FUNC_SPI);
+
+    printf("config spi clk %u tx %u\n", config.clk_pin, config.tx_pin);
 
     // Make the SPI pins available to picotool
     bi_decl(bi_2pins_with_func(config.tx_pin, config.clk_pin, GPIO_FUNC_SPI));
 
-    // Chip select is hard wired to ground
+    display_cs_pin = config.cs_pin;
+    if (display_cs_pin != -1)
+    {
+        gpio_init(config.cs_pin);
+        gpio_set_dir(config.cs_pin, GPIO_OUT);
+        gpio_put(config.cs_pin, 0);
+    }
     display_reset_pin = config.reset_pin;
     gpio_init(config.reset_pin);
     gpio_set_dir(config.reset_pin, GPIO_OUT);
@@ -215,43 +225,50 @@ static inline void spi_init(const HWConfigDisplaySPI& config) {
     gpio_init(config.dc_pin);
     gpio_set_dir(config.dc_pin, GPIO_OUT);
     gpio_put(config.dc_pin, 1);
+    printf("config spi reset %u dc %u\n", config.reset_pin, config.dc_pin);
 
     // Make the CS pin available to picotool
     bi_decl(bi_1pin_with_name(config.reset_pin, "DISPLAY RESET"));
     bi_decl(bi_1pin_with_name(config.dc_pin, "DISPLAY DC"));
 
     // Grab some unused dma channels
-    display_dma = dma_claim_unused_channel(true);
+    // display_dma = dma_claim_unused_channel(true);
 
-    dma_channel_config dma_config = dma_channel_get_default_config(display_dma);
-    channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_config, spi_get_dreq(DISPLAY_SPI, true));
-    dma_channel_configure(display_dma, &dma_config,
-                        &spi_get_hw(DISPLAY_SPI)->dr, // write address
-                        nullptr, // read address
-                        0, // element count (each element is of size transfer_data_size)
-                        false); // start immediately
+    // dma_channel_config dma_config = dma_channel_get_default_config(display_dma);
+    // channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
+    // channel_config_set_dreq(&dma_config, spi_get_dreq(display_spi, true));
+    // dma_channel_configure(display_dma, &dma_config,
+    //                     &spi_get_hw(display_spi)->dr, // write address
+    //                     nullptr, // read address
+    //                     0, // element count (each element is of size transfer_data_size)
+    //                     false); // start immediately
 }
 
 static inline void spi_transfer(const uint8_t *src, size_t len) {
-    dma_channel_wait_for_finish_blocking(display_dma);
+    // dma_channel_wait_for_finish_blocking(display_dma);
 
-    if (len >= 1024) {
-        uint32_t transfer_count = dma_encode_transfer_count(len);
-        dma_channel_transfer_from_buffer_now(display_dma, src, transfer_count);
-    } else {
-        spi_write_blocking(DISPLAY_SPI, src, len);
-    }
+    // if (len >= 1024) {
+    //     uint32_t transfer_count = dma_encode_transfer_count(len);
+    //     dma_channel_transfer_from_buffer_now(display_dma, src, transfer_count);
+    // } else {
+        spi_write_blocking(display_spi, src, len);
+    // }
 }
 
 static inline void spi_set_cs(bool enabled) {
+    // printf("cs %u\n", enabled);
+    if (display_cs_pin != -1) {
+        gpio_put(display_cs_pin, enabled ? 1 : 0);
+    }
 }
 
 static inline void spi_set_dc(bool enabled) {
+    // printf("dc %u\n", enabled);
     gpio_put(display_dc_pin, enabled ? 1 : 0);
 }
 
 static inline void spi_set_reset(bool enabled) {
+    // printf("reset %u\n", enabled);
     gpio_put(display_reset_pin, enabled ? 1 : 0);
 }
 

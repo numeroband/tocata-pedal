@@ -16,8 +16,10 @@ struct HWConfigDisplayI2C : HWConfigI2C {};
 struct HWConfigDisplaySPI
 {
     bool available;
+    uint8_t iface;
     uint8_t clk_pin;
     uint8_t tx_pin;
+    uint8_t cs_pin;
     uint8_t dc_pin;
     uint8_t reset_pin;
 };
