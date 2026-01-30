@@ -20,6 +20,7 @@ int main()
       .iface = 1,
       .clk_pin = 10,
       .tx_pin = 11,
+      .cs_pin = tocata::kInvalidPin,
       .dc_pin = 14,
       .reset_pin = 15,
     },

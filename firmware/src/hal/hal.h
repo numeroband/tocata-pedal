@@ -4,6 +4,8 @@
 
 namespace tocata {
 
+constexpr uint8_t kInvalidPin = UINT8_MAX;
+
 struct HWConfigI2C
 {
     bool available;
