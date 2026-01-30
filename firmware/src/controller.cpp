@@ -88,11 +88,11 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     constexpr uint8_t dec_one = Program::kNumSwitches + 1;
 
     if (activated[swMap(inc_one)]) {
-        loadProgram((_program_id + 1) % 99, false, false);
-        footswitchMode();
+        // loadProgram((_program_id + 1) % 99, false, false);
+        // footswitchMode();
     } else if (activated[swMap(dec_one)]) {
-        loadProgram((_program_id + 99 - 1) % 99, false, false);
-        footswitchMode();
+        // loadProgram((_program_id + 99 - 1) % 99, false, false);
+        // footswitchMode();
     } else {
         _leds.refresh();
     }
