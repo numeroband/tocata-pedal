@@ -247,6 +247,12 @@ static inline void spi_init(const HWConfigDisplaySPI& config) {
 static inline void spi_transfer(const uint8_t *src, size_t len) {
     dma_channel_wait_for_finish_blocking(display_dma);
 
+    // size_t length = (len > 16) ? 16 : len;
+    // for (size_t i = 0; i < length; ++i) {
+    //     printf("%02X ", src[i]);
+    // }
+    // printf("(%zu)\n", len);
+
     if (len >= 1024) {
         uint32_t transfer_count = dma_encode_transfer_count(len);
         dma_channel_transfer_from_buffer_now(display_dma, src, transfer_count);
@@ -268,7 +274,7 @@ static inline void spi_set_dc(bool enabled) {
 }
 
 static inline void spi_set_reset(bool enabled) {
-    // printf("reset %u\n", enabled);
+    printf("reset %u\n", enabled);
     gpio_put(display_reset_pin, enabled ? 1 : 0);
 }
 

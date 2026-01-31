@@ -82,6 +82,7 @@ private:
     const uint8_t kExitSwitch = uint8_t(_buttons.kNumSwitches / 2 + 2);
 
     PollTimer _display_timer{};
+    PollTimer _leds_init_delay{};
 };
 
 }

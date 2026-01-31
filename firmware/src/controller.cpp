@@ -13,11 +13,11 @@ void Controller::init()
 {
     _usb.init();
     _usb.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
-    //_display.init();
-    _display_timer.start(3000);
+    _display.init();
     //
     Storage::init();
     _leds.init();
+    _leds_init_delay.start(100);
     footswitchMode();
     _buttons.init();
     _exp.init();
@@ -32,16 +32,8 @@ void Controller::run()
     _exp.run();
     _network.run();
 
-    static bool _display_init = false;
-    if (!_display_init && _display_timer.expired())
-    {
-        _display_init = true;
-        printf("Initializing display...\n");
-        _display.init();
-    }
-
     uint32_t now = millis();
-    if (_display_init && (now - _last_display_update) > 50)
+    if ((now - _last_display_update) > 50)
     {
         static uint32_t display_runs = 0;
         static uint32_t total_time = 0;
@@ -49,7 +41,7 @@ void Controller::run()
         _last_display_update = now;
         total_time += millis() - now;
         if (++display_runs >= 20) {
-            printf("display average: %u\n", (total_time * 1000) / 20);
+            printf("display average: %u\n", (total_time * 1000) / display_runs);
             total_time = 0;
             display_runs = 0;
         }
@@ -57,7 +49,7 @@ void Controller::run()
 
     // Leds not working on init
     static bool run_once = false;
-    if (!run_once) {
+    if (!run_once && _leds_init_delay.expired()) {
         run_once = true;
         _leds.refresh();
     }
