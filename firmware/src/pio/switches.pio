@@ -4,7 +4,7 @@
 
 .program switches
 
-.define public num_in_pins 6
+.define public num_in_pins 10
 
     mov x, !null             ; initialize x
 .wrap_target

@@ -22,6 +22,9 @@ extern "C" {
 #include <pico/stdio.h>
 #include <pico/stdio/driver.h>
 #include <pico/time.h>
+#ifdef CYW43_WL_GPIO_LED_PIN
+#include <pico/cyw43_arch.h>
+#endif
 
 #include <tusb.h>
 #include <cstdint>
@@ -193,102 +196,96 @@ static inline void i2c_write(uint8_t addr, const uint8_t *src, size_t len)
 
 //SPI
 
-static uint display_dma;
-static uint8_t display_cs_pin;
-static uint8_t display_reset_pin;
-static uint8_t display_dc_pin;
-static spi_inst_t* display_spi;
+struct HALDisplay {
+    static uint dma;
+    static uint8_t cs_pin;
+    static uint8_t reset_pin;
+    static uint8_t dc_pin;
+    static spi_inst_t* spi;
+};
 
 static inline void spi_init(const HWConfigDisplaySPI& config) {
-    display_spi = (config.iface == 1) ? spi1 : spi0;
-    spi_init(display_spi, 10 * 1000 * 1000);
+    HALDisplay::spi = (config.iface == 1) ? spi1 : spi0;
+    auto baudrate = spi_init(HALDisplay::spi, 10 * 1000 * 1000);
     gpio_set_function(config.clk_pin, GPIO_FUNC_SPI);
     gpio_set_function(config.tx_pin, GPIO_FUNC_SPI);
-
-    printf("config spi clk %u tx %u\n", config.clk_pin, config.tx_pin);
 
     // Make the SPI pins available to picotool
     bi_decl(bi_2pins_with_func(config.tx_pin, config.clk_pin, GPIO_FUNC_SPI));
 
-    display_cs_pin = config.cs_pin;
-    if (display_cs_pin != kInvalidPin)
+    HALDisplay::cs_pin = config.cs_pin;
+    if (HALDisplay::cs_pin != kInvalidPin)
     {
         gpio_init(config.cs_pin);
         gpio_set_dir(config.cs_pin, GPIO_OUT);
         gpio_put(config.cs_pin, 0);
     }
-    display_reset_pin = config.reset_pin;
+    HALDisplay::reset_pin = config.reset_pin;
     gpio_init(config.reset_pin);
     gpio_set_dir(config.reset_pin, GPIO_OUT);
     gpio_put(config.reset_pin, 1);
-    display_dc_pin = config.dc_pin;
+    HALDisplay::dc_pin = config.dc_pin;
     gpio_init(config.dc_pin);
     gpio_set_dir(config.dc_pin, GPIO_OUT);
     gpio_put(config.dc_pin, 1);
-    printf("config spi reset %u dc %u\n", config.reset_pin, config.dc_pin);
-
-    // Make the CS pin available to picotool
-    bi_decl(bi_1pin_with_name(config.reset_pin, "DISPLAY RESET"));
-    bi_decl(bi_1pin_with_name(config.dc_pin, "DISPLAY DC"));
 
     // Grab some unused dma channels
-    display_dma = dma_claim_unused_channel(true);
+    HALDisplay::dma = dma_claim_unused_channel(true);
 
-    dma_channel_config dma_config = dma_channel_get_default_config(display_dma);
+    dma_channel_config dma_config = dma_channel_get_default_config(HALDisplay::dma);
     channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_config, spi_get_dreq(display_spi, true));
-    dma_channel_configure(display_dma, &dma_config,
-                        &spi_get_hw(display_spi)->dr, // write address
+    channel_config_set_dreq(&dma_config, spi_get_dreq(HALDisplay::spi, true));
+    dma_channel_configure(HALDisplay::dma, &dma_config,
+                        &spi_get_hw(HALDisplay::spi)->dr, // write address
                         nullptr, // read address
                         0, // element count (each element is of size transfer_data_size)
                         false); // start immediately
 }
 
 static inline void spi_transfer(const uint8_t *src, size_t len) {
-    dma_channel_wait_for_finish_blocking(display_dma);
-
-    // size_t length = (len > 16) ? 16 : len;
-    // for (size_t i = 0; i < length; ++i) {
-    //     printf("%02X ", src[i]);
-    // }
-    // printf("(%zu)\n", len);
+    dma_channel_wait_for_finish_blocking(HALDisplay::dma);
 
     if (len >= 1024) {
         uint32_t transfer_count = dma_encode_transfer_count(len);
-        dma_channel_transfer_from_buffer_now(display_dma, src, transfer_count);
+        dma_channel_transfer_from_buffer_now(HALDisplay::dma, src, transfer_count);
     } else {
-        spi_write_blocking(display_spi, src, len);
+        spi_write_blocking(HALDisplay::spi, src, len);
     }
 }
 
 static inline void spi_set_cs(bool enabled) {
-    // printf("cs %u\n", enabled);
-    if (display_cs_pin != kInvalidPin) {
-        gpio_put(display_cs_pin, enabled ? 1 : 0);
+    if (HALDisplay::cs_pin != kInvalidPin) {
+        gpio_put(HALDisplay::cs_pin, enabled ? 1 : 0);
     }
 }
 
 static inline void spi_set_dc(bool enabled) {
-    // printf("dc %u\n", enabled);
-    gpio_put(display_dc_pin, enabled ? 1 : 0);
+    gpio_put(HALDisplay::dc_pin, enabled ? 1 : 0);
 }
 
 static inline void spi_set_reset(bool enabled) {
-    printf("reset %u\n", enabled);
-    gpio_put(display_reset_pin, enabled ? 1 : 0);
+    gpio_put(HALDisplay::reset_pin, enabled ? 1 : 0);
 }
 
 // BOARD LED
 
 static inline void board_led_init()
 {
+#ifdef CYW43_WL_GPIO_LED_PIN
+    cyw43_arch_init();
+#else
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
+#endif
 }
 
 static inline void board_led_enable(bool enabled)
 {
+#ifdef CYW43_WL_GPIO_LED_PIN
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, enabled ? 1 : 0);
+#else
     gpio_put(PICO_DEFAULT_LED_PIN, enabled);
+#endif
 }
 
 // USB
@@ -333,7 +330,7 @@ static inline bool usb_midi_read(uint8_t packet[3])
   return true;
 }
 
-inline bool is_pedal_long() {
+constexpr bool is_pedal_long() {
 #ifdef RASPBERRYPI_PICO2    
     return true;
 #else

@@ -2,6 +2,7 @@
 
 #include "hal.h"
 #include "config.h"
+#include "poll_timer.h"
 
 #include <cstdint>
 #include <bitset>
@@ -17,7 +18,9 @@ public:
     Leds(const HWConfigLeds& config) : _config(config) {}
 
     void init();
+    void run();
     void setColor(uint8_t led, Color color, bool active);
+    void setColor(uint8_t led, uint8_t r, uint8_t g, uint8_t b);
     void refresh();
 
 private:
@@ -44,11 +47,13 @@ private:
 
     static inline uint8_t brightness(uint8_t orig, bool active)
     {
-        return active ? orig : (orig / kHalf);
+        return active ? orig : 2 * (orig / kHalf);
     }
 
     uint32_t _state[kMaxLeds] = {};
     const HWConfigLeds& _config;
+    bool _refresh_pending = false;
+    PollTimer _timer{};
 };
 
 } // namespace tocata

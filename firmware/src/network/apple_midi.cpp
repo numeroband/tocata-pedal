@@ -29,21 +29,11 @@ void AppleMidi::init()
     printf("[AM%u] Disconnected. Reconnecting\n"), ssrc;
     AppleMidi::sharedInstance().sendInvite();
   });
-
-  _midi.setHandleControlChange([](Channel channel, byte v1, byte v2) {
-    printf("ControlChange %u %u %u\n", channel, v1, v2);
-  });
-  _midi.setHandleProgramChange([](Channel channel, byte v1) {
-    printf("ProgramChange %u %u\n", channel, v1);
-  });
-  _midi.setHandlePitchBend([](Channel channel, int v1) {
-    printf("PitchBend %u %u\n", channel, v1);
-  });
-  _midi.setHandleNoteOn([](byte channel, byte note, byte velocity) {
-    printf("NoteOn %u %u %u\n", channel, note, velocity);
-  });
-  _midi.setHandleNoteOff([](byte channel, byte note, byte velocity) {
-    printf("NoteOff %u %u %u\n", channel, note, velocity);
+  _midi.setHandleMessage([](const MidiInterface::MidiMessage& message) {
+    printf("HandleMessage type %u\n", message.type);
+    if (!message.isChannelMessage() || !_apple_midi->_callback) { return; }
+    std::array<uint8_t, 3> bytes = {uint8_t(message.type | (message.channel - 1)), message.data1, message.data2};
+    _apple_midi->_callback(bytes, bytes, *_apple_midi);
   });
   _midi.setHandleSystemExclusive([](byte* array, unsigned size) {
     if (!_apple_midi->_callback) { return; }

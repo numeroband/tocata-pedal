@@ -16,13 +16,28 @@ void Controller::init()
     _display.init();
     //
     Storage::init();
-    _leds.init();
-    _leds_init_delay.start(100);
-    footswitchMode();
     _buttons.init();
     _exp.init();
     _network.init();
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
+    _leds.init();
+
+    PollTimer leds_timer;
+    for (uint8_t i = 0; i < 128; ++i)
+    {
+        while (!leds_timer.expired()) {
+            _usb.run();
+            _network.run();
+        }
+        leds_timer.restart(15);
+        for (uint8_t led = 0; led < Leds::kMaxLeds; ++led)
+        {
+            _leds.setColor(led, i, i, i);
+        }
+        _leds.refresh();
+        _leds.run();
+    }
+    footswitchMode();
 }
 
 void Controller::run() 
@@ -31,27 +46,21 @@ void Controller::run()
     _buttons.run();
     _exp.run();
     _network.run();
+    _leds.run();
 
-    uint32_t now = millis();
-    if ((now - _last_display_update) > 50)
+    if (_display_timer.expired())
     {
         static uint32_t display_runs = 0;
         static uint32_t total_time = 0;
+        auto start = millis();
          _display.run();
-        _last_display_update = now;
-        total_time += millis() - now;
+        total_time += millis() - start;
         if (++display_runs >= 20) {
             printf("display average: %u\n", (total_time * 1000) / display_runs);
             total_time = 0;
             display_runs = 0;
         }
-    }
-
-    // Leds not working on init
-    static bool run_once = false;
-    if (!run_once && _leds_init_delay.expired()) {
-        run_once = true;
-        _leds.refresh();
+        _display_timer.restart(50);
     }
 }
 
@@ -80,11 +89,11 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     constexpr uint8_t dec_one = Program::kNumSwitches + 1;
 
     if (activated[swMap(inc_one)]) {
-        // loadProgram((_program_id + 1) % 99, false, false);
-        // footswitchMode();
+        loadProgram((_program_id + 1) % 99, false, false);
+        footswitchMode();
     } else if (activated[swMap(dec_one)]) {
-        // loadProgram((_program_id + 99 - 1) % 99, false, false);
-        // footswitchMode();
+        loadProgram((_program_id + 99 - 1) % 99, false, false);
+        footswitchMode();
     } else {
         _leds.refresh();
     }

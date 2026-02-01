@@ -194,6 +194,12 @@ void usb_init()
   stdio_set_driver_enabled(&usb_stdio, true);
 }
 
+uint HALDisplay::dma;
+uint8_t HALDisplay::cs_pin;
+uint8_t HALDisplay::reset_pin;
+uint8_t HALDisplay::dc_pin;
+spi_inst_t* HALDisplay::spi;
+
 } // namespace tocata
 
 #endif // HAL_PICO

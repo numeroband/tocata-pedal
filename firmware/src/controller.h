@@ -59,7 +59,6 @@ private:
     Display _display;
     Network _network;
     Program _program{};
-    uint32_t _last_display_update;
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
     uint8_t _counter = 0;
@@ -82,7 +81,6 @@ private:
     const uint8_t kExitSwitch = uint8_t(_buttons.kNumSwitches / 2 + 2);
 
     PollTimer _display_timer{};
-    PollTimer _leds_init_delay{};
 };
 
 }
