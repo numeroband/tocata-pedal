@@ -24,7 +24,7 @@ public:
     void setCallback(SwitchesChanged callback) { _callback = callback; }
 
 private:
-    static constexpr uint32_t kDebounceMs = 50;
+    static constexpr uint32_t kDebounceMs = 200;
 
     int _sm;
     Mask _state{};

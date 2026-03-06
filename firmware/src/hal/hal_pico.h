@@ -140,10 +140,24 @@ static inline void expression_init(const HWConfigExpression& config)
     adc_gpio_init(config.adc_pin);
     // Select ADC input (starts at GPIO26)
     adc_select_input(config.adc_pin - 26);
+
+    // Initialize the GPIO
+    gpio_init(config.connected_pin);
+
+    // Set as input
+    gpio_set_dir(config.connected_pin, GPIO_IN);
+
+    // Enable the internal pull-up resistor
+    gpio_pull_up(config.connected_pin);
 }
 
-static inline uint16_t expression_read()
+static inline uint16_t expression_read(const HWConfigExpression& config)
 {
+    if (!gpio_get(config.connected_pin))
+    {
+        // Not connected
+        return 0;
+    }
     return adc_read();
 }
 
@@ -158,13 +172,18 @@ static inline void leds_init(const HWConfigLeds& config)
 
 static inline void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds)
 {
+    for (size_t led = 0; led < num_leds; ++led)
+    {
+        const uint32_t led_value = leds[led];
+        pio_sm_put_blocking(pio0, config.state_machine_id, led_value);
+    }
+
     printf("Leds update sm %u:", config.state_machine_id);
     for (size_t led = 0; led < num_leds; ++led)
     {
         const uint32_t led_value = leds[led];
         printf(" %08X", led_value);
-        pio_sm_put_blocking(pio0, config.state_machine_id, led_value);
-    }    
+    }
     printf("\n");
 }
 

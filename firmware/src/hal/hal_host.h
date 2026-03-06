@@ -41,7 +41,7 @@ uint32_t switches_value(const HWConfigSwitches& config);
 // Expression
 
 static inline void expression_init(const HWConfigExpression& config) {}
-uint16_t expression_read();
+uint16_t expression_read(const HWConfigExpression& config);
 
 // Leds
 

@@ -12,9 +12,9 @@ void AppleMidi::init()
 {
   // Hack for the callbacks
   _apple_midi = this;
-  EthernetBonjour.begin("TocataPedal");
+  EthernetBonjour.begin("tocatapedal");
 
-  EthernetBonjour.addServiceRecord("TocataPedal._apple-midi",
+  EthernetBonjour.addServiceRecord("tocatapedal._apple-midi",
                                    5004,
                                   MDNSServiceUDP);
 
