@@ -41,17 +41,18 @@ int main()
     .switches = {
       .state_machine_id = 0,
       .first_input_pin = 2,
-      .first_output_pin = 6,
+      .map = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, },
     },
     .leds = {
       .state_machine_id = 1,
       .data_pin = 18,
+      .map = { 2, 1, 0, 3, 4, 5, },
     },
-    .displayI2C = {
+    .displayI2C = {{
       .available = true,
       .sda_pin = 20,
       .scl_pin = 21,
-    },
+    }},
     .expression = {
       .adc_pin = 26,
     },

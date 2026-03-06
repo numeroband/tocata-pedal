@@ -9,7 +9,7 @@ void Expression::init() {
 }
 
 void Expression::run() {
-    _currentRaw = expression_read();
+    _currentRaw = expression_read(_config);
 
     uint8_t value = calculateValue();
     if (value != _currentValue) {

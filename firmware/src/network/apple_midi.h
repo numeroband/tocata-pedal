@@ -39,7 +39,7 @@ private:
     };
     using MidiSession = APPLEMIDI_NAMESPACE::AppleMIDISession<EthernetUDP, AppleMidiSettings>;
     using MidiInterface = MIDI_NAMESPACE::MidiInterface<MidiSession, MidiSettings>;
-    MidiSession _midi_session{"TocataPedal", DEFAULT_CONTROL_PORT};
+    MidiSession _midi_session{"tocatapedal", DEFAULT_CONTROL_PORT};
     MidiInterface _midi{_midi_session};
     size_t _connected{0};
     bool _initialized = false;

@@ -22,8 +22,8 @@ void Controller::init()
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
     _leds.init();
 
-    PollTimer leds_timer;
-    for (uint8_t i = 0; i < 128; ++i)
+    PollTimer leds_timer;    
+    for (uint8_t i = 0; is_pedal_long() && i < 128; ++i)
     {
         while (!leds_timer.expired()) {
             _usb.run();
@@ -181,6 +181,7 @@ void Controller::setExpValue(uint8_t value) {
     }
 
     _display.setText(_expValue);
+    _display.refresh();
 }
 
 void Controller::setupMode()
@@ -329,6 +330,16 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
     _program_id = id;
     _fs_id = 0;
     _program.load(id);
+    bool is_scene = (_program.mode() == Program::kScene);
+    for (uint8_t fs_id = 0; is_scene && fs_id < _program.numFootswitches(); ++fs_id)
+    {
+        auto& fs = _program.footswitch(fs_id);
+        if (fs.available() && fs.enabled())
+        {
+            _fs_id = fs_id;
+        }
+    }
+
     displayProgram(display_switches);
 
     if (send_midi && _program.available())
@@ -338,7 +349,6 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
         sendExpression(_exp.getValue());
     }
 
-    bool is_scene = (_program.mode() == Program::kScene);
     for (uint8_t id = 0; id < _leds.kNumLeds; ++id)
     {
         if (!display_switches)

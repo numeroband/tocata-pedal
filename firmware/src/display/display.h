@@ -28,6 +28,7 @@ public:
 	void clearSwitches() { _fs_text = {}; }
 	void setBlink(bool enabled);
 	void setTuner(bool enabled, uint8_t note = 0, int8_t cents = 0);
+	void refresh() { _dirty = true; }
 	
 private:
 	static constexpr uint8_t kBlinkTicks = 8;

@@ -427,7 +427,7 @@ void board_reset() {
   ws.disconnect();
 }
 
-uint16_t expression_read() {
+uint16_t expression_read(const HWConfigExpression& config) {
   constexpr int16_t kMargin = 1 << 5;
   constexpr int16_t kMin = kMargin;
   constexpr int16_t kMax = (1 << 12) - kMargin;
