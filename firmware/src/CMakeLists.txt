@@ -8,6 +8,7 @@ set_target_properties(${CUR_TARGET} PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.domain.style.identifier.${CUR_TARGET}
     MACOSX_BUNDLE_BUNDLE_NAME ${CUR_TARGET}
 )
+add_subdirectory(tocata-midi)
 else()
 add_executable(${CUR_TARGET})
 endif()
@@ -90,21 +91,13 @@ endif()
 
 target_sources(${CUR_TARGET} PRIVATE
         network/network.cpp
-        network/apple_midi.cpp
         # network/wizchip_spi.c
         # network/timer.c
-        ../lib/EthernetBonjour/EthernetBonjour.cpp
-        ../lib/EthernetBonjour/utility/EthernetUtil.c
         )
 
 target_link_libraries(${CUR_TARGET} PRIVATE 
         ETHERNET_FILES
         IOLIBRARY_FILES
-        DHCP_FILES
-        TIMER_FILES
-        arduino_bonjour
-        arduino_midi
-        arduino_applemidi
         )
 
 # create map/bin/hex/uf2 file etc.
