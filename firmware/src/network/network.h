@@ -6,8 +6,9 @@
 
 #ifdef PICO_BUILD
 
-#include "apple_midi.h"
+// #include "apple_midi.h"
 #include "dhcp_client.h"
+#include "mc_midi.hpp"
 
 namespace tocata {
 
@@ -21,7 +22,8 @@ public:
 
 private:
     const HWConfigEthernet& _config;
-    AppleMidi& _midi = AppleMidi::sharedInstance();
+    // AppleMidi& _midi = AppleMidi::sharedInstance();
+    MulticastMidi _midi{};
     DHCPClient _dhcp;
 };
 

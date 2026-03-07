@@ -16,7 +16,10 @@ extern "C" {
 #include "dhcp.h"
 
 #include "timer.h"
+
+#include "pico/unique_id.h"
 }
+
 
 /**
     ----------------------------------------------------------------------------------------------------
@@ -39,50 +42,89 @@ extern "C" {
     ----------------------------------------------------------------------------------------------------
 */
 /* Network */
-static wiz_NetInfo g_net_info = {
-    .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, // MAC address
-    .ip = {192, 168, 11, 2},                     // IP address
-    .sn = {255, 255, 255, 0},                    // Subnet Mask
-    .gw = {192, 168, 11, 1},                     // Gateway
-#if _WIZCHIP_ > W5500
-    .lla = {
-        0xfe, 0x80, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x02, 0x08, 0xdc, 0xff,
-        0xfe, 0x57, 0x57, 0x25
-    },             // Link Local Address
-    .gua = {
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00
-    },             // Global Unicast Address
-    .sn6 = {
-        0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00
-    },             // IPv6 Prefix
-    .gw6 = {
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00
-    },             // Gateway IPv6 Address
-    .dns = {8, 8, 8, 8},                         // DNS server
-    .dns6 = {
-        0x20, 0x01, 0x48, 0x60,
-        0x48, 0x60, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x88, 0x88
-    },             // DNS6 server
-    .ipmode = NETINFO_STATIC_ALL,                // this 'ipmode' is never used in this project.
-    .dhcp = NETINFO_DHCP,
-#else
-    .dns = {8, 8, 8, 8},                         // DNS server
-    .dhcp = NETINFO_DHCP,
-#endif
-};
+static wiz_NetInfo g_net_info = {.dhcp = NETINFO_STATIC};
+//     .mac = {0x02}, // MAC address
+//     .ip = {},                     // IP address
+//     .sn = {},                    // Subnet Mask
+//     .gw = {},                     // Gateway
+// #if _WIZCHIP_ > W5500
+//     .lla = {
+//         0xfe, 0x80, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x02, 0x08, 0xdc, 0xff,
+//         0xfe, 0x57, 0x57, 0x25
+//     },             // Link Local Address
+//     .gua = {
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00
+//     },             // Global Unicast Address
+//     .sn6 = {
+//         0xff, 0xff, 0xff, 0xff,
+//         0xff, 0xff, 0xff, 0xff,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00
+//     },             // IPv6 Prefix
+//     .gw6 = {
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00
+//     },             // Gateway IPv6 Address
+//     .dns = {},                         // DNS server
+//     .dns6 = {
+//         0x20, 0x01, 0x48, 0x60,
+//         0x48, 0x60, 0x00, 0x00,
+//         0x00, 0x00, 0x00, 0x00,
+//         0x00, 0x00, 0x88, 0x88
+//     },             // DNS6 server
+//     .ipmode = NETINFO_STATIC_ALL,                // this 'ipmode' is never used in this project.
+//     .dhcp = NETINFO_STATIC, // NETINFO_DHCP,
+// #else
+//     .dns = {8, 8, 8, 8},                         // DNS server
+//     .dhcp = NETINFO_DHCP,
+// #endif
+// };
+
+inline void mac_to_lla(const uint8_t* mac, uint8_t* outIpv6) {
+    // 1. Set the Link-Local prefix: fe80::/64
+    // First 8 bytes: fe80:0000:0000:0000
+    outIpv6[0] = 0xfe;
+    outIpv6[1] = 0x80;
+    for (int i = 2; i < 8; ++i) {
+        outIpv6[i] = 0x00;
+    }
+
+    // 2. Modified EUI-64 (Interface Identifier)
+    // Copy first 3 bytes of MAC
+    outIpv6[8] = mac[0];
+    outIpv6[9] = mac[1];
+    outIpv6[10] = mac[2];
+
+    // 3. Flip the Universal/Local bit (7th bit of the first byte)
+    outIpv6[8] ^= 0x02;
+
+    // 4. Insert ff:fe in the middle
+    outIpv6[11] = 0xff;
+    outIpv6[12] = 0xfe;
+
+    // 5. Copy the remaining 3 bytes of MAC
+    outIpv6[13] = mac[3];
+    outIpv6[14] = mac[4];
+    outIpv6[15] = mac[5];
+}
+
+inline void mac_from_serial(uint8_t* mac) {
+    // Create a struct to hold the ID
+    pico_unique_board_id_t board_id;
+
+    // Fetch the ID from the hardware (Flash chip)
+    pico_get_unique_board_id(&board_id);
+    memcpy(mac, board_id.id + 2, 6);
+    mac[0] = 0x02;
+}
+
 static uint8_t g_ethernet_buf[ETHERNET_BUF_MAX_SIZE] = {
     0,
 }; // common buffer
@@ -162,6 +204,9 @@ public:
     using Callback = std::function<void(const uint8_t*)>;
 
     bool init(Callback callback) {
+        mac_from_serial(g_net_info.mac);
+        mac_to_lla(g_net_info.mac, g_net_info.lla);
+
         wizchip_spi_initialize();
         wizchip_cris_initialize();
 
@@ -213,6 +258,7 @@ public:
 
                     /* Get network information */
                     print_network_information(g_net_info);
+                    _ready = true;
                     _callback(g_net_info.ip);                    
                 }
                 _state = State::Running;
