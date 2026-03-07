@@ -15,7 +15,8 @@ void Network::init() {
 
     _dhcp.init([this](const uint8_t* ip) {
         if (ip) {
-            ::Ethernet.setLocalIP({ip});
+            // ::Ethernet.setLocalIP({ip});
+            printf("IP ready!!!\n");
             _midi.init();
         } else {            
         }
