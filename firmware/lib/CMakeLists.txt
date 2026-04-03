@@ -142,49 +142,7 @@ target_include_directories(u8g2 INTERFACE
     ${U8G2_PATH}/csrc
     )
 
-if(PICO_SDK)
-####################################################################
-# Ethernet
-
-set(PICO_PLATFORM rp2350)
-
-# Set the project root directory if it's not already defined, as may happen if
-# the tests folder is included directly by a parent project, without including
-# the top level CMakeLists.txt.
-set(WIZNET_DIR ${CMAKE_SOURCE_DIR}/lib/ioLibrary_Driver)
-message(STATUS "WIZNET_DIR = ${WIZNET_DIR}")
-
-set(WIZNET_PICO_C_DIR ${CMAKE_SOURCE_DIR}/lib/WIZnet-PICO-C)
-
-set(PORT_DIR ${WIZNET_PICO_C_DIR}/port)
-message(STATUS "PORT_DIR = ${PORT_DIR}")
-
-# Turn off mbedtls test mode 
-set(ENABLE_PROGRAMS OFF CACHE BOOL "Build mbedtls programs")
-set(ENABLE_TESTING OFF CACHE BOOL "Build mbedtls testing")
-add_definitions(-DMBEDTLS_CONFIG_FILE="${PORT_DIR}/mbedtls/inc/ssl_config.h")
-add_definitions(-DSET_TRUSTED_CERT_IN_SAMPLES)
-add_definitions(-DPICO_USE_FASTEST_SUPPORTED_CLOCK=1)
-
-# Set compile options
-add_compile_options(
-        -Wall
-        -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
-        -Wno-unused-function # we have some for the docs that aren't called
-        -Wno-maybe-uninitialized
-        -Wno-incompatible-pointer-types
-        -Wno-implicit-function-declaration
-        -Wno-pointer-sign
-        )
-
-# Hardware-specific examples in subdirectories:
-# add_subdirectory(examples)
-
-# Add libraries in subdirectories
-add_subdirectory(${WIZNET_PICO_C_DIR}/libraries)
-add_subdirectory(${PORT_DIR})
-
-else()
+if(NOT PICO_SDK)
 add_subdirectory(libremidi)
 add_subdirectory(SDL)
 endif()

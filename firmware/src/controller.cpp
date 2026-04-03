@@ -18,16 +18,13 @@ void Controller::init()
     Storage::init();
     _buttons.init();
     _exp.init();
-    _network.init();
-    _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
     _leds.init();
 
-    PollTimer leds_timer;    
+    PollTimer leds_timer;
     for (uint8_t i = 0; is_pedal_long() && i < 128; ++i)
     {
         while (!leds_timer.expired()) {
             _usb.run();
-            _network.run();
         }
         leds_timer.restart(15);
         for (uint8_t led = 0; led < Leds::kMaxLeds; ++led)
@@ -38,6 +35,9 @@ void Controller::init()
         _leds.run();
     }
     footswitchMode();
+    
+    _network.init();
+    _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
 }
 
 void Controller::run() 

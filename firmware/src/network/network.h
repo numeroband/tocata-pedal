@@ -6,7 +6,7 @@
 
 #ifdef PICO_BUILD
 
-#include "dhcp_client.h"
+#include "wiznet.hpp"
 #include "mc_midi.hpp"
 
 namespace tocata {
@@ -21,8 +21,9 @@ public:
 
 private:
     const HWConfigEthernet& _config;
-    MulticastMidi _midi{};
-    DHCPClient _dhcp;
+    Ethernet _eth;
+    MulticastMidi _midi{_eth};
+    bool _connected = false;
 };
 
 } // namespace tocata
