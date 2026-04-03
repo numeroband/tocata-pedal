@@ -21,11 +21,16 @@ public:
 	}
 
 	bool expired() {
-		return millis() >= _deadline;
+		return _deadline != kInvalid && millis() >= _deadline;
+	}
+
+	void disable() {
+		_deadline = kInvalid;
 	}
 
 private:
-	uint32_t _deadline;
+	static constexpr uint32_t kInvalid = UINT32_MAX;
+	uint32_t _deadline{kInvalid};
 };
 
 }

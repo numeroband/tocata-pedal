@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wiznet.hpp"
+#include "udp6.hpp"
 #include <midi_sender.h>
 #include <poll_timer.h>
 #include <cstdint>
@@ -46,6 +46,7 @@ namespace tocata {
 
 class MulticastMidi : public MidiSender {
 public:
+    MulticastMidi(Ethernet& eth) : _socket{eth} {}
     void init() {
         _socket.beginMulticast(kAddr, kPort);
     }
@@ -105,7 +106,7 @@ private:
         _socket.endPacket();
     }
 
-    EthernetUDP6 _socket{};
+    EthernetUDP6 _socket;
     Callback _callback{};
     static constexpr IP6Address kAddr = {
         0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x70, 0xCA, 0x7A, 0};
