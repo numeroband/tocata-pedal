@@ -44,9 +44,9 @@ public:
         set<LLAR>(ip.data());
         set<NETLCKR>(NETLCKR_LOCK);
 
-        uint16_t chipId = get<CIDR>();
-        if (chipId != 0x6100) {
-            printf("Wrong chip ID: %0x04X\n");
+        uint16_t chip_id = get<CIDR>();
+        if (chip_id != 0x6100) {
+            printf("Wrong chip ID: 0x%04X\n", chip_id);
             return;
         }
         _initialized = true;
