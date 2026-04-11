@@ -45,7 +45,7 @@ export async function readAll(progress) {
   console.log('start readAll');
   const names = await readProgramNames();
   updateProgress(5);
-  const {wifi} = await readConfig();
+  const config = await readConfig();
   updateProgress(5);
   const programIds = names.reduce((ids, name, index) => name ? [...ids, index] : ids, [])
   const programs = [];
@@ -57,10 +57,10 @@ export async function readAll(progress) {
   }
   progress && progress(100);
   console.log('end readAll');
-  return { wifi, programs };
+  return { config, programs };
 }
 
-export async function updateAll({wifi, programs = []}, progress) {
+export async function updateAll({config, programs = []}, progress) {
   let currentProgress = 0;
   function updateProgress(value) {
     currentProgress += value;
@@ -77,7 +77,7 @@ export async function updateAll({wifi, programs = []}, progress) {
     updateProgress(programProgress);
   }
 
-  await (wifi ? updateConfig({wifi}) : deleteConfig());
+  await (config ? updateConfig(config) : deleteConfig());
   updateProgress(1);
 
   console.log('end updateAll');

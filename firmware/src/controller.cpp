@@ -16,6 +16,7 @@ void Controller::init()
     _display.init();
     //
     Storage::init();
+    _config.load();
     _buttons.init();
     _exp.init();
     _leds.init();
@@ -68,11 +69,7 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
 {
     auto activated = status & modified;
 
-    if (activated.any()) {
-        _display.setTuner(false);
-    }
-
-    if (activated.count() > 1)
+    if (activated[swMap(kProgramSwitch)])
     {
         changeProgramMode();
         return;
@@ -115,21 +112,26 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
         setupMode();
     } else if (activated[swMap(kLoadSwitch)]) {
         footswitchMode();
+    } else if (activated[swMap(kTunerSwitch)]) {
+        tunerMode();
     }
 }
 
 void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender)
 {
-    if (packet[0] == 0xC0) {
+    uint8_t channel = _config.midi().channel();
+    uint8_t msg_channel = packet[0] & 0x0F;
+    uint8_t msg_type = packet[0] & 0xF0;
+    if (msg_channel == channel && msg_type == 0xC0) {
         footswitchMode(false);
         loadProgram(packet[1], false, true);
-    } else if (packet[0] == 0xB0 && packet[1] == 43) {
+    } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
         footswitchMode(false);
         changeSwitch(packet[2], true, false);
         changeSwitch(packet[2], false, false);
         sleep_ms(1);
         _leds.refresh();
-    } else if (packet[0] == 0x90) {
+    } else if (msg_channel == channel && msg_type == 0x90) {
         int8_t velocity = packet[2];
         uint8_t note = packet[1];
         if (velocity > 63) {
@@ -137,7 +139,7 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
             velocity -= 128;
         }
         displayTuner(note, velocity);
-    } else if (packet[0] == 0x80 && packet[1] == 0) {
+    } else if (msg_channel == channel && msg_type == 0x80 && packet[1] == 0) {
         displayTuner(0, 0);
     } else if (packet[0] == 0xF0) {
         auto response = _usb.web().processSysEx(packet, buffer);
@@ -163,22 +165,37 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[swMap(kDecExpFilterSwitch)]) {
         _exp.decFilter();
     } else if (activated[swMap(kExitSwitch)]) {
+        _config.save();
         footswitchMode();
+    } else if (activated[swMap(kIncChannelSwitch)]) {
+        auto channel = _config.midi().channel();
+        _config.midi().setChannel((channel + 1) % 16);
+        setExpValue(_exp.getValue());
+    } else if (activated[swMap(kDecChannelSwitch)]) {
+        auto channel = _config.midi().channel();
+        _config.midi().setChannel((channel + 15) % 16);
+        setExpValue(_exp.getValue());
     }
 }
 
 void Controller::setExpValue(uint8_t value) {
     constexpr uint8_t kNumDigits = 3;
-    constexpr uint8_t kStart = sizeof(_expValue) - kNumDigits - 1;
+    constexpr uint8_t kStart = sizeof(EXP_VALUE_PREFIX) - 1;
 
     uint8_t remainder = value;
-
+    
     for (uint8_t i = 0; i < kNumDigits; ++i)
     {
         uint8_t digit = remainder % 10;
         remainder /= 10;
         _expValue[kStart + (kNumDigits - 1 - i)] = '0' + digit;
     }
+
+    // MIDI channel
+    constexpr uint8_t kChannelStart = sizeof(CHANNEL_PREFIX) - 1;
+    auto channel = _config.midi().channel() + 1;
+    _expValue[kChannelStart] = (channel > 9) ? '1' : ' ';
+    _expValue[kChannelStart + 1] = '0' + (channel % 10);
 
     _display.setText(_expValue);
     _display.refresh();
@@ -190,6 +207,8 @@ void Controller::setupMode()
     _display.setBlink(false);
     setExpValue(_exp.getValue());
     _display.clearSwitches();
+    _display.setFootswitch(kIncChannelSwitch, "CHAN+");
+    _display.setFootswitch(kDecChannelSwitch, "CHAN-");
     _display.setFootswitch(kExpMaxSwitch, "XPMAX");
     _display.setFootswitch(kExpMinSwitch, "XPMIN");
     _display.setFootswitch(kIncExpFilterSwitch, "FILT+");
@@ -209,11 +228,37 @@ void Controller::changeProgramMode()
     _display.setFootswitch(kIncOneSwitch, " +1");
     _display.setFootswitch(kIncTenSwitch, " +10");
     _display.setFootswitch(kSetupSwitch, "SETUP");
+    _display.setFootswitch(kTunerSwitch, "TUNER");
     _display.setFootswitch(kDecOneSwitch, " -1");
     _display.setFootswitch(kDecTenSwitch, " -10");
     _display.setFootswitch(kLoadSwitch, "LOAD");
     _switches_state.reset();
     _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
+}
+
+void Controller::tunerMode() {
+    _tuner_mode = true;
+
+    for (uint8_t idx = 0; idx < Program::kNumSwitches; ++idx) {
+        _display.setFootswitch(idx, nullptr);
+    }
+    displayTuner(0, 0);
+    _switches_state.reset();
+    _buttons.setCallback([this](auto status, auto modified) {
+        auto activated = status & modified;
+        if (!activated.any()) {
+            return;
+        }
+        _tuner_mode = false;
+        auto channel = _config.midi().channel();
+        _network.midi().sendControl(channel, 47, 0);
+        _usb.midi().sendControl(channel, 47, 0);
+        footswitchMode(false);
+    });
+
+    auto channel = _config.midi().channel();
+    _network.midi().sendControl(channel, 47, 127);;
+    _usb.midi().sendControl(channel, 47, 127);
 }
 
 void Controller::footswitchMode(bool send_midi)
@@ -227,6 +272,9 @@ void Controller::footswitchMode(bool send_midi)
 
 void Controller::displayTuner(uint8_t note, int64_t cents)
 {
+    if (!_tuner_mode) {
+        return;
+    }
     _display.setTuner(true, note, cents);
     const uint8_t columns = _leds.kNumLeds / 2;
     for (uint8_t i = 0; i < _leds.kNumLeds; ++i)
@@ -240,11 +288,11 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
         // Center
         Color color = kNone;
         if (column == columns / 2 || column == (columns - 1) / 2) {
-            color = (cents > -4 && cents < 4) ? Color::kGreen : Color::kNone;
+            color = (cents == 0) ? Color::kGreen : Color::kNone;
         } else if (column < (columns - 1) / 2) {
-            color = (cents <= -4) ? Color::kRed : Color::kNone;
+            color = (cents < 0) ? Color::kRed : Color::kNone;
         } else {
-            color = (cents >= 4) ? Color::kRed : Color::kNone;
+            color = (cents > 0) ? Color::kRed : Color::kNone;
         }
         _leds.setColor(i, color, true);
     }
@@ -288,11 +336,11 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
 
     if (send_midi) {
         if (is_scene) {
-            _program.footswitch(_fs_id).run(_usb.midi(), false);
             _program.footswitch(_fs_id).run(_network.midi(), false);
+            _program.footswitch(_fs_id).run(_usb.midi(), false);
         }
-        fs.run(_usb.midi(), _switches_state[id]);
         fs.run(_network.midi(), _switches_state[id]);
+        fs.run(_usb.midi(), _switches_state[id]);
     }
     _fs_id = id;
     _leds.setColor(id, fs.color(), _switches_state[id]);
@@ -302,8 +350,8 @@ void Controller::sendExpression(uint8_t value)
 {
     if (_expEnabled && _program.available() && _program.expressionEnabled())
     {
-        _program.sendExpression(_usb.midi(), value);
         _program.sendExpression(_network.midi(), value);
+        _program.sendExpression(_usb.midi(), value);
     }
 }
 
@@ -383,6 +431,7 @@ void Controller::displayProgram(bool display_switches) {
         auto& fs = _program.footswitch(idx);
         _display.setFootswitch(idx, fs.available() ? fs.name() : nullptr);
     }
+    _display.setFootswitch(kProgramSwitch, "...");
 }
 
 }

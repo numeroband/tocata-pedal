@@ -85,7 +85,7 @@ bool Config::load()
     return available();
 #endif
 
-    _wifi = {};
+    _midi = {};
 
     File file = TocataFS.open(kPath, FILE_READ);
     if (!file)
@@ -104,7 +104,7 @@ bool Config::load()
     if (bytes_read != sizeof(*this))
     {
         _logln(F("Invalid config file"));
-        _wifi = {};
+        _midi = {};
     }
 
     return available();
@@ -123,6 +123,7 @@ void Config::save() const
     }
 
     Config current{};
+    current.load();
     if (current == *this)
     {
         return;
@@ -148,7 +149,7 @@ void Config::save() const
 bool Config::operator==(const Config& other)
 {
     return (true
-        && _wifi == other._wifi
+        && _midi == other._midi
     );
 }
 
@@ -201,12 +202,11 @@ bool Actions::operator==(const Actions& other)
     return true;
 }
 
-bool Config::Wifi::operator==(const Config::Wifi& other)
+bool Config::MidiConfig::operator==(const Config::MidiConfig& other)
 {
     return (true
         && available() == other.available()
-        && strncmp(_ssid, other._ssid, sizeof(_ssid)) == 0
-        && strncmp(_key, other._key, sizeof(_key)) == 0
+        && _channel == other._channel
     );
 }
 

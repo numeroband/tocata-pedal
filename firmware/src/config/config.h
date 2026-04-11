@@ -16,26 +16,24 @@ public:
 class Config
 {
 public:
-    class Wifi
+    class MidiConfig
     {
     public:
-        const char* ssid() const { return _ssid; }
-        const char* key() const { return _key; }
-        bool available() const { return _ssid[0]; }
-        bool operator==(const Wifi& other);
+        uint8_t channel() const { return _channel; }
+        void setChannel(uint8_t channel) { _channel = channel; }
+        bool available() const { return true; }
+        bool operator==(const MidiConfig& other);
 
     private:
-        char _ssid[64] = "";
-        char _key[64];
+        uint8_t _channel = 0;
     } __attribute__((packed));
 
     static void remove() { remove(true); };
 
-    Config() { load(); };
-
     bool load();
-    bool available() const { return _wifi.available(); }
-    const Wifi& wifi() const { return _wifi; }
+    bool available() const { return _midi.available(); }
+    const MidiConfig& midi() const { return _midi; }
+    MidiConfig& midi() { return _midi; }
     void save() const;
     bool operator==(const Config& other);
 
@@ -48,7 +46,8 @@ private:
 
     static void remove(bool check);
 
-    Wifi _wifi;
+    uint8_t _version = 0;
+    MidiConfig _midi;
 } __attribute__((packed));
 
 class Actions

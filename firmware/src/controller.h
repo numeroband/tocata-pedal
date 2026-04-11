@@ -10,7 +10,9 @@
 #include "hal.h"
 #include "poll_timer.h"
 
-#define EXP_VALUE_PREFIX "EXP = "
+#define CHANNEL_PREFIX "CH "
+#define CHANNEL_TEXT CHANNEL_PREFIX "16"
+#define EXP_VALUE_PREFIX CHANNEL_TEXT " - EXP = "
 #define EXP_VALUE_TEXT EXP_VALUE_PREFIX "127"
 
 namespace tocata {
@@ -41,6 +43,7 @@ private:
     void footswitchMode(bool send_midi = true);
     void setupMode();
     void changeProgramMode();
+    void tunerMode();
     void changeSwitch(uint8_t id, bool active, bool send_midi);
     void sendExpression(uint8_t value);
     void updateProgram(uint8_t id);
@@ -58,6 +61,7 @@ private:
     Leds _leds;
     Display _display;
     Network _network;
+    Config _config{};
     Program _program{};
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
@@ -65,20 +69,25 @@ private:
     bool _expEnabled = true;
     std::bitset<Program::kNumSwitches> _switches_state{};
     char _expValue[sizeof(EXP_VALUE_TEXT)]{EXP_VALUE_TEXT};
+    bool _tuner_mode = false;
 
     static constexpr uint8_t kIncOneSwitch = 0;
     static constexpr uint8_t kIncTenSwitch = 1;
     static constexpr uint8_t kSetupSwitch = 2;
-    const uint8_t kDecOneSwitch = _leds.kNumLeds / 2;
-    const uint8_t kDecTenSwitch = _leds.kNumLeds / 2 + 1;
-    const uint8_t kLoadSwitch = _leds.kNumLeds / 2 + 2;
+    static constexpr uint8_t kTunerSwitch = 3;
+    const uint8_t kProgramSwitch = uint8_t(_leds.kNumLeds / 2 - 1);
+    const uint8_t kDecOneSwitch = uint8_t(_leds.kNumLeds / 2);
+    const uint8_t kDecTenSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
+    const uint8_t kLoadSwitch = uint8_t(_leds.kNumLeds - 1);
 
     static constexpr uint8_t kExpMaxSwitch = 0;
     static constexpr uint8_t kIncExpFilterSwitch = 1;
-    static constexpr uint8_t kExpEnabledSwitch = 2;
-    const uint8_t kExpMinSwitch = uint8_t(_buttons.kNumSwitches / 2);
-    const uint8_t kDecExpFilterSwitch = uint8_t(_buttons.kNumSwitches / 2 + 1);
-    const uint8_t kExitSwitch = uint8_t(_buttons.kNumSwitches / 2 + 2);
+    static constexpr uint8_t kIncChannelSwitch = 2;
+    const uint8_t kExpEnabledSwitch = uint8_t(_leds.kNumLeds / 2 - 1);
+    const uint8_t kExpMinSwitch = uint8_t(_leds.kNumLeds / 2);
+    const uint8_t kDecExpFilterSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
+    const uint8_t kDecChannelSwitch = uint8_t(_leds.kNumLeds - 2);
+    const uint8_t kExitSwitch = uint8_t(_leds.kNumLeds - 1);
 
     PollTimer _display_timer{};
 };

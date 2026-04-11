@@ -3,7 +3,6 @@ const MAX_FS_NAME_SIZE = 8;
 const MAX_NAMES_RESPONSE = 16;
 const MAX_ACTIONS = 5;
 const MAX_SWITCHES = 8;
-const MAX_WIFI_STR_SIZE = 63;
 
 function isEmpty(value) {
   return (
@@ -164,17 +163,17 @@ const mode = [
   'scene',
 ];
 
-const wifi = {
+const midi = {
   fields: [
-    ['ssid', 'str', MAX_WIFI_STR_SIZE],
-    ['key', 'str', MAX_WIFI_STR_SIZE],    
+    ['channel', 'uint8'],
   ],
-  valid: o => o.ssid
+  valid: () => true
 };
 
 const config = {
   fields: [
-    ['wifi', 'struct', wifi, o => o.ssid],
+    ['version', 'uint8'],
+    ['midi', 'struct', midi, () => true],
   ],
 };
 

@@ -213,7 +213,7 @@ void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
 	
 	constexpr int8_t step = 64 / kTunerResolution;
 	for (int8_t i = 0; i < kTunerResolution; ++i) {
-		if (cents > -4 && cents < 4 && _tuner.isNoteValid(note)) {
+		if (cents == 0 && _tuner.isNoteValid(note)) {
 			_tuner.low[i] = '-';
 			_tuner.high[i] = '-';
 		} else {
