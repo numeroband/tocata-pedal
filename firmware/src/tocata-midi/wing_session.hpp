@@ -1,0 +1,113 @@
+#pragma once
+
+#include "wing_parser.hpp"
+#include "asio.hpp"
+
+using asio::ip::tcp;
+using namespace std::chrono_literals;
+
+namespace tocata::midi {
+
+class WingSession {
+public:
+  WingSession(asio::io_context& io_context, WingParser::Callback callback) 
+    : _socket{io_context}
+    , _timer{io_context}
+    , _resolver{io_context}
+    , _parser{callback} {}
+
+  void start(const char* host, const char* port) {
+    _resolver.async_resolve(
+      host, port,
+      [this](const asio::error_code& ec, tcp::resolver::results_type results) {
+        if (ec) { return log_error("resolve", ec); }
+        connect(std::move(results));
+      });
+  }
+
+  void sendRequest(uint32_t hash, std::function<void()> callback) {
+    struct Request {
+      uint8_t node_hash = 0xd7;
+      uint32_t hash;
+      uint8_t request = 0xdc;
+      Request(uint32_t hash) : hash{asio::detail::socket_ops::host_to_network_long(hash)} {}
+    } __attribute((packed));
+
+    struct RequestWithChannel {
+      uint8_t channel_change = 0xdf;
+      uint8_t channel = 0xd1;
+      Request request;
+      RequestWithChannel(uint32_t hash) : request{hash} {}
+    } __attribute((packed));
+
+    RequestWithChannel request{hash};
+    void* buffer = _channel_sent ? static_cast<void*>(&request.request) : static_cast<void*>(&request);
+    size_t size = _channel_sent ? sizeof(request.request) : sizeof(request);
+    _channel_sent = true;
+
+    asio::async_write(
+      _socket,
+      asio::buffer(buffer, size),
+      [callback](const asio::error_code& ec, std::size_t bytes) {
+        if (ec) { return log_error("write", ec); }
+        callback();
+      });
+  }
+
+private:
+  void connect(tcp::resolver::results_type results)
+  {
+    asio::async_connect(
+      _socket, results,
+      [this](const asio::error_code& ec, const tcp::endpoint& ep) {
+        if (ec) { return log_error("connect", ec); }
+        // Disable Nagle's algorithm so every send is flushed immediately.
+        asio::error_code opt_ec;
+        _socket.set_option(tcp::no_delay(true), opt_ec);
+        if (opt_ec) { return log_error("set_option(no_delay)", opt_ec); }
+
+        read();
+        sendAndSchedule();
+      });
+  }
+
+  void read()
+  {
+    _socket.async_read_some(
+      asio::buffer(&_read_buffer, sizeof(_read_buffer)),
+      [this](const asio::error_code& ec, std::size_t /*n*/) {
+        if (ec) { return log_error("read", ec); }
+        _parser.parse(_read_buffer);
+        read();   // re-arm immediately
+      });
+  }
+
+  void sendAndSchedule() {
+    sendRequest(0xf9ce1576, [this]() { 
+      schedule_send(); 
+    });
+  }
+
+  void schedule_send()
+  {
+    _timer.expires_after(6s);
+    _timer.async_wait([this](const asio::error_code& ec) {
+      if (ec) { return log_error("timer", ec); }
+      sendAndSchedule();
+    });
+  }
+
+  static void log_error(const char* where, const asio::error_code& ec)
+  {
+    std::fprintf(stderr, "[error] %s: %s\n", where, ec.message().c_str());
+  }
+
+  tcp::socket _socket;
+  asio::steady_timer _timer;
+  tcp::resolver _resolver;
+  uint8_t _read_buffer;
+  WingParser _parser;
+  bool _channel_sent = false;
+};
+
+}

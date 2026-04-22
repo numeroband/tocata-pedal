@@ -1,5 +1,6 @@
 #include "virt_midi.hpp"
 #include "mc_midi.hpp"
+#include "wing_session.hpp"
 
 using namespace tocata::midi;
 
@@ -12,7 +13,17 @@ int main(int argc, const char* argv[]) {
     }
 
     try {
-        asio::io_context io_context;        
+        asio::io_context io_context;
+        bool wing_alt = false;
+        WingSession wing_session{io_context, [&wing_alt](auto hash, auto value) {
+            if (hash == 0xF9CE1576) {
+                wing_alt = std::get<int32_t>(value);
+            }
+        }};
+        if (argc > 3) {
+            wing_session.start("localhost", "2222");
+        }
+
         std::vector<VirtualMidi> virt_ports;
         std::vector<MulticastMidi> mc_ports;
         for (uint8_t i = 0; i < num_ports; ++i) {
