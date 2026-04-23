@@ -1,28 +1,56 @@
 #pragma once
 
+#include "wing_discovery.hpp"
 #include "wing_parser.hpp"
+#define ASIO_STANDALONE
 #include "asio.hpp"
 
 using asio::ip::tcp;
 using namespace std::chrono_literals;
 
-namespace tocata::midi {
+namespace tocata::wing {
+
+namespace node {
+  constexpr WingParser::Hash IO_ALTSW = 0xF9CE1576;
+};
 
 class WingSession {
 public:
-  WingSession(asio::io_context& io_context, WingParser::Callback callback) 
-    : _socket{io_context}
+  using Callback = std::function<void(bool connected)>;
+
+  WingSession(asio::io_context& io_context)
+    : _discovery{io_context}
+    , _socket{io_context}
     , _timer{io_context}
     , _resolver{io_context}
-    , _parser{callback} {}
+  {
+    _discovery.setCallback([this](bool connected, const std::string& address) {
+      if (!connected) {
+        if (_callback) {
+          _callback(false);
+        }
+        return;
+      }
 
-  void start(const char* host, const char* port) {
-    _resolver.async_resolve(
-      host, port,
-      [this](const asio::error_code& ec, tcp::resolver::results_type results) {
-        if (ec) { return log_error("resolve", ec); }
-        connect(std::move(results));
-      });
+      _resolver.async_resolve(
+        address.c_str(), PORT,
+        [this](const asio::error_code& ec, tcp::resolver::results_type results) {
+          if (ec) { return log_error("resolve", ec); }
+          connect(std::move(results));
+        });
+    });
+  }
+
+  void setParserCallback(WingParser::Callback callback) {
+    _parser.setCallback(callback);
+  }
+
+  void setSessionCallback(Callback callback) {
+    _callback = callback;
+  }
+
+  void start() {
+    _discovery.start();
   }
 
   void sendRequest(uint32_t hash, std::function<void()> callback) {
@@ -55,6 +83,8 @@ public:
   }
 
 private:
+  static constexpr const char* PORT = "2222";
+
   void connect(tcp::resolver::results_type results)
   {
     asio::async_connect(
@@ -65,6 +95,8 @@ private:
         asio::error_code opt_ec;
         _socket.set_option(tcp::no_delay(true), opt_ec);
         if (opt_ec) { return log_error("set_option(no_delay)", opt_ec); }
+
+        if (_callback) { _callback(true); }
 
         read();
         sendAndSchedule();
@@ -102,12 +134,14 @@ private:
     std::fprintf(stderr, "[error] %s: %s\n", where, ec.message().c_str());
   }
 
+  WingDiscovery _discovery;
   tcp::socket _socket;
   asio::steady_timer _timer;
   tcp::resolver _resolver;
   uint8_t _read_buffer;
   WingParser _parser;
   bool _channel_sent = false;
+  Callback _callback;
 };
 
 }

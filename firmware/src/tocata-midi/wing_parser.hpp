@@ -6,7 +6,7 @@
 #include <functional>
 #include <array>
 
-namespace tocata::midi {
+namespace tocata::wing {
 
 class WingParser
 {
@@ -16,7 +16,9 @@ public:
   using Content = std::variant<NoContent, Hash, int32_t, float, const char*>;
   using Callback = std::function<void(Hash hash, Content content)>;
 
-  WingParser(Callback callback) : _callback(callback) {}
+  WingParser() {}
+
+  void setCallback(Callback callback) { _callback = callback; }
 
   void parse(uint8_t db)
   {
@@ -265,7 +267,9 @@ private:
       return;
     }
 
-    _callback(_hash, partial.content);
+    if (_callback) {
+      _callback(_hash, partial.content);
+    }
     _partial = {};
     _next = nullptr;
   }

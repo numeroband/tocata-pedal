@@ -5,8 +5,6 @@
 #include <cstdint>
 #include <iostream>
 
-#define TCT_UDP_DEBUG 0
-
 using asio::ip::udp;
 
 constexpr short multicast_port = 30001;
@@ -29,7 +27,6 @@ struct Packet {
     std::array<uint8_t, 512> data;
     bool validate(size_t size) const {
         return size > sizeof(header) && header.validate();
-
     }
 
     static constexpr size_t data_size(size_t size) {
@@ -51,10 +48,11 @@ class MulticastMidi {
 public:
     using Callback = std::function<void(std::span<const uint8_t>)>;
 
-    MulticastMidi(asio::io_context& io_context, uint8_t port, const char* iface)
+    MulticastMidi(asio::io_context& io_context, uint8_t port, const char* iface, bool& out_disabled)
         : socket_(io_context),
           multicast_address_{from_port(port, iface)},
-          multicast_endpoint_(asio::ip::make_address(multicast_address_), multicast_port) {
+          multicast_endpoint_(asio::ip::make_address(multicast_address_), multicast_port),
+          _out_disabled{out_disabled} {
         
         // 1. Open the socket with IPv6
         socket_.open(udp::v6());
@@ -76,6 +74,10 @@ public:
     }
 
     void send(std::span<const uint8_t> data) {
+        if (_out_disabled) {
+            return;
+        }
+
         std::vector<uint8_t> packet_bytes(Packet::total_size(data.size()));
         Packet& packet = *reinterpret_cast<Packet*>(packet_bytes.data());
         packet.header = {.sequence = _sequence++};
@@ -117,6 +119,7 @@ private:
 
 private:
     Callback _callback{};
+    bool& _out_disabled;
     static constexpr uint16_t kPort = 30001;
     uint8_t _sequence = 0;
     Packet _packet;
