@@ -32,9 +32,7 @@ void flash_erase(uint32_t flash_offs, size_t count);
 
 // Switches
 
-static inline void switches_init(const HWConfigSwitches& config) {}
-
-bool switches_changed(const HWConfigSwitches& config);
+static inline void switches_init(const HWConfigSwitches& config, uint8_t num_switches) {}
 
 uint32_t switches_value(const HWConfigSwitches& config);
 

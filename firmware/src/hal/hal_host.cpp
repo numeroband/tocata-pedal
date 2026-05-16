@@ -73,11 +73,6 @@ void spi_set_reset(bool enabled) {
 void spi_set_cs(bool enabled) {
 }
 
-bool switches_changed(const HWConfigSwitches& config) 
-{
-  return app.switchesChanged();
-}
-
 void leds_refresh(const HWConfigLeds& config, uint32_t* leds, size_t num_leds)
 {
   auto adjust = [](uint32_t v32) -> uint8_t {

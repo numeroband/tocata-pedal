@@ -114,21 +114,18 @@ static inline void flash_erase(uint32_t flash_offs, size_t count)
 
 // Switches
 
-static inline void switches_init(const HWConfigSwitches& config)
+static inline void switches_init(const HWConfigSwitches& config, uint8_t num_switches)
 {
-    uint offset = pio_add_program(pio0, &switches_program);
-    switches_program_init(pio0, config.state_machine_id, offset, config.first_input_pin);
-    printf("Configured switches program in sm %u offset %u\n", config.state_machine_id, offset);
-}
-
-static inline bool switches_changed(const HWConfigSwitches& config)
-{
-    return !pio_sm_is_rx_fifo_empty(pio0, config.state_machine_id);
+    for (auto pin = config.first_input_pin; pin < (config.first_input_pin + num_switches); ++pin) {
+        gpio_init(pin);
+        gpio_set_dir(pin, GPIO_IN);
+        gpio_pull_up(pin);
+    }
 }
 
 static inline uint32_t switches_value(const HWConfigSwitches& config)
 {
-    return ~pio_sm_get(pio0, config.state_machine_id);
+    return ~(gpio_get_all() >> config.first_input_pin);
 }
 
 // Expression

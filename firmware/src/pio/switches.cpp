@@ -6,47 +6,35 @@ namespace tocata {
 
 void Switches::init()
 {
-    switches_init(_config);
+    switches_init(_config, kNumSwitches);
 }
 
 void Switches::run()
 {
     uint32_t now = millis();
-    if (switches_changed(_config))
-    {
-        Mask old_state = _state;
-        _state = switches_value(_config);
-        Mask changed = _state ^ old_state;
-        Mask old_debouncing = _debouncing;
-        Mask start_debouncing = ~old_debouncing & changed;
-        _debouncing = old_debouncing | start_debouncing;
-        _debouncing_state = _debouncing_state | (_state & start_debouncing);
+    Mask raw_sample = switches_value(_config);
 
-        if (start_debouncing.any())
-        {
-            _debouncing_start = now;
+
+    Mask changed_this_tick;
+
+    for (size_t i = 0; i < kNumSwitches; ++i) {
+        // Check if this specific button is currently in a lockout period
+        if (now - _last_change_time[i] < kDebounceMs) {
+            continue; 
+        }
+
+        // Detect immediate change
+        if (raw_sample[i] != _stable_states[i]) {
+            _stable_states[i] = raw_sample[i];
+            _last_change_time[i] = now; // Start the lockout timer
+            changed_this_tick.set(i);
         }
     }
 
-    if (!_debouncing.any() || (now - _debouncing_start) < kDebounceMs)
-    {
-        return;
+    // Fire callback if any button changed and is now stable
+    if (changed_this_tick.any() && _callback) {
+        _callback(_stable_states, changed_this_tick);
     }
-
-    if (_callback)
-    {
-        _callback(_debouncing_state, _debouncing);
-    }
-    printf("%u: sw %03X(%03X)\n", 
-        now, 
-        static_cast<uint16_t>(_debouncing_state.to_ulong()), 
-        static_cast<uint16_t>(_debouncing.to_ulong()));
-
-    // If the current state is different than the state at the start of the debouncing 
-    // we start a new debounce with the new state
-    _debouncing = _debouncing_state ^ (_state & _debouncing);
-    _debouncing_state = (_state & _debouncing);
-    _debouncing_start = now;
 }
 
 } // namespace tocata

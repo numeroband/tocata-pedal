@@ -26,13 +26,18 @@ public:
 private:
     static constexpr uint32_t kDebounceMs = 200;
 
-    int _sm;
-    Mask _state{};
-    Mask _debouncing{};
-    Mask _debouncing_state{};
-    uint32_t _debouncing_start;
+    // int _sm;
+    // Mask _state{};
+    // Mask _debouncing{};
+    // Mask _debouncing_state{};
+    // uint32_t _debouncing_start;
+
+
     const HWConfigSwitches& _config;
     SwitchesChanged _callback{};
+    Mask _stable_states;
+    std::array<uint32_t, kMaxSwitches> _last_change_time; // Fixed-size array for lockout timestamps
+    uint32_t _lockout_duration;    
 };
 
 } // namespace tocata
