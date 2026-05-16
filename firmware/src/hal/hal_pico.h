@@ -2,7 +2,6 @@
 
 #define HAL_PICO
 
-#include "switches.pio.h"
 #include "ws2812b.pio.h"
 #include "config.h"
 

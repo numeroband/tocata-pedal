@@ -52,7 +52,6 @@ target_compile_definitions(${CUR_TARGET} PRIVATE
         )
 
 if(PICO_SDK)
-pico_generate_pio_header(${CUR_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio/switches.pio)
 pico_generate_pio_header(${CUR_TARGET} ${CMAKE_CURRENT_LIST_DIR}/pio/ws2812b.pio)
 
 pico_set_program_name(${CUR_TARGET} "tocata-pedal")
