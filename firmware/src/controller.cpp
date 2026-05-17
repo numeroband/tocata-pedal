@@ -19,6 +19,7 @@ void Controller::init()
     _config.load();
     _buttons.init();
     _exp.init();
+    _exp.run();
     _leds.init();
 
     PollTimer leds_timer;
@@ -35,13 +36,17 @@ void Controller::init()
         _leds.refresh();
         _leds.run();
     }
-    footswitchMode();
-    
+    footswitchMode(false);
+
     _network.init();
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
 
     sendIdentityReply(_usb.midi());
     sendIdentityReply(_network.midi());
+
+    if (_exp.isConnected()) {
+        sendExpression(_exp.getValue());
+    }
 }
 
 void Controller::sendIdentityReply(MidiSender& sender)
@@ -393,7 +398,7 @@ void Controller::programChanged(uint8_t id)
 {
     if (id == _program_id)
     {
-        loadProgram(id, true, true);
+        loadProgram(id, false, true);
     }
 }
 

@@ -147,11 +147,15 @@ static inline void expression_init(const HWConfigExpression& config)
     gpio_pull_up(config.connected_pin);
 }
 
+static inline bool expression_is_connected(const HWConfigExpression& config)
+{
+    return gpio_get(config.connected_pin);
+}
+
 static inline uint16_t expression_read(const HWConfigExpression& config)
 {
-    if (!gpio_get(config.connected_pin))
+    if (!expression_is_connected(config))
     {
-        // Not connected
         return 0;
     }
     return adc_read();

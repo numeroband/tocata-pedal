@@ -19,6 +19,7 @@ public:
     void incFilter();
     void decFilter();
     uint8_t getValue() { return _currentValue; };
+    bool isConnected() { return expression_is_connected(_config); }
     void setCallback(Callback callback) { _callback = callback; }
     void resetMax() { _maxRaw = _currentRaw; }
     void resetMin() { _minRaw = _currentRaw; }

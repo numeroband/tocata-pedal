@@ -40,6 +40,7 @@ uint32_t switches_value(const HWConfigSwitches& config);
 
 static inline void expression_init(const HWConfigExpression& config) {}
 uint16_t expression_read(const HWConfigExpression& config);
+static inline bool expression_is_connected(const HWConfigExpression& config) { return false; }
 
 // Leds
 
