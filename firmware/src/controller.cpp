@@ -142,7 +142,7 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
     } else if (msg_channel == channel && msg_type == 0x80 && packet[1] == 0) {
         displayTuner(0, 0);
     } else if (packet[0] == 0xF0) {
-        auto response = _usb.web().processSysEx(packet, buffer);
+        auto response = _usb.web().processSysEx(packet, buffer, channel);
         if (response.size() > 0) {
             sender.sendSysEx(response);
         }

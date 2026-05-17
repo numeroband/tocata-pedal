@@ -30,7 +30,7 @@ public:
     reset();
   }
 
-  std::span<const uint8_t> processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer);
+  std::span<const uint8_t> processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer, uint8_t channel);
   
 private:
   static constexpr size_t kBuffSize = 512;

@@ -360,9 +360,9 @@ void WebUsb::sendResponse(uint16_t length, Status status)
 }
 
 
-std::span<const uint8_t> WebUsb::processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer) {
+std::span<const uint8_t> WebUsb::processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer, uint8_t channel) {
   MidiSysExParser parser;
-  if (!parser.init(sysex)) {
+  if (!parser.init(sysex, channel)) {
     return {};
   }
 
@@ -372,7 +372,7 @@ std::span<const uint8_t> WebUsb::processSysEx(std::span<const uint8_t> sysex, st
     return {};
   }
   MidiSysExWriter writer;
-  writer.init(buffer);
+  writer.init(buffer, channel);
   writer.write({_out_buf, _out_pending});
   writer.finish();
   _out_pending = 0;

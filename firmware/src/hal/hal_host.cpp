@@ -9,6 +9,7 @@
  
 #include <midi_sysex.h>
 #include <web_usb.h>
+#include <config.h>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp> 
 #include <libremidi/libremidi.hpp>
@@ -363,7 +364,9 @@ static libremidi::midi_in midi_in{
       }
       assert(!sysex_writer);
       std::copy(message.begin(), message.end(), sysex_buffer.begin());
-      if (!sysex_parser.init({sysex_buffer.data(), message.size()})) {
+      Config config;
+      config.load();
+      if (!sysex_parser.init({sysex_buffer.data(), message.size()}, config.midi().channel())) {
         printf("%llu: Received invalid sysex message with %zu bytes\n", message.timestamp, message.size());
       }
     },
@@ -381,7 +384,9 @@ uint32_t usb_vendor_write_available() {
 uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) {
   if (!sysex_writer) {
     sysex_parser.reset();
-    if (!sysex_writer.init(sysex_buffer)) {
+    Config config;
+    config.load();
+    if (!sysex_writer.init(sysex_buffer, config.midi().channel())) {
       printf("Cannot initialize sysex writer with %zu bytes\n", sysex_buffer.size());
       return 0;
     }
