@@ -20,6 +20,9 @@ async function main() {
       break;
     case 'midi':
       midi.midiDeviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal'
+      if (process.env['TOCATA_MIDI_CHANNEL'] !== undefined) {
+        midi.midiChannel = parseInt(process.env['TOCATA_MIDI_CHANNEL'], 10)
+      }
       transportClass = midi
       break;
     case 'usb':

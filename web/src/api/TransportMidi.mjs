@@ -1,8 +1,9 @@
-import { toSysEx, fromSysEx } from "./MidiSysEx.mjs"
+import { toSysEx, fromSysEx, kSysExAnyChannel } from "./MidiSysEx.mjs"
 
 export default class TransportMidi {
   constructor(navigator, connectionEvent) {
     this.navigator = navigator
+    this.midiChannel = navigator.midiChannel ?? kSysExAnyChannel
     this.connectionEvent = connectionEvent
     this.midi = null
     this.input = null
@@ -39,7 +40,7 @@ export default class TransportMidi {
     }
     this.input.onmidimessage = e => {
       console.log('Received midi message', e.data)
-      const buffer = fromSysEx(e.data)
+      const buffer = fromSysEx(e.data, this.midiChannel)
       if (!buffer) {
         console.log('Invalid sysex')
         return
@@ -61,7 +62,7 @@ export default class TransportMidi {
 
   async send(data) {
     const buffer = new Uint8Array(data.buffer)
-    const sysex = toSysEx(buffer)
+    const sysex = toSysEx(buffer, this.midiChannel)
     console.log('sending', Array.from(sysex))
     await this.output.send(Array.from(sysex))
   };

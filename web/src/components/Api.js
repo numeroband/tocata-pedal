@@ -11,6 +11,9 @@ switch (transport) {
     break;
   case 'midi':
     navigator.midiDeviceName = urlParams.get('device') || 'Tocata Pedal'
+    if (urlParams.has('channel')) {
+      navigator.midiChannel = parseInt(urlParams.get('channel'), 10)
+    }
     transportClass = navigator;
     break;
   case 'usb':
