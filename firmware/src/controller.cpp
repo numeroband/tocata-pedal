@@ -145,42 +145,52 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
 void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender)
 {
     uint8_t channel = _config.midi().channel();
-    uint8_t msg_channel = packet[0] & 0x0F;
-    uint8_t msg_type = packet[0] & 0xF0;
-    if (msg_channel == channel && msg_type == 0xC0) {
-        footswitchMode(false);
-        loadProgram(packet[1], false, true);
-    } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
-        footswitchMode(false);
-        changeSwitch(packet[2], true, false);
-        changeSwitch(packet[2], false, false);
-        sleep_ms(1);
-        _leds.refresh();
-    } else if (msg_channel == channel && msg_type == 0x90) {
-        int8_t velocity = packet[2];
-        uint8_t note = packet[1];
-        if (velocity > 63) {
-            ++note;
-            velocity -= 128;
+    while (!packet.empty()) {
+        uint8_t msg_channel = packet[0] & 0x0F;
+        uint8_t msg_type = packet[0] & 0xF0;
+        if (msg_channel == channel && msg_type == 0xC0) {
+            uint8_t value = packet[1];
+            footswitchMode(false);
+            loadProgram(value, false, true);
+        } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
+            uint8_t value = packet[2];
+            footswitchMode(false);
+            changeSwitch(packet[2], true, false);
+            changeSwitch(packet[2], false, false);
+            sleep_ms(1);
+            _leds.refresh();
+        } else if (msg_channel == channel && msg_type == 0x90) {
+            int8_t velocity = packet[2];
+            uint8_t note = packet[1];
+            if (velocity > 63) {
+                ++note;
+                velocity -= 128;
+            }
+            displayTuner(note, velocity);
+        } else if (msg_channel == channel && msg_type == 0x80 && packet[1] == 0) {
+            displayTuner(0, 0);
+        } else if (packet[0] == 0xF0) {
+            // MIDI Universal Non-Realtime Identity Request: F0 7E <id> 06 01 F7
+            if (packet.size() == 6 &&
+                packet[1] == 0x7E &&
+                (packet[2] == 0x7F || packet[2] == channel) &&
+                packet[3] == 0x06 && packet[4] == 0x01 &&
+                packet[5] == 0xF7)
+            {
+                sendIdentityReply(sender);
+                return;
+            }
+            auto response = _usb.web().processSysEx(packet, buffer, channel);
+            if (response.size() > 0) {
+                sender.sendSysEx(response);
+            }
         }
-        displayTuner(note, velocity);
-    } else if (msg_channel == channel && msg_type == 0x80 && packet[1] == 0) {
-        displayTuner(0, 0);
-    } else if (packet[0] == 0xF0) {
-        // MIDI Universal Non-Realtime Identity Request: F0 7E <id> 06 01 F7
-        if (packet.size() == 6 &&
-            packet[1] == 0x7E &&
-            (packet[2] == 0x7F || packet[2] == channel) &&
-            packet[3] == 0x06 && packet[4] == 0x01 &&
-            packet[5] == 0xF7)
-        {
-            sendIdentityReply(sender);
-            return;
+
+        size_t next = 1;
+        while (next < packet.size() && !(packet[next] & 0x80)) {
+            ++next;
         }
-        auto response = _usb.web().processSysEx(packet, buffer, channel);
-        if (response.size() > 0) {
-            sender.sendSysEx(response);
-        }
+        packet = packet.subspan(next);
     }
 }
 
