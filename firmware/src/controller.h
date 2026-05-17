@@ -40,6 +40,7 @@ private:
     void configChanged() override;
     void programChanged(uint8_t id) override;
 
+    void sendIdentityReply(MidiSender& sender);
     void footswitchMode(bool send_midi = true);
     void setupMode();
     void changeProgramMode();

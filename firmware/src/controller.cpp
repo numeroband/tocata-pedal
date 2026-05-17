@@ -39,6 +39,26 @@ void Controller::init()
     
     _network.init();
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
+
+    sendIdentityReply(_usb.midi());
+    sendIdentityReply(_network.midi());
+}
+
+void Controller::sendIdentityReply(MidiSender& sender)
+{
+    // MIDI Universal Non-Realtime SysEx — Identity Reply (F0 7E <ch> 06 02)
+    const uint8_t reply[] = {
+        0xF0,
+        0x7E,                               // Universal Non-Realtime
+        _config.midi().channel(),           // Device ID
+        0x06, 0x02,                         // General Information / Identity Reply
+        0x00, 0x2F, 0x7F,                   // Manufacturer ID
+        0x00, 0x00,                         // Device family code
+        0x00, 0x00,                         // Device family member code
+        VERSION_MAJOR, VERSION_MINOR, VERSION_SUBMINOR, 0x00,  // Software revision
+        0xF7,
+    };
+    sender.sendSysEx(reply);
 }
 
 void Controller::run() 
@@ -142,6 +162,16 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
     } else if (msg_channel == channel && msg_type == 0x80 && packet[1] == 0) {
         displayTuner(0, 0);
     } else if (packet[0] == 0xF0) {
+        // MIDI Universal Non-Realtime Identity Request: F0 7E <id> 06 01 F7
+        if (packet.size() == 6 &&
+            packet[1] == 0x7E &&
+            (packet[2] == 0x7F || packet[2] == channel) &&
+            packet[3] == 0x06 && packet[4] == 0x01 &&
+            packet[5] == 0xF7)
+        {
+            sendIdentityReply(sender);
+            return;
+        }
         auto response = _usb.web().processSysEx(packet, buffer, channel);
         if (response.size() > 0) {
             sender.sendSysEx(response);
