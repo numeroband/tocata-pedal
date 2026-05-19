@@ -14,7 +14,8 @@ namespace tocata {
 class Network {
 public:
     Network(const HWConfigEthernet& config) : _config{config} {}
-    void init();
+    void init(uint8_t midi_port);
+    void reinitMidi(uint8_t midi_port);
     void run();
     MidiSender& midi() { return _midi; }
     const MidiSender& midi() const { return _midi; }
@@ -41,7 +42,8 @@ private:
     };
 public:
     Network(const HWConfigEthernet& config) {}
-    void init() {}
+    void init(uint8_t midi_port) {}
+    void reinitMidi(uint8_t midi_port) {}
     void run() {}
     MidiSender& midi() { return _midi; }
     const MidiSender& midi() const { return _midi; }

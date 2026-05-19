@@ -47,8 +47,13 @@ namespace tocata {
 class MulticastMidi : public MidiSender {
 public:
     MulticastMidi(Ethernet& eth) : _socket{eth} {}
-    void init() {
-        _socket.beginMulticast(kAddr, kPort);
+    void init(uint8_t midi_port) {
+        _addr[15] = midi_port;
+        _socket.beginMulticast(_addr, kPort);
+    }
+
+    void reinit(uint8_t midi_port) {
+        init(midi_port);
     }
 
     void run() {
@@ -101,16 +106,17 @@ public:
 
 private:
     void sendPacket(uint8_t data_size) {
-        _socket.beginPacket(kAddr, kPort);
+        _socket.beginPacket(_addr, kPort);
         _socket.write(_packet.bytes(), _packet.total_size(data_size));
         _socket.endPacket();
     }
 
     EthernetUDP6 _socket;
     Callback _callback{};
-    static constexpr IP6Address kAddr = {
+    static constexpr IP6Address kBaseAddr = {
         0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x70, 0xCA, 0x7A, 0};
     static constexpr uint16_t kPort = 30001;
+    IP6Address _addr = kBaseAddr;
     uint8_t _sequence = 0;
     mcmidi::Packet _packet;
 };

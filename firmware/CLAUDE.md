@@ -17,7 +17,7 @@ The repo is wired for the **Raspberry Pi Pico VS Code extension**, which expects
 
 ```bash
 # Embedded build (Pico 2 / W6100):
-~/.pico-sdk/ninja/v1.12.1/ninja -C build
+cmake --build build
 
 # Flash via picotool (USB BOOTSEL):
 ~/.pico-sdk/picotool/2.0.0/picotool/picotool load build/src/TocataPedal.uf2 -fx

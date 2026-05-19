@@ -38,7 +38,7 @@ void Controller::init()
     }
     footswitchMode(false);
 
-    _network.init();
+    _network.init(_config.midi().channel());
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
 
     sendIdentityReply(_usb.midi());
@@ -215,10 +215,12 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[swMap(kIncChannelSwitch)]) {
         auto channel = _config.midi().channel();
         _config.midi().setChannel((channel + 1) % 16);
+        _network.reinitMidi(_config.midi().channel());
         setExpValue(_exp.getValue());
     } else if (activated[swMap(kDecChannelSwitch)]) {
         auto channel = _config.midi().channel();
         _config.midi().setChannel((channel + 15) % 16);
+        _network.reinitMidi(_config.midi().channel());
         setExpValue(_exp.getValue());
     }
 }
@@ -402,6 +404,7 @@ void Controller::sendExpression(uint8_t value)
 
 void Controller::configChanged()
 {
+    _network.reinitMidi(_config.midi().channel());
 }
 
 void Controller::programChanged(uint8_t id)

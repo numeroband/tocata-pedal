@@ -7,14 +7,21 @@
 
 namespace tocata {
 
-void Network::init() {
+void Network::init(uint8_t midi_port) {
     if (!_config.available) {
         return;
     }
 
     printf("Initializing ethernet...\n");
     _eth.init();
-    _midi.init();
+    _midi.init(midi_port);
+}
+
+void Network::reinitMidi(uint8_t midi_port) {
+    if (!_config.available) {
+        return;
+    }
+    _midi.reinit(midi_port);
 }
 
 void Network::run() {
