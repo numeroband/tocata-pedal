@@ -49,6 +49,8 @@ int main(int argc, const char* argv[]) {
 
         std::vector<VirtualMidi> virt_ports;
         std::vector<MulticastMidi> mc_ports;
+        virt_ports.reserve(num_ports);
+        mc_ports.reserve(num_ports);
         for (uint8_t i = 0; i < num_ports; ++i) {
             auto& virt_port = virt_ports.emplace_back(i);
             auto& mc_port = mc_ports.emplace_back(io_context, i, iface, mc_out_disabled);
