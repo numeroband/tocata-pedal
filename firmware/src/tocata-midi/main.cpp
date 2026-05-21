@@ -1,9 +1,13 @@
 #include "virt_midi.hpp"
 #include "mc_midi.hpp"
 #include "wing_session.hpp"
+#include "http_client.hpp"
 
 using namespace tocata::midi;
 using namespace tocata::wing;
+
+static constexpr const char* kPlayerHost = "localhost";
+static constexpr const char* kPlayerPort = "9999";
 
 int main(int argc, const char* argv[]) {
     const char* iface = argc > 1 ? argv[1] : "en7";
@@ -19,9 +23,10 @@ int main(int argc, const char* argv[]) {
     try {
         asio::io_context io_context;
         WingSession wing_session{io_context};
+        HttpClient http_client{io_context};
 
         if (mc_out_disabled) {
-            wing_session.setParserCallback([primary, role, &mc_out_disabled](auto hash, auto value) {
+            wing_session.setParserCallback([primary, role, &mc_out_disabled, &http_client](auto hash, auto value) {
                 if (hash == node::IO_ALTSW) {
                     bool not_alt = !std::get<int32_t>(value);
                     bool new_mc_out_disabled = primary ^ not_alt;
@@ -31,6 +36,7 @@ int main(int argc, const char* argv[]) {
                     mc_out_disabled = new_mc_out_disabled;
                     printf("Role: %s, eth out: %s\n", role,
                         mc_out_disabled ? "disabled" : "enabled");
+                    http_client.get(kPlayerHost, kPlayerPort, not_alt ? "/api/main" : "/api/backup");
                 }
             });
             wing_session.setSessionCallback([&io_context](bool connected) {
