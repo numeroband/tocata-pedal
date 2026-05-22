@@ -10,8 +10,9 @@ target_sources(${CUR_TARGET} PRIVATE
         main.cpp
         )
 
-target_include_directories(${CUR_TARGET} PRIVATE 
+target_include_directories(${CUR_TARGET} PRIVATE
         ../../lib/asio/asio/include
+        ../../lib/websocketpp
         )
 
 target_compile_definitions(${CUR_TARGET} PRIVATE
