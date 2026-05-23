@@ -36,6 +36,8 @@ int main(int argc, const char* argv[]) {
                     printf("Role: %s, eth out: %s\n", role,
                         mc_out_disabled ? "disabled" : "enabled");
                     player_connection.setBackup(!not_alt);
+                } else if (hash == node::MGRP1_MUTE) {
+                    player_connection.setMuted(std::get<int32_t>(value) != 0);
                 }
             });
             wing_session.setSessionCallback([&io_context](bool connected) {

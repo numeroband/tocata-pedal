@@ -12,6 +12,7 @@ namespace tocata::wing {
 
 namespace node {
   constexpr WingParser::Hash IO_ALTSW = 0xF9CE1576;
+  constexpr WingParser::Hash MGRP1_MUTE = 0x6176C110;
 };
 
 class WingSession {
@@ -115,8 +116,10 @@ private:
   }
 
   void sendAndSchedule() {
-    sendRequest(0xf9ce1576, [this]() { 
-      schedule_send(); 
+    sendRequest(node::IO_ALTSW, [this]() {
+      sendRequest(node::MGRP1_MUTE, [this]() {
+        schedule_send();
+      });
     });
   }
 
