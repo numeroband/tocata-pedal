@@ -2,6 +2,7 @@
 #include "mc_midi.hpp"
 #include "wing_session.hpp"
 #include "player_connection.hpp"
+#include <optional>
 
 using namespace tocata::midi;
 using namespace tocata::wing;
@@ -22,16 +23,17 @@ int main(int argc, const char* argv[]) {
     try {
         asio::io_context io_context;
         WingSession wing_session{io_context};
-        PlayerConnection player_connection{io_context, kPlayerUri};
+        std::optional<PlayerConnection> player_connection;
 
         if (mc_out_disabled) {
+            player_connection.emplace(io_context, kPlayerUri);
             wing_session.setParserCallback([primary, role, &mc_out_disabled, &player_connection](auto hash, auto value) {
                 if (hash == node::IO_ALTSW) {
                     bool not_alt = !std::get<int32_t>(value);
                     mc_out_disabled = primary ^ not_alt;
-                    player_connection.setBackup(mc_out_disabled);
+                    player_connection->setBackup(mc_out_disabled);
                 } else if (hash == node::MGRP1_MUTE) {
-                    player_connection.setMuted(std::get<int32_t>(value) != 0);
+                    player_connection->setMuted(std::get<int32_t>(value) != 0);
                 }
             });
             wing_session.setSessionCallback([&io_context](bool connected) {
