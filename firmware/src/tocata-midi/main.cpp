@@ -28,14 +28,8 @@ int main(int argc, const char* argv[]) {
             wing_session.setParserCallback([primary, role, &mc_out_disabled, &player_connection](auto hash, auto value) {
                 if (hash == node::IO_ALTSW) {
                     bool not_alt = !std::get<int32_t>(value);
-                    bool new_mc_out_disabled = primary ^ not_alt;
-                    if (new_mc_out_disabled == mc_out_disabled) {
-                        return;
-                    }
-                    mc_out_disabled = new_mc_out_disabled;
-                    printf("Role: %s, eth out: %s\n", role,
-                        mc_out_disabled ? "disabled" : "enabled");
-                    player_connection.setBackup(new_mc_out_disabled);
+                    mc_out_disabled = primary ^ not_alt;
+                    player_connection.setBackup(mc_out_disabled);
                 } else if (hash == node::MGRP1_MUTE) {
                     player_connection.setMuted(std::get<int32_t>(value) != 0);
                 }
