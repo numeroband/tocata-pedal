@@ -209,19 +209,19 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
         _exp.incFilter();
     } else if (activated[swMap(kDecExpFilterSwitch)]) {
         _exp.decFilter();
-    } else if (activated[swMap(kExitSwitch)]) {
-        _config.save();
-        footswitchMode();
     } else if (activated[swMap(kIncChannelSwitch)]) {
-        auto channel = _config.midi().channel();
-        _config.midi().setChannel((channel + 1) % 16);
-        _network.reinitMidi(_config.midi().channel());
+        _pendingChannel = (_pendingChannel + 1) % 16;
         setExpValue(_exp.getValue());
     } else if (activated[swMap(kDecChannelSwitch)]) {
-        auto channel = _config.midi().channel();
-        _config.midi().setChannel((channel + 15) % 16);
-        _network.reinitMidi(_config.midi().channel());
+        _pendingChannel = (_pendingChannel + 15) % 16;
         setExpValue(_exp.getValue());
+    } else if (activated[swMap(kExitSwitch)]) {
+        if (_pendingChannel != _config.midi().channel()) {
+            _config.midi().setChannel(_pendingChannel);
+            _network.reinitMidi(_pendingChannel);
+        }
+        _config.save();
+        footswitchMode();
     }
 }
 
@@ -240,7 +240,7 @@ void Controller::setExpValue(uint8_t value) {
 
     // MIDI channel
     constexpr uint8_t kChannelStart = sizeof(CHANNEL_PREFIX) - 1;
-    auto channel = _config.midi().channel() + 1;
+    auto channel = _pendingChannel + 1;
     _expValue[kChannelStart] = (channel > 9) ? '1' : ' ';
     _expValue[kChannelStart + 1] = '0' + (channel % 10);
 
@@ -250,6 +250,7 @@ void Controller::setExpValue(uint8_t value) {
 
 void Controller::setupMode()
 {
+    _pendingChannel = _config.midi().channel();
     loadProgram(_program_id, false, false);
     _display.setBlink(false);
     setExpValue(_exp.getValue());

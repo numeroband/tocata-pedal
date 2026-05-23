@@ -71,6 +71,7 @@ private:
     std::bitset<Program::kNumSwitches> _switches_state{};
     char _expValue[sizeof(EXP_VALUE_TEXT)]{EXP_VALUE_TEXT};
     bool _tuner_mode = false;
+    uint8_t _pendingChannel = 0;
 
     static constexpr uint8_t kIncOneSwitch = 0;
     static constexpr uint8_t kIncTenSwitch = 1;
