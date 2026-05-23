@@ -219,6 +219,8 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
         if (_pendingChannel != _config.midi().channel()) {
             _config.midi().setChannel(_pendingChannel);
             _network.reinitMidi(_pendingChannel);
+            sendIdentityReply(_usb.midi());
+            sendIdentityReply(_network.midi());
         }
         _config.save();
         footswitchMode();
