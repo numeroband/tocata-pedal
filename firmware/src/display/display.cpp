@@ -239,7 +239,7 @@ void Display::drawTuner()
 
 void Display::run()
 {
-  if (_dirty || _tuner.enabled) {
+  if (_dirty || _tuner.enabled || _blink.enabled) {
 	u8g2_ClearBuffer(&_u8g2);
 	u8g2_SetFontRefHeightExtendedText(&_u8g2);
 	u8g2_SetFontPosTop(&_u8g2);
@@ -286,7 +286,7 @@ void Display::run()
 
   sendBuffer();
 
-  _dirty = _tuner.enabled;
+  _dirty = _tuner.enabled || _blink.enabled;
 }
 
 void Display::drawScroll()
