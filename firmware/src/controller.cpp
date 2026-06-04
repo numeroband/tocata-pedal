@@ -40,9 +40,14 @@ void Controller::init()
 
     _network.init(_config.midi().channel());
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
+    _network.setOnLinkUp([this]{
+        sendIdentityReply(_network.midi());
+        if (_exp.isConnected()) {
+            sendExpression(_exp.getValue());
+        }
+    });
 
     sendIdentityReply(_usb.midi());
-    sendIdentityReply(_network.midi());
 
     if (_exp.isConnected()) {
         sendExpression(_exp.getValue());

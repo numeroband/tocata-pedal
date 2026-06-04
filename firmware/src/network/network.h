@@ -3,6 +3,7 @@
 #include "hal.h"
 #include "midi_sender.h"
 #include <cstdint>
+#include <functional>
 
 #ifdef PICO_BUILD
 
@@ -19,12 +20,14 @@ public:
     void run();
     MidiSender& midi() { return _midi; }
     const MidiSender& midi() const { return _midi; }
+    void setOnLinkUp(std::function<void()> cb) { _onLinkUp = std::move(cb); }
 
 private:
     const HWConfigEthernet& _config;
     Ethernet _eth;
     MulticastMidi _midi{_eth};
     bool _connected = false;
+    std::function<void()> _onLinkUp;
 };
 
 } // namespace tocata
@@ -47,6 +50,7 @@ public:
     void run() {}
     MidiSender& midi() { return _midi; }
     const MidiSender& midi() const { return _midi; }
+    void setOnLinkUp(std::function<void()>) {}
     DummyMidi _midi;
 };
 }

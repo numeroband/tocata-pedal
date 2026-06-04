@@ -33,6 +33,9 @@ void Network::run() {
     if (connected != _connected) {
         _connected = connected;
         printf("Ethernet %sconnected\n", connected ? "" : "dis");
+        if (_connected && _onLinkUp) {
+            _onLinkUp();
+        }
     }
 
     if (_connected) {
