@@ -96,6 +96,9 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
 
     if (activated[swMap(kProgramSwitch)])
     {
+        _saved_program_id = _program_id;
+        _saved_fs_id = _fs_id;
+        _restore_scene = true;
         changeProgramMode();
         return;
     }
@@ -314,8 +317,12 @@ void Controller::tunerMode() {
 void Controller::footswitchMode(bool send_midi)
 {
     _display.setTuner(false);
-    _display.setBlink(false); 
-    loadProgram(_program_id, send_midi, true);
+    _display.setBlink(false);
+    int force_fs = (_restore_scene && _program_id == _saved_program_id) ? int(_saved_fs_id) : -1;
+    _restore_scene = false;
+    // When restoring the active scene the program is already live; re-running its
+    // MIDI actions would re-trigger them and create an inconsistency.
+    loadProgram(_program_id, send_midi && force_fs < 0, true, force_fs);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
@@ -418,8 +425,8 @@ void Controller::programChanged(uint8_t id)
     }
 }
 
-void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
-{   
+void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches, int force_fs_id)
+{
     printf("loadProgram %u\n", id);
     if (send_midi && _program.mode() == Program::kScene)
     {
@@ -437,6 +444,13 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches)
         {
             _fs_id = fs_id;
         }
+    }
+
+    if (force_fs_id >= 0 && is_scene &&
+        uint8_t(force_fs_id) < _program.numFootswitches() &&
+        _program.footswitch(force_fs_id).available())
+    {
+        _fs_id = force_fs_id;
     }
 
     displayProgram(display_switches);
