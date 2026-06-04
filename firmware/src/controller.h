@@ -84,6 +84,7 @@ private:
     const uint8_t kDecOneSwitch = uint8_t(_leds.kNumLeds / 2);
     const uint8_t kDecTenSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
     const uint8_t kLoadSwitch = uint8_t(_leds.kNumLeds - 1);
+    const uint8_t kExitProgramSwitch = uint8_t(_leds.kNumLeds / 2 + 2);
 
     static constexpr uint8_t kExpMaxSwitch = 0;
     static constexpr uint8_t kIncExpFilterSwitch = 1;

@@ -139,7 +139,14 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[swMap(kSetupSwitch)]) {
         setupMode();
     } else if (activated[swMap(kLoadSwitch)]) {
-        footswitchMode();
+        // LOAD always reloads the selected program and (re)sends its MIDI.
+        _restore_scene = false;
+        footswitchMode(true);
+    } else if (activated[swMap(kExitProgramSwitch)]) {
+        // EXIT leaves change-program mode and restores the program/scene that
+        // was live before entering, without sending MIDI (the amp is already on it).
+        _program_id = _saved_program_id;
+        footswitchMode(false);
     } else if (activated[swMap(kTunerSwitch)]) {
         tunerMode();
     }
@@ -285,6 +292,7 @@ void Controller::changeProgramMode()
     _display.setFootswitch(kDecOneSwitch, " -1");
     _display.setFootswitch(kDecTenSwitch, " -10");
     _display.setFootswitch(kLoadSwitch, "LOAD");
+    _display.setFootswitch(kExitProgramSwitch, "EXIT");
     _switches_state.reset();
     _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
 }
