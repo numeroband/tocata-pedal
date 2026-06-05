@@ -25,6 +25,9 @@ public:
     void setCallback(Callback callback) { _callback = callback; }
     void resetMax() { _maxRaw = _currentRaw; }
     void resetMin() { _minRaw = _currentRaw; }
+    uint16_t getMinRaw() const { return _minRaw; }
+    uint16_t getMaxRaw() const { return _maxRaw; }
+    void setCalibration(uint16_t min, uint16_t max) { _minRaw = min; _maxRaw = max; }
 
 private:
     static constexpr int16_t kMinValue = 0;

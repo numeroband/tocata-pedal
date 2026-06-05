@@ -1,4 +1,5 @@
 #include <config.h>
+#include "config_legacy.h"
 #include "hal.h"
 
 #include <midi_sender.h>
@@ -86,6 +87,7 @@ bool Config::load()
 #endif
 
     _midi = {};
+    _expression = {};
 
     File file = TocataFS.open(kPath, FILE_READ);
     if (!file)
@@ -101,13 +103,31 @@ bool Config::load()
         return false;
     }
 
-    if (bytes_read != sizeof(*this))
-    {
-        _logln(F("Invalid config file"));
-        _midi = {};
-    }
+    migrate(bytes_read);
 
     return available();
+}
+
+void Config::migrate(size_t bytes_read)
+{
+    // Fields not present in `bytes_read` keep the defaults set at the top of
+    // load(); here we decide whether the bytes we did read are trustworthy.
+    if (bytes_read == sizeof(*this))
+    {
+        // Current format (v1): everything was read.
+        return;
+    }
+
+    if (bytes_read == sizeof(ConfigV0))
+    {
+        // Legacy v0 file: MIDI channel was read; expression stays at defaults.
+        return;
+    }
+
+    // Unknown/corrupt size: discard everything, fall back to defaults.
+    _logln(F("Invalid config file"));
+    _midi = {};
+    _expression = {};
 }
 
 void Config::save() const
@@ -150,6 +170,7 @@ bool Config::operator==(const Config& other)
 {
     return (true
         && _midi == other._midi
+        && _expression == other._expression
     );
 }
 
@@ -207,6 +228,14 @@ bool Config::MidiConfig::operator==(const Config::MidiConfig& other)
     return (true
         && available() == other.available()
         && _channel == other._channel
+    );
+}
+
+bool Config::ExpressionConfig::operator==(const Config::ExpressionConfig& other)
+{
+    return (true
+        && _minRaw == other._minRaw
+        && _maxRaw == other._maxRaw
     );
 }
 

@@ -28,12 +28,31 @@ public:
         uint8_t _channel = 0;
     } __attribute__((packed));
 
+    class ExpressionConfig
+    {
+    public:
+        static constexpr uint16_t kDefaultMinRaw = 0;
+        static constexpr uint16_t kDefaultMaxRaw = 4095; // 12-bit ADC
+
+        uint16_t minRaw() const { return _minRaw; }
+        uint16_t maxRaw() const { return _maxRaw; }
+        void setMinRaw(uint16_t v) { _minRaw = v; }
+        void setMaxRaw(uint16_t v) { _maxRaw = v; }
+        bool operator==(const ExpressionConfig& other);
+
+    private:
+        uint16_t _minRaw = kDefaultMinRaw;
+        uint16_t _maxRaw = kDefaultMaxRaw;
+    } __attribute__((packed));
+
     static void remove() { remove(true); };
 
     bool load();
     bool available() const { return _midi.available(); }
     const MidiConfig& midi() const { return _midi; }
     MidiConfig& midi() { return _midi; }
+    const ExpressionConfig& expression() const { return _expression; }
+    ExpressionConfig& expression() { return _expression; }
     void save() const;
     bool operator==(const Config& other);
 
@@ -43,11 +62,14 @@ protected:
 
 private:
     static constexpr const char* kPath = "/00";
+    static constexpr uint8_t kVersion = 1;
 
     static void remove(bool check);
+    void migrate(size_t bytes_read);
 
-    uint8_t _version = 0;
+    uint8_t _version = kVersion;
     MidiConfig _midi;
+    ExpressionConfig _expression;
 } __attribute__((packed));
 
 class Actions

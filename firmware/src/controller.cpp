@@ -19,6 +19,7 @@ void Controller::init()
     _config.load();
     _buttons.init();
     _exp.init();
+    _exp.setCalibration(_config.expression().minRaw(), _config.expression().maxRaw());
     _exp.run();
     _leds.init();
 
@@ -233,6 +234,8 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
             sendIdentityReply(_usb.midi());
             sendIdentityReply(_network.midi());
         }
+        _config.expression().setMinRaw(_exp.getMinRaw());
+        _config.expression().setMaxRaw(_exp.getMaxRaw());
         _config.save();
         footswitchMode();
     }
