@@ -20,6 +20,8 @@ public:
     void decFilter();
     uint8_t getValue() { return _currentValue; };
     bool isConnected() { return expression_is_connected(_config); }
+
+    static constexpr uint8_t kDisconnected = 0xFF;
     void setCallback(Callback callback) { _callback = callback; }
     void resetMax() { _maxRaw = _currentRaw; }
     void resetMin() { _minRaw = _currentRaw; }
@@ -34,7 +36,7 @@ private:
 
     const HWConfigExpression& _config;
     uint16_t _currentRaw;
-    uint8_t _currentValue = 0;
+    uint8_t _currentValue = kDisconnected;
     int16_t  _filterRadius = kDefaultFilter;
     int16_t  _filterCenter = kMinValue - _filterRadius;
     uint16_t _maxRaw;

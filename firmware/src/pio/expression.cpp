@@ -9,9 +9,10 @@ void Expression::init() {
 }
 
 void Expression::run() {
+    bool connected = isConnected();
     _currentRaw = expression_read(_config);
 
-    uint8_t value = calculateValue();
+    uint8_t value = connected ? calculateValue() : kDisconnected;
     if (value != _currentValue) {
         _currentValue = value;
         if (_callback) {

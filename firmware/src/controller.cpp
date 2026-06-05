@@ -42,16 +42,12 @@ void Controller::init()
     _network.midi().setCallback(std::bind(&Controller::midiCallback, this, _1, _2, _3));
     _network.setOnLinkUp([this]{
         sendIdentityReply(_network.midi());
-        if (_exp.isConnected()) {
-            sendExpression(_exp.getValue());
-        }
+        sendExpression(_exp.getValue());
     });
 
     sendIdentityReply(_usb.midi());
 
-    if (_exp.isConnected()) {
-        sendExpression(_exp.getValue());
-    }
+    sendExpression(_exp.getValue());
 }
 
 void Controller::sendIdentityReply(MidiSender& sender)
@@ -246,13 +242,22 @@ void Controller::setExpValue(uint8_t value) {
     constexpr uint8_t kNumDigits = 3;
     constexpr uint8_t kStart = sizeof(EXP_VALUE_PREFIX) - 1;
 
-    uint8_t remainder = value;
-    
-    for (uint8_t i = 0; i < kNumDigits; ++i)
+    if (value == Expression::kDisconnected)
     {
-        uint8_t digit = remainder % 10;
-        remainder /= 10;
-        _expValue[kStart + (kNumDigits - 1 - i)] = '0' + digit;
+        for (uint8_t i = 0; i < kNumDigits; ++i)
+        {
+            _expValue[kStart + i] = '-';
+        }
+    }
+    else
+    {
+        uint8_t remainder = value;
+        for (uint8_t i = 0; i < kNumDigits; ++i)
+        {
+            uint8_t digit = remainder % 10;
+            remainder /= 10;
+            _expValue[kStart + (kNumDigits - 1 - i)] = '0' + digit;
+        }
     }
 
     // MIDI channel
@@ -416,8 +421,9 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 
-void Controller::sendExpression(uint8_t value) 
+void Controller::sendExpression(uint8_t value)
 {
+    if (value == Expression::kDisconnected) { return; } // nothing to send
     if (_expEnabled && _program.available() && _program.expressionEnabled())
     {
         _program.sendExpression(_network.midi(), value);
