@@ -377,6 +377,23 @@ bool Program::load(uint8_t id)
     return available();
 }
 
+uint8_t Program::defaultScene() const
+{
+    if (mode() != kScene)
+    {
+        return 0;
+    }
+    for (uint8_t fs_id = 0; fs_id < numFootswitches(); ++fs_id)
+    {
+        auto& fs = footswitch(fs_id);
+        if (fs.available() && fs.enabled())
+        {
+            return fs_id;
+        }
+    }
+    return 0;
+}
+
 void Program::save(uint8_t id) const
 {
 #if FAKE_CONFIG

@@ -45,6 +45,7 @@ private:
     void setupMode();
     void changeProgramMode();
     void tunerMode();
+    void exitTunerMode(bool send_midi);
     void changeSwitch(uint8_t id, bool active, bool send_midi);
     void sendExpression(uint8_t value);
     void updateProgram(uint8_t id);

@@ -172,6 +172,7 @@ public:
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
     Mode mode() const { return Mode(_channel_and_mode & 0x0F); }
+    uint8_t defaultScene() const;
     uint8_t expression() const { return _expression; }
     uint8_t expressionChannel() const { return _channel_and_mode >> 4; }
     bool expressionEnabled() const { return _expression < 128; }

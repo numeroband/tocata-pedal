@@ -147,7 +147,6 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[swMap(kExitProgramSwitch)]) {
         // EXIT leaves change-program mode and restores the program/scene that
         // was live before entering, without sending MIDI (the amp is already on it).
-        _program_id = _saved_program_id;
         footswitchMode(false);
     } else if (activated[swMap(kTunerSwitch)]) {
         tunerMode();
@@ -162,15 +161,37 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
         uint8_t msg_type = packet[0] & 0xF0;
         if (msg_channel == channel && msg_type == 0xC0) {
             uint8_t value = packet[1];
-            footswitchMode(false);
-            loadProgram(value, false, true);
+            if (_tuner_mode) {
+                Program target;
+                target.load(value);
+                _saved_program_id = value;
+                _saved_fs_id = target.defaultScene();
+                _restore_scene = true;
+            } else {
+                footswitchMode(false);
+                loadProgram(value, false, true);
+            }
         } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
+            if (_tuner_mode) {
+                // _saved_program_id already reflects whatever program is pending for
+                // exit (the live one, or a program deferred by an earlier PC while
+                // tuning) -- only the scene within that program changes here.
+                _saved_fs_id = packet[2];
+                _restore_scene = true;
+            } else {
+                footswitchMode(false);
+                changeSwitch(packet[2], true, false);
+                changeSwitch(packet[2], false, false);
+                sleep_ms(1);
+                _leds.refresh();
+            }
+        } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 47) {
             uint8_t value = packet[2];
-            footswitchMode(false);
-            changeSwitch(packet[2], true, false);
-            changeSwitch(packet[2], false, false);
-            sleep_ms(1);
-            _leds.refresh();
+            if (value > 0 && !_tuner_mode) {
+                tunerMode();
+            } else if (value == 0 && _tuner_mode) {
+                exitTunerMode(false);
+            }
         } else if (msg_channel == channel && msg_type == 0x90) {
             int8_t velocity = packet[2];
             uint8_t note = packet[1];
@@ -312,6 +333,9 @@ void Controller::changeProgramMode()
 
 void Controller::tunerMode() {
     _tuner_mode = true;
+    _saved_program_id = _program_id;
+    _saved_fs_id = _fs_id;
+    _restore_scene = true;
 
     for (uint8_t idx = 0; idx < Program::kNumSwitches; ++idx) {
         _display.setFootswitch(idx, nullptr);
@@ -323,11 +347,7 @@ void Controller::tunerMode() {
         if (!activated.any()) {
             return;
         }
-        _tuner_mode = false;
-        auto channel = _config.midi().channel();
-        _network.midi().sendControl(channel, 47, 0);
-        _usb.midi().sendControl(channel, 47, 0);
-        footswitchMode(false);
+        exitTunerMode(true);
     });
 
     auto channel = _config.midi().channel();
@@ -335,11 +355,25 @@ void Controller::tunerMode() {
     _usb.midi().sendControl(channel, 47, 127);
 }
 
+void Controller::exitTunerMode(bool send_midi)
+{
+    _tuner_mode = false;
+    if (send_midi) {
+        auto channel = _config.midi().channel();
+        _network.midi().sendControl(channel, 47, 0);
+        _usb.midi().sendControl(channel, 47, 0);
+    }
+    footswitchMode(false);
+}
+
 void Controller::footswitchMode(bool send_midi)
 {
     _display.setTuner(false);
     _display.setBlink(false);
-    int force_fs = (_restore_scene && _program_id == _saved_program_id) ? int(_saved_fs_id) : -1;
+    if (_restore_scene) {
+        _program_id = _saved_program_id;
+    }
+    int force_fs = _restore_scene ? int(_saved_fs_id) : -1;
     _restore_scene = false;
     // When restoring the active scene the program is already live; re-running its
     // MIDI actions would re-trigger them and create an inconsistency.
@@ -459,14 +493,7 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches, 
     _fs_id = 0;
     _program.load(id);
     bool is_scene = (_program.mode() == Program::kScene);
-    for (uint8_t fs_id = 0; is_scene && fs_id < _program.numFootswitches(); ++fs_id)
-    {
-        auto& fs = _program.footswitch(fs_id);
-        if (fs.available() && fs.enabled())
-        {
-            _fs_id = fs_id;
-        }
-    }
+    _fs_id = _program.defaultScene();
 
     if (force_fs_id >= 0 && is_scene &&
         uint8_t(force_fs_id) < _program.numFootswitches() &&
