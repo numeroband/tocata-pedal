@@ -1,74 +1,11 @@
-#include "web_usb.h"
+#include "config_protocol.h"
 #include "hal.h"
 #include "midi_sysex.h"
-
-#include <cassert>
 
 namespace tocata
 {
 
-WebUsb* WebUsb::_singleton;
-
-void WebUsb::init()
-{
-  assert(!_singleton);
-  _singleton = this;
-}
-
-void WebUsb::sendData()
-{
-  if (!_out_pending || !usb_vendor_write_available())
-  {
-    return;
-  }
-
-  uint32_t count = usb_vendor_write(_out_buf, _out_pending);
-  _out_buf += count;
-  _out_pending -= count;
-  if (_out_pending == 0) {
-    usb_vendor_write_flush();
-  }
-}
-
-void WebUsb::receiveData()
-{  
-  while (_out_pending == 0 && usb_vendor_available())
-  {
-    const Message& msg = *reinterpret_cast<const Message*>(_in_out_buf.data());
-    uint32_t count = usb_vendor_read(_in_out_buf.data() + _in_length, _in_out_buf.size() - _in_length);
-    if (count == 0)
-    {
-      return;
-    }
-
-    _in_length += count;
-
-    if (_in_length >= sizeof(Message) && _in_length >= (sizeof(Message) + msg.length))
-    {
-      _in_length = 0;
-      processRequest();
-    }
-  }
-}
-
-void WebUsb::run(void)
-{
-  if (!_connected)
-  {
-    return;
-  }
-
-  receiveData();
-  sendData();
-}
-
-void WebUsb::reset()
-{
-  _in_length = 0;
-  _out_pending = 0;
-}
-
-void WebUsb::processRequest()
+void ConfigProtocol::processRequest()
 {
   const Message& msg = reinterpret_cast<const Message&>(_in_out_buf);
   // printf("process request %u status %u length %u\n", msg.command, msg.status, msg.length);
@@ -76,7 +13,7 @@ void WebUsb::processRequest()
   switch (msg.command)
   {
     case kRestart:
-      restart();      
+      restart();
       break;
     case kBootRom:
       bootRom();
@@ -118,19 +55,19 @@ void WebUsb::processRequest()
   }
 }
 
-void WebUsb::restart()
+void ConfigProtocol::restart()
 {
   board_reset();
   sendStatus(kOk);
 }
 
-void WebUsb::bootRom()
+void ConfigProtocol::bootRom()
 {
   board_program();
   sendStatus(kOk);
 }
 
-void WebUsb::getConfig()
+void ConfigProtocol::getConfig()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
 
@@ -139,7 +76,7 @@ void WebUsb::getConfig()
   sendResponse(sizeof(res));
 }
 
-void WebUsb::setConfig()
+void ConfigProtocol::setConfig()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const SetConfigReq& req = reinterpret_cast<const SetConfigReq&>(msg.payload);
@@ -149,7 +86,7 @@ void WebUsb::setConfig()
   _delegate.configChanged();
 }
 
-void WebUsb::deleteConfig()
+void ConfigProtocol::deleteConfig()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
 
@@ -158,7 +95,7 @@ void WebUsb::deleteConfig()
   _delegate.configChanged();
 }
 
-void WebUsb::getNames()
+void ConfigProtocol::getNames()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const GetNamesReq& req = reinterpret_cast<const GetNamesReq&>(msg.payload);
@@ -186,7 +123,7 @@ void WebUsb::getNames()
   sendResponse(sizeof(res) + kMaxNamesPerResponse * sizeof(res.names[0]));
 }
 
-void WebUsb::getProgram()
+void ConfigProtocol::getProgram()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const GetProgramReq& req = reinterpret_cast<const GetProgramReq&>(msg.payload);
@@ -209,7 +146,7 @@ void WebUsb::getProgram()
   sendResponse(sizeof(res));
 }
 
-void WebUsb::setProgram()
+void ConfigProtocol::setProgram()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const SetProgramReq& req = reinterpret_cast<const SetProgramReq&>(msg.payload);
@@ -230,7 +167,7 @@ void WebUsb::setProgram()
   _delegate.programChanged(req.id);
 }
 
-void WebUsb::deleteProgram()
+void ConfigProtocol::deleteProgram()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const DeleteProgramReq& req = reinterpret_cast<const DeleteProgramReq&>(msg.payload);
@@ -251,7 +188,7 @@ void WebUsb::deleteProgram()
   _delegate.programChanged(req.id);
 }
 
-void WebUsb::memRead()
+void ConfigProtocol::memRead()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const MemReadReq& req = reinterpret_cast<const MemReadReq&>(msg.payload);
@@ -284,7 +221,7 @@ void WebUsb::memRead()
   sendResponse(sizeof(res) + length);
 }
 
-void WebUsb::memWrite()
+void ConfigProtocol::memWrite()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const MemWriteReq& req = reinterpret_cast<const MemWriteReq&>(msg.payload);
@@ -317,7 +254,7 @@ void WebUsb::memWrite()
   sendStatus(kOk);
 }
 
-void WebUsb::flashErase()
+void ConfigProtocol::flashErase()
 {
   Message& msg = reinterpret_cast<Message&>(_in_out_buf);
   const FlashEraseReq& req = reinterpret_cast<const FlashEraseReq&>(msg.payload);
@@ -349,7 +286,7 @@ void WebUsb::flashErase()
   sendStatus(kOk);
 }
 
-void WebUsb::sendResponse(uint16_t length, Status status)
+void ConfigProtocol::sendResponse(uint16_t length, Status status)
 {
   Message& msg = *reinterpret_cast<Message*>(_in_out_buf.data());
   msg.length = length;
@@ -360,7 +297,7 @@ void WebUsb::sendResponse(uint16_t length, Status status)
 }
 
 
-std::span<const uint8_t> WebUsb::processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer, uint8_t channel) {
+std::span<const uint8_t> ConfigProtocol::processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer, uint8_t channel) {
   MidiSysExParser parser;
   if (!parser.init(sysex, channel)) {
     return {};

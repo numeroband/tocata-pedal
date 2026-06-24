@@ -17,7 +17,7 @@
 
 namespace tocata {
 
-class Controller : public WebUsb::Delegate
+class Controller : public ConfigProtocol::Delegate
 {
 public:
     Controller(const HWConfig& config) : 

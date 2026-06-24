@@ -9,11 +9,9 @@
 
 namespace tocata
 {
-class WebUsb
+class ConfigProtocol
 {
 public:
-  static WebUsb& singleton() { return *_singleton; }
-
   class Delegate
   {
     public:
@@ -21,21 +19,12 @@ public:
       virtual void programChanged(uint8_t id) = 0;
   };
 
-  WebUsb(Delegate& delegate) : _delegate(delegate) {}
-  void init();
-  void run();
-  void connected(bool connected) 
-  { 
-    _connected = connected; 
-    reset();
-  }
+  ConfigProtocol(Delegate& delegate) : _delegate(delegate) {}
 
   std::span<const uint8_t> processSysEx(std::span<const uint8_t> sysex, std::span<uint8_t> buffer, uint8_t channel);
-  
+
 private:
   static constexpr size_t kBuffSize = 512;
-
-  static WebUsb* _singleton;
 
   struct Message
   {
@@ -85,7 +74,7 @@ private:
     Program program;
   } __attribute__((packed));
 
-  struct Id 
+  struct Id
   {
     uint8_t id;
   } __attribute__((packed));
@@ -110,7 +99,7 @@ private:
     uint8_t payload[];
   } __attribute__((packed));
 
-  static constexpr size_t kMaxNamesPerResponse = 
+  static constexpr size_t kMaxNamesPerResponse =
     (kBuffSize - sizeof(Message) - sizeof(GetNamesRes)) / Program::kMaxNameLength;
 
   using GetConfigRes = ConfigReqRes;
@@ -125,9 +114,6 @@ private:
   using MemWriteReq = AddressAndPayload;
   using FlashEraseReq = AddressAndLength;
 
-  void sendData();
-  void receiveData();
-  void reset();
   void processRequest();
   void sendResponse(uint16_t length, Status status = kOk);
   void sendStatus(Status status) { sendResponse(0, status); };
@@ -149,7 +135,6 @@ private:
   uint32_t _out_pending = 0;
   uint32_t _in_length = 0;
   std::array<uint8_t, kBuffSize> _in_out_buf;
-  bool _connected = false;
 };
 
 }

@@ -70,13 +70,6 @@ static inline void board_led_enable(bool enabled) {}
 void usb_init();
 void usb_run();
 
-// USB web
-uint32_t usb_vendor_available();
-uint32_t usb_vendor_read(void* buffer, uint32_t bufsize);
-uint32_t usb_vendor_write_available();
-uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize);
-uint32_t usb_vendor_write_flush();
-
 // USB midi
 uint32_t usb_midi_available();
 uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize);

@@ -213,7 +213,7 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
                 sendIdentityReply(sender);
                 return;
             }
-            auto response = _usb.web().processSysEx(packet, buffer, channel);
+            auto response = _usb.config().processSysEx(packet, buffer, channel);
             if (response.size() > 0) {
                 sender.sendSysEx(response);
             }

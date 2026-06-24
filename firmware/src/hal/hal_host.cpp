@@ -8,7 +8,6 @@
 #define ASIO_STANDALONE
  
 #include <midi_sysex.h>
-#include <web_usb.h>
 #include <config.h>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp> 
@@ -132,7 +131,6 @@ public:
         _server.set_open_handler([this](websocketpp::connection_hdl hdl)
         {
           _connection = hdl;
-          WebUsb::singleton().connected(true);
           _connected = true;
         });
 
@@ -143,7 +141,6 @@ public:
             << websocketpp::close::status::get_string(con->get_remote_close_code()) 
             << "), close reason: " << con->get_remote_close_reason() << std::endl;;
           _connected = false;
-          WebUsb::singleton().connected(false);
         });
 
         _server.set_message_handler([this](websocketpp::connection_hdl hdl, server::message_ptr msg)
@@ -348,21 +345,14 @@ void flash_erase(uint32_t flash_offs, size_t count)
     // memset(MemFlash + flash_offs, 0xFF, count);
 }
 
-#ifdef USB_WEB_SOCKETS
-uint32_t usb_vendor_available() { return ws.readAvailable(); }
-uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return ws.read(buffer, bufsize); }
-uint32_t usb_vendor_write_available() { return ws.writeAvailable(); }
-uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return ws.write(buffer,bufsize); }
-uint32_t usb_vendor_write_flush() { return 0; }
-#else
 // All incoming MIDI (regular PC/CC/Note *and* SysEx) is queued here by the
 // libremidi callback (which runs on its own CoreMIDI thread) and drained by
 // usb_midi_stream_read on the main thread, mirroring the embedded tud_midi
 // stream interface. Everything is then dispatched through MidiUsb::run ->
 // Controller::midiCallback, exactly like the firmware: regular messages drive
-// program/scene/tuner changes, and SysEx is handled by WebUsb::processSysEx
+// program/scene/tuner changes, and SysEx is handled by ConfigProtocol::processSysEx
 // (config) or answered as a MIDI identity request. This keeps host behavior
-// identical to hardware instead of emulating the WebUSB vendor endpoint.
+// identical to hardware.
 static std::mutex midi_in_mutex;
 static std::deque<uint8_t> midi_in_queue;
 
@@ -392,21 +382,11 @@ uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize) {
   return count;
 }
 
-// The host speaks the config protocol over MIDI SysEx (handled via midiCallback),
-// so the WebUSB vendor endpoint is never used here; these are inert stubs.
-uint32_t usb_vendor_available() { return 0; }
-uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return 0; }
-uint32_t usb_vendor_write_available() { return 0; }
-uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return 0; }
-uint32_t usb_vendor_write_flush() { return 0; }
-#endif
-
 void usb_init() {
   ws.init();
   flash_init();
   midi.open_virtual_port("Virtual Tocata Pedal");
   midi_in.open_virtual_port("Virtual Tocata Pedal");
-  WebUsb::singleton().connected(true);
 }
 
 void usb_run() {

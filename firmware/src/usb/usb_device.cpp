@@ -19,7 +19,6 @@ void UsbDevice::init()
   board_led_init();
 
   _midi.init();
-  _web.init();
 
   usb_init();
 
@@ -36,7 +35,6 @@ void UsbDevice::run()
   usb_run();
   blink();
   _midi.run();
-  _web.run();
 }
 
 void UsbDevice::blink()

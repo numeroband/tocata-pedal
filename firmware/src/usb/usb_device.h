@@ -1,7 +1,7 @@
 #pragma once
 
 #include "midi_usb.h"
-#include "web_usb.h"
+#include "config_protocol.h"
 
 namespace tocata
 {
@@ -15,12 +15,12 @@ public:
   void suspend() { _blink_interval_ms = BLINK_SUSPENDED; }
   void resume() { _blink_interval_ms = BLINK_MOUNTED; }
 
-  UsbDevice(WebUsb::Delegate& web_delegate) : _web(web_delegate) {}
+  UsbDevice(ConfigProtocol::Delegate& config_delegate) : _config(config_delegate) {}
   void init();
   void run();
 
   MidiUsb& midi() { return _midi; };
-  WebUsb& web() { return _web; }
+  ConfigProtocol& config() { return _config; }
 
 private:
   enum  {
@@ -37,7 +37,7 @@ private:
   static UsbDevice* _singleton;
 
   MidiUsb _midi;
-  WebUsb _web;
+  ConfigProtocol _config;
   uint32_t _blink_interval_ms = BLINK_NOT_MOUNTED;
 };
 

@@ -19,7 +19,7 @@ target_sources(${CUR_TARGET} PRIVATE
         hal/hal_host.cpp
         hal/hal_pico.cpp
         usb/usb_device.cpp
-        usb/web_usb.cpp
+        usb/config_protocol.cpp
         usb/midi_usb.cpp
         config/config.cpp
         config/flash_partition.cpp

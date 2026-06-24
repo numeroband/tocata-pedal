@@ -312,11 +312,6 @@ static inline void board_led_enable(bool enabled)
 void usb_init();
 
 static inline void usb_run() { tud_task(); }
-static inline uint32_t usb_vendor_available() { return tud_vendor_available(); }
-static inline uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return tud_vendor_read(buffer, bufsize); }
-static inline uint32_t usb_vendor_write_available() { return tud_vendor_write_available(); }
-static inline uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return tud_vendor_write(buffer, bufsize); }
-static inline uint32_t usb_vendor_write_flush() { return tud_vendor_write_flush(); }
 
 
 static inline size_t usb_midi_write(const unsigned char* message, size_t size) 
