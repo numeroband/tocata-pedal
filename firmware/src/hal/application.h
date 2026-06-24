@@ -31,7 +31,7 @@ public:
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
                                 int(kWindowWidth), 400,
-                                0);
+                                SDL_WINDOW_ALLOW_HIGHDPI);
 
     if(!_window)
     {
@@ -48,7 +48,12 @@ public:
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
         return;
     }
-    
+
+    // Render at the native physical resolution (high-DPI) and let SDL scale the
+    // logical coordinate system up with nearest filtering, so the simulated
+    // display stays pixel-perfect instead of being bilinearly upscaled by the OS.
+    SDL_RenderSetLogicalSize(_window_renderer, int(kWindowWidth), 400);
+
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     _display_texture = SDL_CreateTexture(_window_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, int(_display_sim.numColumns()), int(_display_sim.numRows()));
     if (!_display_texture) {
@@ -56,6 +61,7 @@ public:
       std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
       return;
     }
+    SDL_SetTextureScaleMode(_display_texture, SDL_ScaleModeNearest);
 
     initSwitches();
   }      

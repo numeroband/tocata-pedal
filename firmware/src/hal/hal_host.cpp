@@ -244,7 +244,8 @@ bool is_pedal_long() {
   static bool is_long;
 
   if (!init) {
-    is_long = std::getenv("TOCATA_PEDAL_LONG");
+    // Default to the long pedal on the host build unless TOCATA_PEDAL_SHORT is set.
+    is_long = !std::getenv("TOCATA_PEDAL_SHORT");
     init = true;
   }
 
