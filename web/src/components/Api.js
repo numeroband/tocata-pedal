@@ -6,9 +6,6 @@ const urlParams = new URLSearchParams(window.location.search);
 const transport = urlParams.get('transport') || 'midi';
 let transportClass;
 switch (transport) {
-  case 'ws':
-    transportClass = WebSocket;
-    break;
   case 'midi':
     navigator.midiDeviceName = urlParams.get('device') || 'Tocata Pedal'
     if (urlParams.has('channel')) {
@@ -16,16 +13,13 @@ switch (transport) {
     }
     transportClass = navigator;
     break;
-  case 'usb':
-    transportClass = navigator.usb;
-    break;
   default:
     console.error('Wrong transport class', transportClass);
     break;
 }
 const api = new Api(transportClass);
 
-export const isSupported = () => (transport === 'ws' || 'usb' in navigator);
+export const isSupported = () => ('requestMIDIAccess' in navigator);
 export const isConnected = () => api && api.connected;
 export const connect = reconnect => api.connect(reconnect);
 export const setConnectionEvent = cb => api.connectionEvent = cb;

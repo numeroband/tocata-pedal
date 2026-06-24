@@ -99,13 +99,13 @@ function Navigation(props) {
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [usbConnected, setUsbConnected] = React.useState(currentlyConnected);
+  const [deviceConnected, setDeviceConnected] = React.useState(currentlyConnected);
   const [firmwareAvailable, setFirmwareAvailable] = React.useState(currentlyConnected && newFirmwareAvailable(true));
 
   if (isSupported()) {
     setConnectionEvent(connected => { 
       console.log(connected ? 'connected' : 'disconnected'); 
-      setUsbConnected(wasConnected => {
+      setDeviceConnected(wasConnected => {
         if (wasConnected !== connected) {
           setFirmwareAvailable(connected ? newFirmwareAvailable(false) : false);
         }
@@ -208,8 +208,8 @@ function Navigation(props) {
           <Switch>
             {navigation.map(({ path, content }, index) => (
               <Route path={path} key={index}>
-                {isSupported() ? (usbConnected ? 
-                    React.createElement(content, {}) : 
+                {isSupported() ? (deviceConnected ?
+                    React.createElement(content, {}) :
                     <Button
                     color="primary"
                     variant="contained"
@@ -217,7 +217,7 @@ function Navigation(props) {
                   >
                     Connect to device
                   </Button>
-                ) : <Typography>This browser doesn't support USB connections. Please use Google Chrome.</Typography>
+                ) : <Typography>This browser doesn't support MIDI connections. Please use Google Chrome.</Typography>
             }
               </Route>
             ))}

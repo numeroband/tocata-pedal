@@ -1,5 +1,3 @@
-import { webusb } from 'usb';
-import WebSocket from 'ws'
 import Api from './Api.mjs';
 import process from 'process';
 import fs from 'fs';
@@ -15,18 +13,12 @@ async function main() {
   const transport = process.env['TOCATA_TRANSPORT'] || 'midi';
   let transportClass;
   switch (transport) {
-    case 'ws':
-      transportClass = WebSocket
-      break;
     case 'midi':
       midi.midiDeviceName = process.env['TOCATA_MIDI_DEVICE'] || 'Tocata Pedal'
       if (process.env['TOCATA_MIDI_CHANNEL'] !== undefined) {
         midi.midiChannel = parseInt(process.env['TOCATA_MIDI_CHANNEL'], 10)
       }
       transportClass = midi
-      break;
-    case 'usb':
-      transportClass = webusb
       break;
     default:
       console.error('Wrong transportClass', transportClass);

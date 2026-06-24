@@ -1,5 +1,3 @@
-import TransportUsb from './TransportUsb.mjs';
-import TransportWebSocket from './TransportWebSocket.mjs';
 import TransportNodeMidi  from './TransportNodeMidi.mjs';
 import TransportMidi  from './TransportMidi.mjs';
 
@@ -10,14 +8,12 @@ const MSG_HEADER_SIZE = 4;
 
 export default class Protocol {
   constructor(transport, connectionEvent) {
-    if ("requestDevice" in transport) {
-      this.transport = new TransportUsb(transport, connectionEvent);
-    } else if ("requestMIDIAccess" in transport) {
+    if ("requestMIDIAccess" in transport) {
       this.transport = new TransportMidi(transport, connectionEvent);
     } else if ("createReadStream" in transport) {
       this.transport = new TransportNodeMidi(transport, connectionEvent);
     } else {
-      this.transport = new TransportWebSocket(transport, connectionEvent);
+      throw new Error('Unsupported transport');
     }
     this.buffer = new Uint8Array();
   }

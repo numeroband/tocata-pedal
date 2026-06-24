@@ -5,24 +5,15 @@
 #include "display_sim_ssd1322.h"
 #include "application.h"
 
-#define ASIO_STANDALONE
- 
 #include <midi_sysex.h>
 #include <config.h>
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/server.hpp> 
 #include <libremidi/libremidi.hpp>
 
 #include <functional>
-#include <queue>
 #include <deque>
 #include <mutex>
 #include <vector>
-#include <fstream>
 #include <cstdlib>
-
-#include <filesystem>
-#include <CoreFoundation/CoreFoundation.h>
 
 namespace tocata {
 
@@ -96,184 +87,6 @@ uint32_t switches_value(const HWConfigSwitches& config)
   return app.switchesValue();
 }
 
-using websocketpp::lib::placeholders::_1;
-using websocketpp::lib::bind;
-
-class WebSocket
-{
-public:
-  typedef websocketpp::server<websocketpp::config::asio> server;
-
-  void init()
-  {
-    try {
-        auto url = CFBundleCopyResourceURL(CFBundleGetMainBundle(), CFSTR("web"), nullptr, nullptr);
-        if (url)
-        {
-          auto path_cfstr = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
-          _http_root = CFStringGetCStringPtr(path_cfstr, kCFStringEncodingUTF8);
-          CFRelease(path_cfstr);
-          CFRelease(url);
-        } else {
-          _http_root = "/Users/lorenzo/tocata/tocata-pedal/web/build";
-          // _http_root = std::filesystem::current_path().c_str();
-          // _http_root += "/build/src/TocataPedal.app/Resources/web";
-        }
-
-        std::cout << "HTTP root: " << _http_root << std::endl;
-        
-        // Set logging settings
-        _server.clear_access_channels(websocketpp::log::alevel::all);
-        _server.set_access_channels(websocketpp::log::alevel::connect);
-
-        _server.init_asio();
-
-        _server.set_open_handler([this](websocketpp::connection_hdl hdl)
-        {
-          _connection = hdl;
-          _connected = true;
-        });
-
-        _server.set_close_handler([this](websocketpp::connection_hdl hdl) 
-        {
-          auto con = _server.get_con_from_hdl(hdl);
-          std::cout << "close code: " << con->get_remote_close_code() << " (" 
-            << websocketpp::close::status::get_string(con->get_remote_close_code()) 
-            << "), close reason: " << con->get_remote_close_reason() << std::endl;;
-          _connected = false;
-        });
-
-        _server.set_message_handler([this](websocketpp::connection_hdl hdl, server::message_ptr msg)
-        {
-          _messages.push(msg->get_payload());
-        });
-
-        _server.set_http_handler(bind(&WebSocket::http, this, _1));
-
-        // Listen on port 9002
-        _server.listen(9002);
-
-        // Start the server accept loop
-        _server.start_accept();
-    } catch (websocketpp::exception const & e) {
-        std::cout << e.what() << std::endl;
-    } catch (...) {
-        std::cout << "other exception" << std::endl;
-    }
-  }
-
-  void disconnect() {
-    if (!_connected) { return; }
-    std::cout << "Closing connection" << std::endl;
-    _connected = false;
-    _server.pause_reading(_connection);
-    while (!_messages.empty())
-    {
-      _messages.pop();
-    }
-    _server.close(_connection, websocketpp::close::status::going_away, "restarting");
-  }
-
-  void run() { _server.poll(); }
-
-  uint32_t readAvailable()
-  {
-    if (_messages.empty())
-    {
-      return 0;
-    }
-
-    return static_cast<uint32_t>(_messages.front().size());
-  }
-
-  uint32_t read(void* buffer, uint32_t bufsize)
-  {
-    if (_messages.empty())
-    {
-      return 0;
-    }
-
-    auto& msg = _messages.front();
-    uint32_t msg_size = static_cast<uint32_t>(msg.size());
-    assert(msg_size <= bufsize);
-    msg.copy(static_cast<char*>(buffer), msg_size);
-    _messages.pop();
-    
-    return msg_size;
-  }
-
-  uint32_t write(const void* buffer, uint32_t bufsize)
-  {
-    if (!_connected) { return 0; }
-
-    try {
-        _server.send(_connection, buffer, bufsize, websocketpp::frame::opcode::binary);
-        return bufsize;
-    } catch (websocketpp::exception const & e) {
-        std::cout << "Send failed because: "
-                  << "(" << e.what() << ")" << std::endl;
-        return 0;
-    }
-  }
-
-  uint32_t writeAvailable() { return 64; }
-
-  void http(websocketpp::connection_hdl hdl)
-  {
-    // Upgrade our connection handle to a full connection_ptr
-    server::connection_ptr con = _server.get_con_from_hdl(hdl);
-    std::ifstream file;
-    std::string filename = con->get_resource();
-    std::string response;
-    auto query = filename.find('?');
-    if (query != std::string::npos)
-    {
-      filename = filename.substr(0, query);
-    }
-
-    if (filename.rfind("/tocata-pedal", 0) == 0)
-    {
-      filename = filename.substr(sizeof("tocata-pedal"));
-    }    
-    if (filename.empty() || filename == "/") {
-        filename = "/index.html";
-    }
-    
-    filename = _http_root + filename;
-
-    file.open(filename.c_str(), std::ios::in);
-    if (!file) {
-        // 404 error
-        std::stringstream ss;
-
-        ss << "<!doctype html><html><head>"
-           << "<title>Error 404 (Resource not found)</title><body>"
-           << "<h1>Error 404</h1>"
-           << "<p>The requested URL " << filename << " was not found on this server.</p>"
-           << "</body></head></html>";
-
-        con->set_body(ss.str());
-        con->set_status(websocketpp::http::status_code::not_found);
-        return;
-    }
-    file.seekg(0, std::ios::end);
-    response.reserve(file.tellg());
-    file.seekg(0, std::ios::beg);
-    response.assign((std::istreambuf_iterator<char>(file)),
-                    std::istreambuf_iterator<char>());
-    con->set_body(response);
-    con->set_status(websocketpp::http::status_code::ok);
-    std::cout << "Sent file " << filename << std::endl;
-  }
-private:
-  server _server;
-  std::queue<std::string> _messages;
-  websocketpp::connection_hdl _connection;
-  std::string _http_root;
-  bool _connected = false;
-};
-
-static WebSocket ws;
 static FILE* flash;
 constexpr const char* kFlashPath = "/tmp/tocata_flash";
 
@@ -383,14 +196,12 @@ uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize) {
 }
 
 void usb_init() {
-  ws.init();
   flash_init();
   midi.open_virtual_port("Virtual Tocata Pedal");
   midi_in.open_virtual_port("Virtual Tocata Pedal");
 }
 
 void usb_run() {
-  ws.run();
   if (!app.run()) {
     exit(0);
   }
@@ -402,7 +213,6 @@ size_t usb_midi_write(const unsigned char* message, size_t size) {
 }
 
 void board_reset() {
-  ws.disconnect();
 }
 
 uint16_t expression_read(const HWConfigExpression& config) {

@@ -39,8 +39,6 @@ target_include_directories(${CUR_TARGET} PRIVATE
         display
         network
         hal
-        ../lib/websocketpp
-        ../lib/asio/asio/include
         )
 
 target_link_libraries(${CUR_TARGET} PRIVATE u8g2)
