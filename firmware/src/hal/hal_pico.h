@@ -336,17 +336,14 @@ static inline void usb_midi_write(uint8_t val1, uint8_t val2, uint8_t val3)
   usb_midi_write(message, sizeof(message));
 }
 
-static inline bool usb_midi_read(uint8_t packet[3]) 
+static inline uint32_t usb_midi_available()
 {
-  uint8_t long_packet[4] = {};  
-  if (!tud_midi_available() || !tud_midi_packet_read(packet)) {
-    return false;
-  }
-  packet[0] = long_packet[1];
-  packet[1] = long_packet[2];
-  packet[2] = long_packet[3];
+  return tud_midi_available();
+}
 
-  return true;
+static inline uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize)
+{
+  return tud_midi_stream_read(buffer, bufsize);
 }
 
 constexpr bool is_pedal_long() {

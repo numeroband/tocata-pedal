@@ -26,22 +26,20 @@ void MidiUsb::sendSysEx(std::span<const uint8_t> sysex)
   sendBytes();
 }
 
-void MidiUsb::run() 
+void MidiUsb::run()
 {
-#ifdef HAL_PICO
-  uint32_t available = 0;
-  while ((available = tud_midi_available())) {
+  while (usb_midi_available()) {
     _write_size = _write_offset = 0;
-    auto bytes_read = tud_midi_stream_read(_buffer.data() + _read_offset, readAvailable());
+    auto bytes_read = usb_midi_stream_read(_buffer.data() + _read_offset, readAvailable());
     if (bytes_read == 0) {
       break;
     }
-    
+
     if (_read_offset == 0 && _buffer[0] != 0xF0) {
       _callback({_buffer.data(), bytes_read}, _buffer, *this);
-      break;      
+      break;
     }
-    
+
     _read_offset += bytes_read;
     if (_buffer[_read_offset - 1] == 0xF7) {
       _callback({_buffer.data(), _read_offset}, _buffer, *this);
@@ -49,7 +47,6 @@ void MidiUsb::run()
     }
   }
   sendBytes();
-#endif
 }
 
 void MidiUsb::sendBytes()

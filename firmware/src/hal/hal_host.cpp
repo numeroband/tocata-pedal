@@ -16,6 +16,8 @@
 
 #include <functional>
 #include <queue>
+#include <deque>
+#include <mutex>
 #include <vector>
 #include <fstream>
 #include <cstdlib>
@@ -353,61 +355,57 @@ uint32_t usb_vendor_write_available() { return ws.writeAvailable(); }
 uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return ws.write(buffer,bufsize); }
 uint32_t usb_vendor_write_flush() { return 0; }
 #else
-static MidiSysExWriter sysex_writer{};
-static MidiSysExParser sysex_parser{};
-static std::array<uint8_t, kMidiSysExMaxSize> sysex_buffer;
+// All incoming MIDI (regular PC/CC/Note *and* SysEx) is queued here by the
+// libremidi callback (which runs on its own CoreMIDI thread) and drained by
+// usb_midi_stream_read on the main thread, mirroring the embedded tud_midi
+// stream interface. Everything is then dispatched through MidiUsb::run ->
+// Controller::midiCallback, exactly like the firmware: regular messages drive
+// program/scene/tuner changes, and SysEx is handled by WebUsb::processSysEx
+// (config) or answered as a MIDI identity request. This keeps host behavior
+// identical to hardware instead of emulating the WebUSB vendor endpoint.
+static std::mutex midi_in_mutex;
+static std::deque<uint8_t> midi_in_queue;
+
 static libremidi::midi_in midi_in{
-  libremidi::input_configuration{ 
+  libremidi::input_configuration{
     .on_message = [](const libremidi::message& message) {
-      if (message.get_message_type() != libremidi::message_type::SYSTEM_EXCLUSIVE) {
-        return;
-      }
-      assert(!sysex_writer);
-      std::copy(message.begin(), message.end(), sysex_buffer.begin());
-      Config config;
-      config.load();
-      if (!sysex_parser.init({sysex_buffer.data(), message.size()}, config.midi().channel())) {
-        printf("%llu: Received invalid sysex message with %zu bytes\n", message.timestamp, message.size());
-      }
+      std::lock_guard<std::mutex> lock(midi_in_mutex);
+      midi_in_queue.insert(midi_in_queue.end(), message.begin(), message.end());
     },
     .ignore_sysex = false,
-  } 
+  }
 };
 
-uint32_t usb_vendor_available() { return uint32_t(sysex_parser.available()); }
-uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) {
-  return uint32_t(sysex_parser.read({static_cast<uint8_t*>(buffer), bufsize}));
+uint32_t usb_midi_available() {
+  std::lock_guard<std::mutex> lock(midi_in_mutex);
+  return uint32_t(midi_in_queue.size());
 }
-uint32_t usb_vendor_write_available() { 
-  return sysex_writer ? uint32_t(sysex_writer.available()) : 512; 
-}
-uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) {
-  if (!sysex_writer) {
-    sysex_parser.reset();
-    Config config;
-    config.load();
-    if (!sysex_writer.init(sysex_buffer, config.midi().channel())) {
-      printf("Cannot initialize sysex writer with %zu bytes\n", sysex_buffer.size());
-      return 0;
-    }
+
+uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize) {
+  std::lock_guard<std::mutex> lock(midi_in_mutex);
+  uint32_t count = std::min<uint32_t>(bufsize, uint32_t(midi_in_queue.size()));
+  auto* out = static_cast<uint8_t*>(buffer);
+  for (uint32_t i = 0; i < count; ++i) {
+    out[i] = midi_in_queue.front();
+    midi_in_queue.pop_front();
   }
-  auto written = sysex_writer.write({static_cast<const uint8_t*>(buffer), bufsize});
-  return uint32_t(written);
+  return count;
 }
-uint32_t usb_vendor_write_flush() {
-  sysex_writer.finish();
-  auto buffer = sysex_writer.buffer();
-  midi.send_message(buffer.data(), buffer.size());
-  sysex_writer.reset();
-  return 0; 
-}
+
+// The host speaks the config protocol over MIDI SysEx (handled via midiCallback),
+// so the WebUSB vendor endpoint is never used here; these are inert stubs.
+uint32_t usb_vendor_available() { return 0; }
+uint32_t usb_vendor_read(void* buffer, uint32_t bufsize) { return 0; }
+uint32_t usb_vendor_write_available() { return 0; }
+uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize) { return 0; }
+uint32_t usb_vendor_write_flush() { return 0; }
 #endif
 
 void usb_init() {
   ws.init();
   flash_init();
-  midi.open_virtual_port("Tocata Pedal");
-  midi_in.open_virtual_port("Tocata Pedal");
+  midi.open_virtual_port("Virtual Tocata Pedal");
+  midi_in.open_virtual_port("Virtual Tocata Pedal");
   WebUsb::singleton().connected(true);
 }
 

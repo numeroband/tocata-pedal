@@ -78,6 +78,8 @@ uint32_t usb_vendor_write(const void* buffer, uint32_t bufsize);
 uint32_t usb_vendor_write_flush();
 
 // USB midi
+uint32_t usb_midi_available();
+uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize);
 size_t usb_midi_write(const unsigned char* message, size_t size);
 static inline void usb_midi_write(uint8_t val1, uint8_t val2) { 
     uint8_t msg[] = {val1, val2};
