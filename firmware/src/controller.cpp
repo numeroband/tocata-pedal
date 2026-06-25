@@ -397,12 +397,12 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
         }
 
         uint8_t column = i % columns;
-        // Center
+        // Center. cents 0 and -1 (raw velocity 0 and 127) are both "in tune".
         Color color = kNone;
         if (column == columns / 2 || column == (columns - 1) / 2) {
-            color = (cents == 0) ? Color::kGreen : Color::kNone;
+            color = (cents == 0 || cents == -1) ? Color::kGreen : Color::kNone;
         } else if (column < (columns - 1) / 2) {
-            color = (cents < 0) ? Color::kRed : Color::kNone;
+            color = (cents < -1) ? Color::kRed : Color::kNone;
         } else {
             color = (cents > 0) ? Color::kRed : Color::kNone;
         }

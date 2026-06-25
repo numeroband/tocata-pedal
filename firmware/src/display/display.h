@@ -84,11 +84,10 @@ private:
 		bool state;
 	} _blink{};
 	
-	static constexpr int8_t kTunerResolution = 10;
 	struct {
 		char note[3];
-		char low[kTunerResolution + 1];
-		char high[kTunerResolution + 1];
+		int8_t cents;
+		bool note_valid;
 		bool enabled;
 		static bool isNoteValid(uint8_t note) {
 			return note >= 24;

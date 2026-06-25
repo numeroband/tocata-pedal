@@ -39,7 +39,9 @@ To configure from scratch: `cmake -S . -B build -G Ninja` (embedded, defaults to
 
 There is no test suite; verification is done on hardware or via the host build.
 
-There's also a third flash path — `node ../web/src/api/cli.mjs flash build/src/TocataPedal.uf2`, which streams the firmware over an existing USB MIDI connection (no BOOTSEL/SWD needed). For debugging incoming-MIDI behavior specifically, see the `hardware-debug` skill: the host build's virtual MIDI port only relays SysEx, so reproducing real Note/CC/Program-Change handling requires testing on the physical pedal with live UART logs and MIDI sends.
+There's also a third flash path — `node ../web/src/api/cli.mjs flash build/src/TocataPedal.uf2`, which streams the firmware over an existing USB MIDI connection (no BOOTSEL/SWD needed).
+
+The host build receives all incoming MIDI: it opens an input virtual port named `Virtual Tocata Pedal` with `ignore_sysex = false` and routes every message (Note/CC/Program-Change + SysEx) through `midiCallback`, identically to hardware (see [hal_host.cpp](src/hal/hal_host.cpp)). So incoming-MIDI behavior — including the tuner — can be exercised on the host sim by sending MIDI to that port (e.g. with `sendmidi`). The host sim defaults to the long pedal; run it with `TOCATA_PEDAL_SHORT=1` to simulate the short (128px) pedal instead. Use the `hardware-debug` skill when you need live UART logs or to confirm behavior on the physical pedal.
 
 ## Architecture
 

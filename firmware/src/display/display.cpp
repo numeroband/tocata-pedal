@@ -203,38 +203,60 @@ void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
 	};
 
 	const char* note_ptr;
-	if (_tuner.isNoteValid(note)) {
+	_tuner.note_valid = _tuner.isNoteValid(note);
+	if (_tuner.note_valid) {
 		note_ptr = notes[_tuner.noteInScale(note)];
  	} else {
 		note_ptr = none;
 		cents = 0;
 	}
 	memcpy(_tuner.note, note_ptr, sizeof(_tuner.note));
-	
-	constexpr int8_t step = 64 / kTunerResolution;
-	for (int8_t i = 0; i < kTunerResolution; ++i) {
-		if (cents == 0 && _tuner.isNoteValid(note)) {
-			_tuner.low[i] = '-';
-			_tuner.high[i] = '-';
-		} else {
-			int8_t low_threshold = (i - (kTunerResolution - 1)) * step;
-			_tuner.low[i] = (cents < low_threshold) ? '>' : ' ';
-			int8_t high_threshold = i * step;
-			_tuner.high[i] = (cents > high_threshold) ? '<' : ' ';
-		}	
-	}
-	_tuner.low[kTunerResolution] = '\0';
-	_tuner.high[kTunerResolution] = '\0';
+	_tuner.cents = cents;
 }
 
 void Display::drawTuner()
 {
-	uint32_t note_start = 11 * kTunerResolution;
+	// Graphical tuner scale: thin 1px ticks (10px tall, 1px apart) grow left (flat) or right
+	// (sharp) from a 4px center line, one tick per cent. The note name sits centered above the
+	// center. cents 0 and -1 (raw velocity 0 and 127) are both "in tune" -> center line only.
+	// The resolution is always 1 tick/cent; on a narrow display the bar simply clamps at the
+	// edge rather than scaling down. With no note, only the note name ("-") is shown -- no bar.
+	constexpr uint32_t kBarHeight = 10;
+	constexpr uint32_t kBarTop = 40;
+
+	const uint32_t width = u8g2_GetDisplayWidth(&_u8g2);
+	const uint32_t height = u8g2_GetDisplayHeight(&_u8g2);
+	const uint32_t cx = width / 2 - 2;            // left column of the 4px center line
+	const uint32_t max_lines = (width / 2 - 2) / 2;
+
+	if (_tuner.note_valid) {
+		// Center line.
+		u8g2_DrawBox(&_u8g2, cx, kBarTop, 4, kBarHeight);
+
+		int8_t mag = 0;
+		bool to_right = false;
+		if (_tuner.cents > 0) {
+			mag = _tuner.cents;                   // sharp -> right
+			to_right = true;
+		} else if (_tuner.cents < -1) {
+			mag = -_tuner.cents - 1;               // flat -> left (cents -1 is still center)
+		}
+		uint32_t lines = uint32_t(mag);
+		if (lines > max_lines) {
+			lines = max_lines;                     // clamp to the display edge, keep 1 tick/cent
+		}
+		for (uint32_t i = 1; i <= lines; ++i) {
+			uint32_t x = to_right ? (cx + 3 + 2 * i) : (cx - 2 * i);
+			u8g2_DrawBox(&_u8g2, x, kBarTop, 1, kBarHeight);
+		}
+	}
+
+	// Note name centered horizontally. With a bar it sits just above it; with no note (no bar)
+	// it is centered vertically on the screen.
 	u8g2_SetFont(&_u8g2, u8g2_font_helvB24_tf);
-	u8g2_DrawStr(&_u8g2, _tuner.note[1] ? note_start : note_start + 8, 17, _tuner.note);
-	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
-	u8g2_DrawStr(&_u8g2, 0, 25, _tuner.low);
-	u8g2_DrawStr(&_u8g2, note_start + 45, 25, _tuner.high);
+	const uint32_t note_width = u8g2_GetStrWidth(&_u8g2, _tuner.note);
+	const uint32_t note_y = _tuner.note_valid ? 8 : (height - u8g2_GetMaxCharHeight(&_u8g2)) / 2;
+	u8g2_DrawStr(&_u8g2, (width - note_width) / 2, note_y, _tuner.note);
 }
 
 void Display::run()
@@ -247,18 +269,20 @@ void Display::run()
 	u8g2_SetFontMode(&_u8g2, 0);  
 	u8g2_SetFont(&_u8g2, u8g2_font_7x13_mf);
     u8g2_SetDrawColor(&_u8g2, 1);
-  
-	for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
-	{
-		drawFootswitch(i, _fs_text[i]);
-	}
 
 	if (_tuner.enabled)
 	{
+		// Tuner takes over the whole screen; the footswitch labels (opaque font)
+		// would otherwise bleed through the gaps between the tuner's tick lines.
 		drawTuner();
 	}
-	else 
+	else
 	{
+		for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
+		{
+			drawFootswitch(i, _fs_text[i]);
+		}
+
 		if (_blink.enabled)
 		{
 			if (--_blink.ticks == 0)
@@ -279,9 +303,12 @@ void Display::run()
 	fillBuffer();
   }
 
-  for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
+  if (!_tuner.enabled)
   {
-	  drawFootswitch(i, _fs_text[i], true);
+	  for (uint8_t i = 0; i < Program::kNumSwitches; ++i)
+	  {
+		  drawFootswitch(i, _fs_text[i], true);
+	  }
   }
 
   sendBuffer();
