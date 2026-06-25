@@ -2,6 +2,7 @@
 
 #include "hal.h"
 
+#include <algorithm>
 #include <functional>
 #include <midi_sysex.h>
 
@@ -388,25 +389,53 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
         return;
     }
     _display.setTuner(true, note, cents);
-    const uint8_t columns = _leds.kNumLeds / 2;
+
+    // Full-scale tuning offset and max LED intensity (matches kFull elsewhere).
+    static constexpr int kMaxCents = 63;
+    static constexpr int kLedMax = 128;
+
+    const uint8_t columns = _leds.kNumLeds / 2;  // 4 (long) or 3 (short)
+    struct RGB { uint8_t r, g, b; };
+    RGB col[4] = {};  // per-column color; up to 4 columns
+
+    // cents 0 and -1 (raw velocity 0 and 127) are both "in tune".
+    const bool in_tune = (cents == 0 || cents == -1);
+    const int m = std::min(static_cast<int>(cents < 0 ? -cents : cents), kMaxCents);
+
+    if (note < 24) {
+        // No valid note: leave everything off.
+    } else if (in_tune) {
+        for (auto& c : col) c = {0, kLedMax, 0};
+    } else if (columns >= 4) {
+        // Long pedal: two red columns fill inner-first, then outer.
+        const int level = (2 * kLedMax * m) / kMaxCents;          // 0..256
+        const uint8_t inner = std::min(level, kLedMax);
+        const uint8_t outer = level > kLedMax ? level - kLedMax : 0;
+        if (cents < -1) {  // flat
+            col[0] = {outer, 0, 0};
+            col[1] = {inner, 0, 0};
+            col[2] = {0, kLedMax, 0};
+        } else {           // sharp
+            col[1] = {0, kLedMax, 0};
+            col[2] = {inner, 0, 0};
+            col[3] = {outer, 0, 0};
+        }
+    } else {
+        // Short pedal: single red column, capped at half-scale.
+        const uint8_t single = std::min((2 * kLedMax * m) / kMaxCents, kLedMax);
+        if (cents < -1) {  // flat
+            col[0] = {single, 0, 0};
+            col[1] = {0, kLedMax, 0};
+        } else {           // sharp
+            col[1] = {0, kLedMax, 0};
+            col[2] = {single, 0, 0};
+        }
+    }
+
     for (uint8_t i = 0; i < _leds.kNumLeds; ++i)
     {
-        if (note < 24) {
-            _leds.setColor(i, Color::kNone, false);
-            continue;
-        }
-
-        uint8_t column = i % columns;
-        // Center. cents 0 and -1 (raw velocity 0 and 127) are both "in tune".
-        Color color = kNone;
-        if (column == columns / 2 || column == (columns - 1) / 2) {
-            color = (cents == 0 || cents == -1) ? Color::kGreen : Color::kNone;
-        } else if (column < (columns - 1) / 2) {
-            color = (cents < -1) ? Color::kRed : Color::kNone;
-        } else {
-            color = (cents > 0) ? Color::kRed : Color::kNone;
-        }
-        _leds.setColor(i, color, true);
+        const RGB& c = col[i % columns];
+        _leds.setColor(i, c.r, c.g, c.b);
     }
     _leds.refresh();
 }
