@@ -216,39 +216,48 @@ void Display::setTuner(bool enabled, uint8_t note, int8_t cents)
 
 void Display::drawTuner()
 {
-	// Graphical tuner scale: thin 1px ticks (10px tall, 1px apart) grow left (flat) or right
-	// (sharp) from a 4px center line, one tick per cent. The note name sits centered above the
-	// center. cents 0 and -1 (raw velocity 0 and 127) are both "in tune" -> center line only.
-	// The resolution is always 1 tick/cent; on a narrow display the bar simply clamps at the
-	// edge rather than scaling down. With no note, only the note name ("-") is shown -- no bar.
-	constexpr uint32_t kBarHeight = 10;
-	constexpr uint32_t kBarTop = 40;
+	// Graphical tuner: a 6x13px rectangle slides along a 1px horizontal line to indicate cents
+	// deviation. cents is -64 (max flat) .. +63 (max sharp), 0 is dead center. Two fixed
+	// 1px-wide, 17px-tall guide lines bracket the "in tune" zone (cents in [-2, 1]) so the
+	// rectangle stays fully between them there; within that bracket the horizontal line is
+	// replaced by top/bottom edges joining the two guides into a box. With no note, only the
+	// note name ("-") is shown -- no bar.
+	constexpr uint32_t kRectWidth = 6;
+	constexpr uint32_t kRectHeight = 13;
+	constexpr uint32_t kGuideHeight = 17;
+	constexpr uint32_t kBarTop = 42;
 
 	const uint32_t width = u8g2_GetDisplayWidth(&_u8g2);
 	const uint32_t height = u8g2_GetDisplayHeight(&_u8g2);
-	const uint32_t cx = width / 2 - 2;            // left column of the 4px center line
-	const uint32_t max_lines = (width / 2 - 2) / 2;
 
 	if (_tuner.note_valid) {
-		// Center line.
-		u8g2_DrawBox(&_u8g2, cx, kBarTop, 4, kBarHeight);
+		const int32_t center = (int32_t(width) - int32_t(kRectWidth)) / 2;
+		auto rectX = [&](int32_t cents) -> int32_t {
+			if (cents >= 0) {
+				const int32_t span = int32_t(width) - int32_t(kRectWidth) - center;
+				return center + (cents * span + 63 / 2) / 63;
+			}
+			return center + (cents * center - 64 / 2) / 64;
+		};
 
-		int8_t mag = 0;
-		bool to_right = false;
-		if (_tuner.cents > 0) {
-			mag = _tuner.cents;                   // sharp -> right
-			to_right = true;
-		} else if (_tuner.cents < -1) {
-			mag = -_tuner.cents - 1;               // flat -> left (cents -1 is still center)
-		}
-		uint32_t lines = uint32_t(mag);
-		if (lines > max_lines) {
-			lines = max_lines;                     // clamp to the display edge, keep 1 tick/cent
-		}
-		for (uint32_t i = 1; i <= lines; ++i) {
-			uint32_t x = to_right ? (cx + 3 + 2 * i) : (cx - 2 * i);
-			u8g2_DrawBox(&_u8g2, x, kBarTop, 1, kBarHeight);
-		}
+		const uint32_t line_y = kBarTop + kRectHeight / 2;
+		const int32_t guide_top = int32_t(line_y) - int32_t(kGuideHeight) / 2;
+		const int32_t left_guide_x = rectX(-2) - 1;
+		const int32_t right_guide_x = rectX(1) + int32_t(kRectWidth);
+		const int32_t box_width = right_guide_x - left_guide_x + 1;
+
+		// Horizontal line outside the guide bracket.
+		u8g2_DrawBox(&_u8g2, 0, line_y, left_guide_x, 1);
+		u8g2_DrawBox(&_u8g2, right_guide_x + 1, line_y, int32_t(width) - (right_guide_x + 1), 1);
+
+		// Guide bracket: two vertical lines closed off by top/bottom edges into a box.
+		u8g2_DrawBox(&_u8g2, left_guide_x, guide_top, 1, kGuideHeight);
+		u8g2_DrawBox(&_u8g2, right_guide_x, guide_top, 1, kGuideHeight);
+		u8g2_DrawBox(&_u8g2, left_guide_x, guide_top, box_width, 1);
+		u8g2_DrawBox(&_u8g2, left_guide_x, guide_top + int32_t(kGuideHeight) - 1, box_width, 1);
+
+		const int32_t x = rectX(_tuner.cents);
+		u8g2_DrawBox(&_u8g2, x, kBarTop, kRectWidth, kRectHeight);
 	}
 
 	// Note name centered horizontally. With a bar it sits just above it; with no note (no bar)
