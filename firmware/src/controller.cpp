@@ -399,7 +399,7 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
     RGB col[4] = {};  // per-column color; up to 4 columns
 
     // Wider dead zone: the middle column(s) show solid green here.
-    const bool in_tune = (cents >= -3 && cents <= 2);
+    const bool in_tune = (cents >= -4 && cents <= 3);
 
     if (note < 24) {
         // No valid note: leave everything off.

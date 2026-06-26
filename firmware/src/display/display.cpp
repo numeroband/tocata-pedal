@@ -218,7 +218,7 @@ void Display::drawTuner()
 {
 	// Graphical tuner: a 6x13px rectangle slides along a 1px horizontal line to indicate cents
 	// deviation. cents is -64 (max flat) .. +63 (max sharp), 0 is dead center. Two fixed
-	// 1px-wide, 17px-tall guide lines bracket the "in tune" zone (cents in [-2, 1]) so the
+	// 1px-wide, 17px-tall guide lines bracket the "in tune" zone (cents in [-4, 3]) so the
 	// rectangle stays fully between them there; within that bracket the horizontal line is
 	// replaced by top/bottom edges joining the two guides into a box. With no note, only the
 	// note name ("-") is shown -- no bar.
@@ -242,8 +242,8 @@ void Display::drawTuner()
 
 		const uint32_t line_y = kBarTop + kRectHeight / 2;
 		const int32_t guide_top = int32_t(line_y) - int32_t(kGuideHeight) / 2;
-		const int32_t left_guide_x = rectX(-2) - 1;
-		const int32_t right_guide_x = rectX(1) + int32_t(kRectWidth);
+		const int32_t left_guide_x = rectX(-4) - 1;
+		const int32_t right_guide_x = rectX(3) + int32_t(kRectWidth);
 		const int32_t box_width = right_guide_x - left_guide_x + 1;
 
 		// Horizontal line outside the guide bracket.
