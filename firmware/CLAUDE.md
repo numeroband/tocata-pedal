@@ -57,7 +57,7 @@ The host build receives all incoming MIDI: it opens an input virtual port named 
 
 ### Controller is the app
 
-[src/controller.h](src/controller.h) / [controller.cpp](src/controller.cpp) owns every subsystem (`UsbDevice`, `Switches`, `Expression`, `Leds`, `Display`, `Network`, `Config`) and drives them from a cooperative `run()` loop called by `main()`. There are no threads or RTOS; everything is non-blocking polling. The display runs at ~20 Hz via `PollTimer`; everything else runs every iteration. The controller is a state machine over modes (footswitch / setup / program-change / tuner), each with its own switch + LED callback set.
+[src/controller.h](src/controller.h) / [controller.cpp](src/controller.cpp) owns every subsystem (`UsbDevice`, `Switches`, `Expression`, `Leds`, `Display`, `Network`, `Config`) and drives them from a cooperative `run()` loop called by `main()`. There are no threads or RTOS; everything is non-blocking polling. The display runs at ~30 Hz via `PollTimer`; everything else runs every iteration. The controller is a state machine over modes (footswitch / setup / program-change / tuner), each with its own switch + LED callback set.
 
 ### Persistence
 

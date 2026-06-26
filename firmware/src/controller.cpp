@@ -89,7 +89,7 @@ void Controller::run()
             total_time = 0;
             display_runs = 0;
         }
-        _display_timer.restart(50);
+        _display_timer.restart(33);  // 33ms interval = ~30 Hz
     }
 }
 
