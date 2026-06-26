@@ -391,6 +391,7 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
     _display.setTuner(true, note, cents);
 
     // Full-scale tuning offset and max LED intensity (matches kFull elsewhere).
+    static constexpr int kMinCents = -64;
     static constexpr int kMaxCents = 63;
     static constexpr int kLedMax = 128;
 
@@ -398,37 +399,29 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
     struct RGB { uint8_t r, g, b; };
     RGB col[4] = {};  // per-column color; up to 4 columns
 
-    // cents 0 and -1 (raw velocity 0 and 127) are both "in tune".
-    const bool in_tune = (cents == 0 || cents == -1);
-    const int m = std::min(static_cast<int>(cents < 0 ? -cents : cents), kMaxCents);
+    // Wider dead zone: the middle column(s) show solid green here.
+    const bool in_tune = (cents >= -2 && cents <= 1);
 
     if (note < 24) {
         // No valid note: leave everything off.
     } else if (in_tune) {
-        for (auto& c : col) c = {0, kLedMax, 0};
-    } else if (columns >= 4) {
-        // Long pedal: two red columns fill inner-first, then outer.
-        const int level = (2 * kLedMax * m) / kMaxCents;          // 0..256
-        const uint8_t inner = std::min(level, kLedMax);
-        const uint8_t outer = level > kLedMax ? level - kLedMax : 0;
-        if (cents < -1) {  // flat
-            col[0] = {outer, 0, 0};
-            col[1] = {inner, 0, 0};
-            col[2] = {0, kLedMax, 0};
-        } else {           // sharp
+        if (columns >= 4) {
+            col[1] = col[2] = {0, kLedMax, 0};
+        } else {
             col[1] = {0, kLedMax, 0};
-            col[2] = {inner, 0, 0};
-            col[3] = {outer, 0, 0};
         }
     } else {
-        // Short pedal: single red column, capped at half-scale.
-        const uint8_t single = std::min((2 * kLedMax * m) / kMaxCents, kLedMax);
-        if (cents < -1) {  // flat
-            col[0] = {single, 0, 0};
-            col[1] = {0, kLedMax, 0};
-        } else {           // sharp
-            col[1] = {0, kLedMax, 0};
-            col[2] = {single, 0, 0};
+        // Continuous moving bar: map cents to a position across the column
+        // index range and split intensity between the two nearest columns
+        // with a triangular falloff. Integer math, scaled by D = range size.
+        const int c = std::min(std::max(static_cast<int>(cents), kMinCents), kMaxCents);
+        const int D = kMaxCents - kMinCents;  // 127
+        const int N = columns - 1;
+        for (uint8_t i = 0; i < columns; ++i) {
+            const int diff = (c - kMinCents) * N - static_cast<int>(i) * D;
+            const int adiff = diff < 0 ? -diff : diff;
+            const int level = kLedMax - (kLedMax * adiff + D / 2) / D;
+            if (level > 0) col[i] = {static_cast<uint8_t>(level), 0, 0};
         }
     }
 
