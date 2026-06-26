@@ -10,6 +10,8 @@
 #include "hal.h"
 #include "poll_timer.h"
 
+#include <cmath>
+
 #define CHANNEL_PREFIX "CH "
 #define CHANNEL_TEXT CHANNEL_PREFIX "16"
 #define EXP_VALUE_PREFIX CHANNEL_TEXT " - EXP = "
@@ -20,14 +22,22 @@ namespace tocata {
 class Controller : public ConfigProtocol::Delegate
 {
 public:
-    Controller(const HWConfig& config) : 
-        _usb(*this), 
+    Controller(const HWConfig& config) :
+        _usb(*this),
         _buttons(config.switches),
-        _sw_map{config.switches.map}, 
+        _sw_map{config.switches.map},
         _exp(config.expression),
-        _leds(config.leds), 
+        _leds(config.leds),
         _display(config.displayI2C, config.displaySPI, _switches_state),
-        _network(config.ethernet) {}
+        _network(config.ethernet)
+    {
+        // Gamma-correct (gamma = 2.2) lookup table: _gamma_table[level] is the
+        // duty cycle that looks as bright to the eye as a linear ramp at
+        // `level`, computed once here so displayTuner() avoids a runtime pow().
+        for (int level = 0; level <= kLedMax; ++level) {
+            _gamma_table[level] = static_cast<uint8_t>(kLedMax * std::pow(static_cast<float>(level) / kLedMax, 2.2f) + 0.5f);
+        }
+    }
     void init();
     void run();
 
@@ -76,6 +86,9 @@ private:
     char _expValue[sizeof(EXP_VALUE_TEXT)]{EXP_VALUE_TEXT};
     bool _tuner_mode = false;
     uint8_t _pendingChannel = 0;
+
+    static constexpr int kLedMax = 128;  // max LED intensity, also used by displayTuner()
+    uint8_t _gamma_table[kLedMax + 1] = {};
 
     static constexpr uint8_t kIncOneSwitch = 0;
     static constexpr uint8_t kIncTenSwitch = 1;

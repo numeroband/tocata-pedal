@@ -390,17 +390,16 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
     }
     _display.setTuner(true, note, cents);
 
-    // Full-scale tuning offset and max LED intensity (matches kFull elsewhere).
+    // Full-scale tuning offset.
     static constexpr int kMinCents = -64;
     static constexpr int kMaxCents = 63;
-    static constexpr int kLedMax = 128;
 
     const uint8_t columns = _leds.kNumLeds / 2;  // 4 (long) or 3 (short)
     struct RGB { uint8_t r, g, b; };
     RGB col[4] = {};  // per-column color; up to 4 columns
 
     // Wider dead zone: the middle column(s) show solid green here.
-    const bool in_tune = (cents >= -2 && cents <= 1);
+    const bool in_tune = (cents >= -3 && cents <= 2);
 
     if (note < 24) {
         // No valid note: leave everything off.
@@ -421,7 +420,9 @@ void Controller::displayTuner(uint8_t note, int64_t cents)
             const int diff = (c - kMinCents) * N - static_cast<int>(i) * D;
             const int adiff = diff < 0 ? -diff : diff;
             const int level = kLedMax - (kLedMax * adiff + D / 2) / D;
-            if (level > 0) col[i] = {static_cast<uint8_t>(level), 0, 0};
+            if (level > 0) {
+                col[i] = {_gamma_table[level], 0, 0};
+            }
         }
     }
 
