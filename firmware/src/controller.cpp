@@ -30,7 +30,7 @@ void Controller::init()
         while (!leds_timer.expired()) {
             _usb.run();
         }
-        leds_timer.restart(15);
+        leds_timer.restart(15000);
         for (uint8_t led = 0; led < Leds::kMaxLeds; ++led)
         {
             _leds.setColor(led, i, i, i);
@@ -84,12 +84,12 @@ void Controller::run()
         auto start = millis();
          _display.run();
         total_time += millis() - start;
-        if (++display_runs >= 20) {
+        if (++display_runs >= 30) {  // ~1s at 30 Hz
             printf("display average: %u\n", (total_time * 1000) / display_runs);
             total_time = 0;
             display_runs = 0;
         }
-        _display_timer.restart(33);  // 33ms interval = ~30 Hz
+        _display_timer.restart(33333);  // 33333us interval = exact 30 Hz
     }
 }
 

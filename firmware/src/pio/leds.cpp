@@ -38,7 +38,7 @@ void Leds::run()
 
     _refresh_pending = false;
     leds_refresh(_config, _state, kNumLeds);
-    _timer.start(1);
+    _timer.start(1000);
 }
 
 } // namespace tocata

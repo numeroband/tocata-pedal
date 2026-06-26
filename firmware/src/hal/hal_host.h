@@ -9,6 +9,7 @@ namespace tocata {
 
 // System
 static inline uint32_t millis() { return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()); }
+static inline uint32_t micros() { return uint32_t(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()); }
 static inline void sleep_ms(uint32_t ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
 static inline void idle_loop() { sleep_ms(1); }
 static inline void board_program() {}

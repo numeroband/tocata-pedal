@@ -12,16 +12,16 @@ public:
 	PollTimer(uint32_t deadline = 0) : _deadline{deadline} {}
 
 	void restart(uint32_t interval) {
-		uint32_t start = _deadline ?: millis();
+		uint32_t start = _deadline ?: micros();
 		_deadline = start + interval;
 	}
 
 	void start(uint32_t interval) {
-		_deadline = millis() + interval;
+		_deadline = micros() + interval;
 	}
 
 	bool expired() {
-		return _deadline != kInvalid && millis() >= _deadline;
+		return _deadline != kInvalid && micros() >= _deadline;
 	}
 
 	void disable() {

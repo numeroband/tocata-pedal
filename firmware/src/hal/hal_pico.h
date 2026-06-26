@@ -34,6 +34,7 @@ namespace tocata {
 
 static inline void idle_loop() {}
 static inline uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
+static inline uint32_t micros() { return time_us_32(); }
 static inline void sleep_ms(uint32_t ms) { ::sleep_ms(ms); }
 static inline void board_reset() { watchdog_enable(50, 0); }
 static inline void board_program() 
