@@ -100,8 +100,8 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     if (activated[swMap(kProgramSwitch)])
     {
         _saved_program_id = _program_id;
-        _saved_fs_id = _fs_id;
-        _restore_scene = true;
+        _saved_switches_state = _switches_state;
+        _restore_state = true;
         changeProgramMode();
         return;
     }
@@ -143,7 +143,7 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
         setupMode();
     } else if (activated[swMap(kLoadSwitch)]) {
         // LOAD always reloads the selected program and (re)sends its MIDI.
-        _restore_scene = false;
+        _restore_state = false;
         footswitchMode(true);
     } else if (activated[swMap(kExitProgramSwitch)]) {
         // EXIT leaves change-program mode and restores the program/scene that
@@ -166,8 +166,8 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
                 Program target;
                 target.load(value);
                 _saved_program_id = value;
-                _saved_fs_id = target.defaultScene();
-                _restore_scene = true;
+                defaultSwitchesState(target, _saved_switches_state);
+                _restore_state = true;
             } else {
                 footswitchMode(false);
                 loadProgram(value, false, true);
@@ -176,9 +176,12 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
             if (_tuner_mode) {
                 // _saved_program_id already reflects whatever program is pending for
                 // exit (the live one, or a program deferred by an earlier PC while
-                // tuning) -- only the scene within that program changes here.
-                _saved_fs_id = packet[2];
-                _restore_scene = true;
+                // tuning) -- only the scene within that program changes here, so the
+                // saved stomp toggles are preserved.
+                Program target;
+                target.load(_saved_program_id);
+                applySceneToState(target, _saved_switches_state, packet[2]);
+                _restore_state = true;
             } else {
                 footswitchMode(false);
                 changeSwitch(packet[2], true, false);
@@ -334,9 +337,16 @@ void Controller::changeProgramMode()
 
 void Controller::tunerMode() {
     _tuner_mode = true;
-    _saved_program_id = _program_id;
-    _saved_fs_id = _fs_id;
-    _restore_scene = true;
+    // Only capture the live state when there isn't already a pending restore.
+    // When tuner is entered from the change-program menu, _restore_state is
+    // already set and _saved_* hold the real live program/switch state (captured
+    // on the "..." press); entering the menu rebuilt _switches_state from program
+    // defaults, so recapturing here would clobber the live state with defaults.
+    if (!_restore_state) {
+        _saved_program_id = _program_id;
+        _saved_switches_state = _switches_state;
+        _restore_state = true;
+    }
 
     for (uint8_t idx = 0; idx < Program::kNumSwitches; ++idx) {
         _display.setFootswitch(idx, nullptr);
@@ -371,14 +381,15 @@ void Controller::footswitchMode(bool send_midi)
 {
     _display.setTuner(false);
     _display.setBlink(false);
-    if (_restore_scene) {
+    const std::bitset<Program::kNumSwitches>* restore = nullptr;
+    if (_restore_state) {
         _program_id = _saved_program_id;
+        restore = &_saved_switches_state;
     }
-    int force_fs = _restore_scene ? int(_saved_fs_id) : -1;
-    _restore_scene = false;
-    // When restoring the active scene the program is already live; re-running its
+    _restore_state = false;
+    // When restoring the saved state the program is already live; re-running its
     // MIDI actions would re-trigger them and create an inconsistency.
-    loadProgram(_program_id, send_midi && force_fs < 0, true, force_fs);
+    loadProgram(_program_id, send_midi && restore == nullptr, true, restore);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
@@ -442,8 +453,9 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
     }
 
     const auto& fs = _program.footswitch(id);
-    bool is_scene = (_program.mode() == Program::kScene);
-    bool momentary = !is_scene && fs.momentary();
+    auto sw_mode = _program.switchMode(id);
+    bool is_scene = (sw_mode == Program::Footswitch::kScene);
+    bool momentary = (sw_mode == Program::Footswitch::kMomentary);
     if (!fs.available() || (!momentary && !active))
     {
         return;
@@ -451,33 +463,30 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
 
     if (is_scene)
     {
-        _switches_state.reset();
-        for (uint8_t id = 0; id < _leds.kNumLeds; ++id)
+        // Mutual exclusion only among scene switches: turn off the previously
+        // active scene switch (if any), leaving stomp switches untouched.
+        if (_fs_id != id && _fs_id < _program.numFootswitches() &&
+            _program.switchMode(_fs_id) == Program::Footswitch::kScene &&
+            _switches_state[_fs_id])
         {
-            const auto& fs_iter = _program.footswitch(id);
-            if (id >= _program.numFootswitches() || !fs_iter.available())
-            {
-                _leds.setColor(id, kNone, false);
-            }
-            else
-            {
-                _leds.setColor(id, fs_iter.color(), false);
+            const auto& prev = _program.footswitch(_fs_id);
+            _switches_state[_fs_id] = false;
+            _leds.setColor(_fs_id, prev.color(), false);
+            if (send_midi) {
+                prev.run(_network.midi(), false);
+                prev.run(_usb.midi(), false);
             }
         }
         _switches_state[id] = true;
+        _fs_id = id;
     } else {
-        _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];        
+        _switches_state[id] = momentary ? (active ^ fs.enabled()) : !_switches_state[id];
     }
 
     if (send_midi) {
-        if (is_scene) {
-            _program.footswitch(_fs_id).run(_network.midi(), false);
-            _program.footswitch(_fs_id).run(_usb.midi(), false);
-        }
         fs.run(_network.midi(), _switches_state[id]);
         fs.run(_usb.midi(), _switches_state[id]);
     }
-    _fs_id = id;
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
 
@@ -504,10 +513,43 @@ void Controller::programChanged(uint8_t id)
     }
 }
 
-void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches, int force_fs_id)
+void Controller::defaultSwitchesState(const Program& program, std::bitset<Program::kNumSwitches>& state) const
+{
+    state.reset();
+    uint8_t scene = program.defaultScene();
+    for (uint8_t id = 0; id < program.numFootswitches(); ++id)
+    {
+        const auto& fs = program.footswitch(id);
+        if (!fs.available())
+        {
+            continue;
+        }
+        bool is_scene = (program.switchMode(id) == Program::Footswitch::kScene);
+        state[id] = is_scene ? (id == scene) : fs.enabled();
+    }
+}
+
+void Controller::applySceneToState(const Program& program, std::bitset<Program::kNumSwitches>& state, uint8_t scene_id) const
+{
+    // Select one scene within the scene group (mutual exclusion among scene
+    // switches), leaving stomp switches untouched.
+    for (uint8_t id = 0; id < program.numFootswitches(); ++id)
+    {
+        if (program.switchMode(id) == Program::Footswitch::kScene)
+        {
+            state[id] = (id == scene_id);
+        }
+    }
+}
+
+void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches,
+                             const std::bitset<Program::kNumSwitches>* restore_state)
 {
     printf("loadProgram %u\n", id);
-    if (send_midi && _program.mode() == Program::kScene)
+    // Turn off the currently active scene switch (if any) before switching away.
+    if (send_midi && _fs_id < _program.numFootswitches() &&
+        _program.switchMode(_fs_id) == Program::Footswitch::kScene &&
+        _switches_state[_fs_id])
     {
         _program.footswitch(_fs_id).run(_usb.midi(), false);
         _program.footswitch(_fs_id).run(_network.midi(), false);
@@ -515,15 +557,6 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches, 
     _program_id = id;
     _fs_id = 0;
     _program.load(id);
-    bool is_scene = (_program.mode() == Program::kScene);
-    _fs_id = _program.defaultScene();
-
-    if (force_fs_id >= 0 && is_scene &&
-        uint8_t(force_fs_id) < _program.numFootswitches() &&
-        _program.footswitch(force_fs_id).available())
-    {
-        _fs_id = force_fs_id;
-    }
 
     displayProgram(display_switches);
 
@@ -534,23 +567,50 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches, 
         sendExpression(_exp.getValue());
     }
 
-    for (uint8_t id = 0; id < _leds.kNumLeds; ++id)
+    if (display_switches)
     {
-        if (!display_switches)
+        // Restore the saved snapshot (scene + stomp toggles) or fall back to the
+        // program's default state.
+        if (restore_state)
         {
-            _leds.setColor(id, kWhite, false);
-            continue;
-        }
-
-        const auto& fs = _program.footswitch(id);
-        if (id >= _program.numFootswitches() || !fs.available())
-        {
-            _leds.setColor(id, kNone, false);
+            _switches_state = *restore_state;
         }
         else
         {
-            _switches_state[id] = is_scene ? (id == _fs_id) : fs.enabled();
-            _leds.setColor(id, fs.color(), _switches_state[id]);
+            defaultSwitchesState(_program, _switches_state);
+        }
+    }
+
+    // Track the active scene = first scene switch currently on, else the default.
+    _fs_id = _program.defaultScene();
+    if (display_switches)
+    {
+        for (uint8_t sid = 0; sid < _program.numFootswitches(); ++sid)
+        {
+            if (_program.switchMode(sid) == Program::Footswitch::kScene && _switches_state[sid])
+            {
+                _fs_id = sid;
+                break;
+            }
+        }
+    }
+
+    for (uint8_t lid = 0; lid < _leds.kNumLeds; ++lid)
+    {
+        if (!display_switches)
+        {
+            _leds.setColor(lid, kWhite, false);
+            continue;
+        }
+
+        const auto& fs = _program.footswitch(lid);
+        if (lid >= _program.numFootswitches() || !fs.available())
+        {
+            _leds.setColor(lid, kNone, false);
+        }
+        else
+        {
+            _leds.setColor(lid, fs.color(), _switches_state[lid]);
         }
     }
     _leds.refresh();

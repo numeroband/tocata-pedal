@@ -61,7 +61,7 @@ The host build receives all incoming MIDI: it opens an input virtual port named 
 
 ### Persistence
 
-[src/config/](src/config/) implements a tiny FAT-like layout over a fixed flash partition (`kFlashPartitionOffset`, `kFlashPartitionSize` in the HAL). `Config` holds device-level state; `Program` holds one of up to 99 footswitch programs (8 switches × on/off action lists, expression channel, colors, mode). Structs that hit flash are `__attribute__((packed))` and versioned — preserve layout when editing.
+[src/config/](src/config/) implements a tiny FAT-like layout over a fixed flash partition (`kFlashPartitionOffset`, `kFlashPartitionSize` in the HAL). `Config` holds device-level state; `Program` holds one of up to 99 footswitch programs (8 switches × on/off action lists, expression channel, colors, mode). Mode is two-level: a program-level `Program::Mode` (`kDefault`/`kScene`) and a per-switch `Footswitch::Mode` (`kStomp`/`kMomentary`/`kScene`, stored in the byte formerly named `_momentary` so legacy data still maps). `kScene` programs force every switch to scene; `kDefault` programs defer to each switch's own mode, letting one program mix mutually-exclusive scene switches with independent stomp switches (resolve via `Program::switchMode(id)`). Structs that hit flash are `__attribute__((packed))` and versioned — preserve layout when editing.
 
 ### USB protocol
 

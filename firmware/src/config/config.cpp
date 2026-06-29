@@ -379,19 +379,31 @@ bool Program::load(uint8_t id)
 
 uint8_t Program::defaultScene() const
 {
-    if (mode() != kScene)
-    {
-        return 0;
-    }
+    // First enabled scene switch wins; else the first available scene switch
+    // becomes the default active scene; else 0 (a safe sentinel for programs
+    // with no scene switches -- switchMode() never reports that switch as scene).
+    int first_scene = -1;
     for (uint8_t fs_id = 0; fs_id < numFootswitches(); ++fs_id)
     {
+        if (switchMode(fs_id) != Footswitch::kScene)
+        {
+            continue;
+        }
         auto& fs = footswitch(fs_id);
-        if (fs.available() && fs.enabled())
+        if (!fs.available())
+        {
+            continue;
+        }
+        if (fs.enabled())
         {
             return fs_id;
         }
+        if (first_scene < 0)
+        {
+            first_scene = fs_id;
+        }
     }
-    return 0;
+    return (first_scene < 0) ? 0 : uint8_t(first_scene);
 }
 
 void Program::save(uint8_t id) const
@@ -472,7 +484,7 @@ bool Program::Footswitch::operator==(const Program::Footswitch& other)
         && available() == other.available()
         && _color == other._color
         && _enabled == other._enabled
-        && _momentary == other._momentary
+        && _mode == other._mode
         && _on_actions == other._on_actions
         && _off_actions == other._off_actions
         && strncmp(_name, other._name, sizeof(_name)) == 0

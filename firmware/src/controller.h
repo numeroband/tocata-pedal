@@ -60,7 +60,10 @@ private:
     void sendExpression(uint8_t value);
     void updateProgram(uint8_t id);
     void updateConfig();
-    void loadProgram(uint8_t id, bool send_midi, bool display_switches, int force_fs_id = -1);
+    void loadProgram(uint8_t id, bool send_midi, bool display_switches,
+                     const std::bitset<Program::kNumSwitches>* restore_state = nullptr);
+    void defaultSwitchesState(const Program& program, std::bitset<Program::kNumSwitches>& state) const;
+    void applySceneToState(const Program& program, std::bitset<Program::kNumSwitches>& state, uint8_t scene_id) const;
     void displayProgram(bool display_switches);
     void setExpValue(uint8_t value);
     void displayTuner(uint8_t note, int64_t cents);
@@ -78,8 +81,8 @@ private:
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
     uint8_t _saved_program_id = 0;
-    uint8_t _saved_fs_id = 0;
-    bool _restore_scene = false;
+    std::bitset<Program::kNumSwitches> _saved_switches_state{};
+    bool _restore_state = false;
     uint8_t _counter = 0;
     bool _expEnabled = true;
     std::bitset<Program::kNumSwitches> _switches_state{};

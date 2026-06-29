@@ -129,10 +129,10 @@ public:
     static constexpr size_t kMaxPathSize = 4;
     static constexpr uint8_t kInvalidId = 255;
 
-    enum Mode : uint8_t 
+    enum Mode : uint8_t
     {
-        kStomp = 0,
-        kScene = 1,
+        kDefault = 0,  // each switch picks its own mode (see Footswitch::Mode)
+        kScene = 1,    // forces every switch to behave as Footswitch::kScene
     };
 
     class Footswitch
@@ -140,8 +140,18 @@ public:
     public:
         static constexpr size_t kMaxNameSize = 8;
 
+        // Per-switch mode. Stored in the byte formerly named `_momentary`, so the
+        // legacy bool maps perfectly: false -> kStomp, true -> kMomentary.
+        enum Mode : uint8_t
+        {
+            kStomp = 0,      // independent on/off toggle
+            kMomentary = 1,  // on while pressed, off when released
+            kScene = 2,      // mutually exclusive among scene switches
+        };
+
         const char* name() const { return _name; }
-        bool momentary() const { return _momentary; }
+        Mode mode() const { return _mode; }
+        bool momentary() const { return _mode == kMomentary; }
         bool enabled() const { return _enabled; }
         Color color() const { return _color; }
         bool available() const { return _name[0]; }
@@ -154,7 +164,7 @@ public:
         char _name[kMaxNameSize + 1] = "";
         Color _color;
         bool _enabled;
-        bool _momentary;
+        Mode _mode;
     } __attribute__((packed));
 
     static uint8_t copyName(uint8_t id, char* name);
@@ -172,6 +182,13 @@ public:
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
     Mode mode() const { return Mode(_channel_and_mode & 0x0F); }
+    // Effective mode of a single switch: kScene programs force every switch to
+    // scene; kDefault programs defer to the switch's own stored mode.
+    Footswitch::Mode switchMode(uint8_t id) const
+    {
+        if (id >= _num_switches) { return Footswitch::kStomp; }
+        return (mode() == kScene) ? Footswitch::kScene : footswitch(id).mode();
+    }
     uint8_t defaultScene() const;
     uint8_t expression() const { return _expression; }
     uint8_t expressionChannel() const { return _channel_and_mode >> 4; }
