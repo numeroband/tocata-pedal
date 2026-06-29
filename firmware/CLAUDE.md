@@ -65,7 +65,7 @@ The host build receives all incoming MIDI: it opens an input virtual port named 
 
 ### USB protocol
 
-[src/usb/web_usb.h](src/usb/web_usb.h) defines the binary control protocol the browser config tool (`web/` at the repo root) speaks over WebUSB: numbered `Command`s (`kGetConfig`, `kSetProgram`, `kMemRead`, `kFlashErase`, etc.) with packed request/response structs. The MIDI side ([src/midi_sysex.h](src/midi_sysex.h)) implements 7-bit SysEx encoding under the manufacturer prefix `F0 00 2F 7F`.
+[src/usb/config_protocol.h](src/usb/config_protocol.h) (`ConfigProtocol::processSysEx`) defines the binary control protocol the browser config tool (`web/` at the repo root) speaks: numbered `Command`s (`kGetConfig`, `kSetProgram`, `kMemRead`, `kFlashErase`, etc.) with packed request/response structs. It's carried over MIDI SysEx — [src/midi_sysex.h](src/midi_sysex.h) implements the 7-bit encoding under the manufacturer prefix `F0 00 2F 7F`.
 
 ### Networking & redundancy
 
