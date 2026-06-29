@@ -35,10 +35,9 @@ const isValidCC = cc => ((cc & INVALID_CC_MASK) === 0);
 const validCC = cc => (cc & ~INVALID_CC_MASK) & 0xFF;
 const invalidCC = cc => (cc | INVALID_CC_MASK) & 0xFF;
 const DEFAULT_EXP_CC = 40;
-const MODE = Object.freeze({
-  stomp: 'stomp',
-  scene: 'scene',
-});
+// Mode is configured per footswitch now; programs are always saved as the
+// per-switch 'default' mode (the firmware's kScene program mode is legacy only).
+const DEFAULT_MODE = 'default';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -80,7 +79,7 @@ function ProgramDialog(props) {
   const classes = useStyles();
   const defaultProgram = useMemo(() => ({
     name: '',
-    mode: MODE.stomp,
+    mode: DEFAULT_MODE,
     expression: invalidCC(DEFAULT_EXP_CC),
     expChannel: 0,
     actions: [],
@@ -102,11 +101,6 @@ function ProgramDialog(props) {
     onClose();
   }
 
-  const modeNames = [
-    {value: MODE.stomp, name: "Stomp"},
-    {value: MODE.scene, name: "Scene"},
-  ]
-
   return (
     <Dialog onClose={onClose} aria-labelledby="simple-dialog-title" open={open}>
       <DialogTitle id="simple-dialog-title">{`PROGRAM ${Number(id) + 1}`}</DialogTitle>
@@ -126,20 +120,6 @@ function ProgramDialog(props) {
               maxLength: MAX_NAME_LENGTH,
             }}
           ></TextField>
-          <TextField
-            label="Mode"
-            name="mode"
-            className={classes.root}
-            select
-            value={state.mode || MODE.stomp}
-            onChange={updateText}
-          >
-            {modeNames.map((mode, index) => (
-              <MenuItem key={index} value={mode.value}>
-                {mode.name}
-              </MenuItem>
-            ))}
-          </TextField>
           <div>
             <TextField
               type="number"
@@ -220,7 +200,7 @@ function Program(props) {
         actions={program.actions}
         setActions={actions => setProgram(id, { ...program, actions: actions })}
         title="Program MIDI" />
-      <Footswitches mode={state.mode} footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
+      <Footswitches footswitches={state.fs ? state.fs : []} setFootswitches={setFootswitches} />
     </Grid>
   )
 }

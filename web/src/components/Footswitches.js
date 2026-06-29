@@ -19,6 +19,11 @@ import { useState, useMemo, useEffect } from 'react';
 
 const ACode = 'A'.charCodeAt(0);
 const colors = ['blue', 'purple', 'red', 'yellow', 'green', 'turquoise']
+const fsModes = [
+  { value: 'stomp', name: 'Stomp' },
+  { value: 'momentary', name: 'Momentary' },
+  { value: 'scene', name: 'Scene' },
+]
 const MAX_NAME_LENGTH = 5;
 
 const useStyles = makeStyles((theme) => ({
@@ -57,7 +62,7 @@ function FootswitchDialog(props) {
     name: '',
     color: colors[0],
     enabled: false,
-    momentary: false,
+    mode: 'stomp',
     onActions: [],
     offActions: [],
   }), [])
@@ -116,15 +121,16 @@ function FootswitchDialog(props) {
             />}
             label="Default On"
           />
-          <FormControlLabel
+          <TextField
+            label="Mode"
+            select
+            name="mode"
+            value={state.mode}
             className={classes.root}
-            control={<Switch
-              checked={state.momentary}
-              name="momentary"
-              onChange={updateSwitch}
-            />}
-            label="Momentary"
-          />
+            onChange={updateText}
+          >
+            {fsModes.map((m, index) => <MenuItem key={index} value={m.value}>{m.name}</MenuItem>)}
+          </TextField>
         </Grid>
       </DialogContent>
       <DialogActions>
@@ -137,30 +143,31 @@ function FootswitchDialog(props) {
 }
 
 function Footswitch(props) {
-  const { id, mode,  footswitch = {}, setFootswitch } = props
-  
+  const { id, footswitch = {}, setFootswitch } = props
+  const isScene = footswitch.mode === 'scene'
+
   return (!footswitch || !footswitch.name) ? <div/> : (
     <Grid
       container
       direction="row"
       alignItems="flex-start"
     >
-      <Actions 
-        actions={footswitch.onActions} 
+      <Actions
+        actions={footswitch.onActions}
         setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
-        title={(mode === 'scene') ? "Enter MIDI": "On MIDI"}
+        title={isScene ? "Enter MIDI": "On MIDI"}
       />
-      <Actions 
-        actions={footswitch.offActions} 
+      <Actions
+        actions={footswitch.offActions}
         setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
-        title={(mode === 'scene') ? "Exit MIDI": "Off MIDI"}
+        title={isScene ? "Exit MIDI": "Off MIDI"}
       />
     </Grid>
   )
 }
 
 export default function Footswitches(props) {
-  const { mode, footswitches, setFootswitches } = props
+  const { footswitches, setFootswitches } = props
   const classes = useStyles();
   const [footswitchNames, setFootswitchNames] = useState(createNames(footswitches))
   const [editFS, setEditFS] = useState(false);
@@ -189,9 +196,6 @@ export default function Footswitches(props) {
       if (!footswitch.enabled) {
         delete footswitch.enabled
       }
-      if (!footswitch.momentary) {
-        delete footswitch.momentary
-      }
       if (footswitch.onActions && footswitch.onActions.length === 0) {
         delete footswitch.onActions
       }
@@ -217,7 +221,7 @@ export default function Footswitches(props) {
     <Grid>
       <Grid>
         <TextField
-          label={mode === "scene" ? "Scene" : "Footswitch"}
+          label="Footswitch"
           className={classes.root}
           select
           value={footswitchId}
@@ -252,7 +256,7 @@ export default function Footswitches(props) {
         </Fab>
         <FootswitchDialog id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} open={editFS} onClose={() => setEditFS(false)} />
       </Grid>
-      <Footswitch id={footswitchId} mode={mode} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
+      <Footswitch id={footswitchId} footswitch={footswitches[footswitchId]} setFootswitch={setFootswitch} />
     </Grid>
   )
 }

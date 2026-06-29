@@ -105,6 +105,13 @@ export default class Api {
     console.log('getprogram', id);
     const data = await this.sendRequest(GET_PROGRAM, new Uint8Array([id]));
     const {program} = parseProgram(data);
+    // Legacy programs stored as scene mode force every switch to scene; expand
+    // that into the per-switch model so the UI shows them correctly and a
+    // re-save preserves the scene behavior.
+    if (program && program.mode === 'scene') {
+      program.mode = 'default';
+      (program.fs || []).forEach(fs => { if (fs) fs.mode = 'scene'; });
+    }
     return program || {};
   }
 

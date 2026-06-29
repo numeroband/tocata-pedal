@@ -159,7 +159,13 @@ const colors = [
 ];
 
 const mode = [
+  'default',
+  'scene',
+];
+
+const fsMode = [
   'stomp',
+  'momentary',
   'scene',
 ];
 
@@ -199,7 +205,7 @@ const footswitch = {
     ['name', 'str', MAX_FS_NAME_SIZE],
     ['color', 'enum', colors],
     ['enabled', 'bool'],
-    ['momentary', 'bool'],
+    ['mode', 'enum', fsMode],
   ],
   valid: o => o.name
 };
