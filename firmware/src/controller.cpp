@@ -189,6 +189,21 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
                 sleep_ms(1);
                 _leds.refresh();
             }
+        } else if (msg_channel == channel && msg_type == 0xB0 &&
+                   packet[1] >= 35 && packet[1] <= 42) {
+            uint8_t switch_id = packet[1] - 35;  // CC 35..42 -> switch 0..7
+            bool enable = packet[2] >= 64;       // 0..63 off, 64..127 on
+            if (_tuner_mode) {
+                // Defer to the saved state applied on tuner exit, like CC 43.
+                Program target;
+                target.load(_saved_program_id);
+                if (stompLike(target, switch_id)) {
+                    _saved_switches_state[switch_id] = enable;
+                    _restore_state = true;
+                }
+            } else {
+                setSwitchEnabled(switch_id, enable);
+            }
         } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 47) {
             uint8_t value = packet[2];
             if (value > 0 && !_tuner_mode) {
@@ -488,6 +503,26 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
         fs.run(_usb.midi(), _switches_state[id]);
     }
     _leds.setColor(id, fs.color(), _switches_state[id]);
+}
+
+bool Controller::stompLike(const Program& program, uint8_t id) const
+{
+    if (id >= program.numFootswitches()) { return false; }
+    if (!program.footswitch(id).available()) { return false; }
+    auto m = program.switchMode(id);
+    return m == Program::Footswitch::kStomp ||
+           m == Program::Footswitch::kMomentary;
+}
+
+void Controller::setSwitchEnabled(uint8_t id, bool enable)
+{
+    // Host-driven set (not a toggle) for stomp/momentary switches: update the
+    // LED/display state only, never echoing MIDI back out. Setting the bit
+    // updates the display, which holds _switches_state by reference.
+    if (!stompLike(_program, id)) { return; }
+    _switches_state[id] = enable;
+    _leds.setColor(id, _program.footswitch(id).color(), enable);
+    _leds.refresh();
 }
 
 void Controller::sendExpression(uint8_t value)

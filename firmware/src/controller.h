@@ -57,6 +57,8 @@ private:
     void tunerMode();
     void exitTunerMode(bool send_midi);
     void changeSwitch(uint8_t id, bool active, bool send_midi);
+    bool stompLike(const Program& program, uint8_t id) const;
+    void setSwitchEnabled(uint8_t id, bool enable);
     void sendExpression(uint8_t value);
     void updateProgram(uint8_t id);
     void updateConfig();
