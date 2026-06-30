@@ -21,7 +21,7 @@ target_compile_definitions(${CUR_TARGET} PRIVATE
         VERSION_SUBMINOR=${TOCATA_PEDAL_VERSION_SUBMINOR}
         )
 
-target_link_libraries(${CUR_TARGET} PRIVATE 
-        libremidi
-        SDL2-static
+target_link_libraries(${CUR_TARGET} PRIVATE
+        "-framework CoreMIDI"
+        "-framework CoreFoundation"
         )
