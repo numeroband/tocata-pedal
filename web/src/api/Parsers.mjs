@@ -167,6 +167,7 @@ const fsMode = [
   'stomp',
   'momentary',
   'scene',
+  'program',
 ];
 
 const midi = {

@@ -147,6 +147,7 @@ public:
             kStomp = 0,      // independent on/off toggle
             kMomentary = 1,  // on while pressed, off when released
             kScene = 2,      // mutually exclusive among scene switches
+            kProgram = 3,    // pure trigger: enters program-change mode, no actions
         };
 
         const char* name() const { return _name; }

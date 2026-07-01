@@ -23,6 +23,7 @@ const fsModes = [
   { value: 'stomp', name: 'Stomp' },
   { value: 'momentary', name: 'Momentary' },
   { value: 'scene', name: 'Scene' },
+  { value: 'program', name: 'Program' },
 ]
 const MAX_NAME_LENGTH = 5;
 
@@ -145,6 +146,7 @@ function FootswitchDialog(props) {
 function Footswitch(props) {
   const { id, footswitch = {}, setFootswitch } = props
   const isScene = footswitch.mode === 'scene'
+  const isProgram = footswitch.mode === 'program'
 
   return (!footswitch || !footswitch.name) ? <div/> : (
     <Grid
@@ -152,16 +154,16 @@ function Footswitch(props) {
       direction="row"
       alignItems="flex-start"
     >
-      <Actions
+      {!isProgram && <Actions
         actions={footswitch.onActions}
         setActions={actions => setFootswitch(id, {...footswitch, onActions: actions})}
         title={isScene ? "Enter MIDI": "On MIDI"}
-      />
-      <Actions
+      />}
+      {!isProgram && <Actions
         actions={footswitch.offActions}
         setActions={actions => setFootswitch(id, {...footswitch, offActions: actions})}
         title={isScene ? "Exit MIDI": "Off MIDI"}
-      />
+      />}
     </Grid>
   )
 }
@@ -195,6 +197,10 @@ export default function Footswitches(props) {
     if (footswitch) {
       if (!footswitch.enabled) {
         delete footswitch.enabled
+      }
+      if (footswitch.mode === 'program') {
+        delete footswitch.onActions
+        delete footswitch.offActions
       }
       if (footswitch.onActions && footswitch.onActions.length === 0) {
         delete footswitch.onActions

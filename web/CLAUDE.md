@@ -48,7 +48,7 @@ The core lives in `src/api/` as framework-agnostic `.mjs` modules so it can run 
 
 ### Footswitch mode model (mirrors firmware)
 
-Programs have a program-level `mode` (`default` / `scene`) and each footswitch has its own `mode` (`stomp` / `momentary` / `scene`) — see the `mode`/`fsMode` enums in [Parsers.mjs](src/api/Parsers.mjs). Legacy programs saved as whole-program `scene` are expanded on read into `mode: 'default'` with every switch forced to `scene` (see `getProgram` in [Api.mjs](src/api/Api.mjs)), so the per-switch editor renders them correctly and re-saving preserves the behavior. Keep this in sync with the firmware's two-level mode resolution (`Program::switchMode`).
+Programs have a program-level `mode` (`default` / `scene`) and each footswitch has its own `mode` (`stomp` / `momentary` / `scene` / `program`) — see the `mode`/`fsMode` enums in [Parsers.mjs](src/api/Parsers.mjs). Legacy programs saved as whole-program `scene` are expanded on read into `mode: 'default'` with every switch forced to `scene` (see `getProgram` in [Api.mjs](src/api/Api.mjs)), so the per-switch editor renders them correctly and re-saving preserves the behavior. Keep this in sync with the firmware's two-level mode resolution (`Program::switchMode`). `program` mode has no on/off MIDI actions — it's a pure trigger the firmware uses to enter program-change mode — so the editor hides both Actions cards and strips any actions when a switch is set to it.
 
 ### React app
 

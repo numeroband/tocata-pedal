@@ -97,7 +97,8 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
 {
     auto activated = status & modified;
 
-    if (activated[swMap(kProgramSwitch)])
+    // Dedicated program-mode switch, if this program has one.
+    if (_program_sw_id != Program::kInvalidId && activated[swMap(_program_sw_id)])
     {
         _saved_program_id = _program_id;
         _saved_switches_state = _switches_state;
@@ -106,9 +107,29 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
         return;
     }
 
+    // Fallback: only when no dedicated program-mode switch exists, treat 2+
+    // footswitches (excluding the inc/dec-program switches) newly activated in
+    // this same debounce tick as the trigger to enter program-change mode.
+    if (_program_sw_id == Program::kInvalidId)
+    {
+        Switches::Mask combo_candidates;
+        for (uint8_t sw = 0; sw < Program::kNumSwitches; ++sw)
+        {
+            combo_candidates[swMap(sw)] = activated[swMap(sw)];
+        }
+        if (combo_candidates.count() >= 2)
+        {
+            _saved_program_id = _program_id;
+            _saved_switches_state = _switches_state;
+            _restore_state = true;
+            changeProgramMode();
+            return;
+        }
+    }
+
     for (uint8_t sw = 0; sw < Program::kNumSwitches; ++sw)
     {
-        if (modified[swMap(sw)])
+        if (modified[swMap(sw)] && _program.switchMode(sw) != Program::Footswitch::kProgram)
         {
             changeSwitch(sw, status[swMap(sw)], true);
         }
@@ -467,8 +488,13 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
         return;
     }
 
-    const auto& fs = _program.footswitch(id);
     auto sw_mode = _program.switchMode(id);
+    if (sw_mode == Program::Footswitch::kProgram)
+    {
+        return;  // pure trigger, handled in footswitchCallback; never toggles state
+    }
+
+    const auto& fs = _program.footswitch(id);
     bool is_scene = (sw_mode == Program::Footswitch::kScene);
     bool momentary = (sw_mode == Program::Footswitch::kMomentary);
     if (!fs.available() || (!momentary && !active))
@@ -560,7 +586,8 @@ void Controller::defaultSwitchesState(const Program& program, std::bitset<Progra
             continue;
         }
         bool is_scene = (program.switchMode(id) == Program::Footswitch::kScene);
-        state[id] = is_scene ? (id == scene) : fs.enabled();
+        bool is_program_sw = (program.switchMode(id) == Program::Footswitch::kProgram);
+        state[id] = is_scene ? (id == scene) : (is_program_sw ? false : fs.enabled());
     }
 }
 
@@ -630,6 +657,18 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches,
         }
     }
 
+    // Cache the first kProgram-moded switch, if any (must run unconditionally --
+    // changeProgramMode() reloads with display_switches=false and still needs it).
+    _program_sw_id = Program::kInvalidId;
+    for (uint8_t sid = 0; sid < _program.numFootswitches(); ++sid)
+    {
+        if (_program.switchMode(sid) == Program::Footswitch::kProgram)
+        {
+            _program_sw_id = sid;
+            break;
+        }
+    }
+
     for (uint8_t lid = 0; lid < _leds.kNumLeds; ++lid)
     {
         if (!display_switches)
@@ -663,7 +702,6 @@ void Controller::displayProgram(bool display_switches) {
         auto& fs = _program.footswitch(idx);
         _display.setFootswitch(idx, fs.available() ? fs.name() : nullptr);
     }
-    _display.setFootswitch(kProgramSwitch, "...");
 }
 
 }

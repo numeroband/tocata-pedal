@@ -82,6 +82,8 @@ private:
     Program _program{};
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
+    uint8_t _program_sw_id = Program::kInvalidId;  // cached id of the kProgram switch for
+                                                    // the current program, or kInvalidId
     uint8_t _saved_program_id = 0;
     std::bitset<Program::kNumSwitches> _saved_switches_state{};
     bool _restore_state = false;
@@ -99,7 +101,6 @@ private:
     static constexpr uint8_t kIncTenSwitch = 1;
     static constexpr uint8_t kSetupSwitch = 2;
     static constexpr uint8_t kTunerSwitch = 3;
-    const uint8_t kProgramSwitch = uint8_t(_leds.kNumLeds / 2 - 1);
     const uint8_t kDecOneSwitch = uint8_t(_leds.kNumLeds / 2);
     const uint8_t kDecTenSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
     const uint8_t kLoadSwitch = uint8_t(_leds.kNumLeds - 1);
