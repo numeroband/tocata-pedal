@@ -25,8 +25,11 @@ void Leds::setColor(uint8_t led, uint8_t r, uint8_t g, uint8_t b)
     _state[led] = (g << 24) | (r << 16) | (b << 8);
 }
 
-void Leds::refresh()
+void Leds::refresh(bool wait)
 {
+    if (wait) {
+        _timer.wait();
+    }
     _refresh_pending = true;
 }
 

@@ -22,6 +22,7 @@ public:
     void init();
     void run();
     void setCallback(SwitchesChanged callback) { _callback = callback; }
+    Mask rawMask() const;
 
 private:
     static constexpr uint32_t kDebounceMs = 200;

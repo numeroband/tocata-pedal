@@ -163,6 +163,14 @@ void Display::init()
 	u8g2_SendBuffer(&_u8g2);
 }
 
+void Display::showMessage(const char* text)
+{
+	u8g2_ClearBuffer(&_u8g2);
+	u8g2_SetFont(&_u8g2, u8g2_font_10x20_tf);
+	u8g2_DrawStr(&_u8g2, 7, 25, text);
+	u8g2_SendBuffer(&_u8g2);
+}
+
 void Display::setNumber(uint8_t number) {
 	_dirty = true;
 	if (number == kNoNumber) {

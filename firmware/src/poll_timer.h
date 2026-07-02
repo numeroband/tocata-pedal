@@ -24,6 +24,11 @@ public:
 		return _deadline != kInvalid && micros() >= _deadline;
 	}
 
+	void wait() {
+		while (!expired()) {
+		}
+	}
+
 	void disable() {
 		_deadline = kInvalid;
 	}

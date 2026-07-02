@@ -37,4 +37,9 @@ void Switches::run()
     }
 }
 
+Switches::Mask Switches::rawMask() const
+{
+    return Mask(switches_value(_config));
+}
+
 } // namespace tocata

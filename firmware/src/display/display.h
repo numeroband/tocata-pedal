@@ -22,6 +22,7 @@ public:
 		_fs_state{fs_state}	{}
 	void init();
 	void run();
+	void showMessage(const char* text);
 	void setNumber(uint8_t number);
 	void setText(const char* text);
 	void setFootswitch(uint8_t idx, const char* text) { _fs_text[idx] = text; _dirty = true; }

@@ -23,6 +23,7 @@ void Controller::init()
     _exp.setCalibration(_config.expression().minRaw(), _config.expression().maxRaw());
     _exp.run();
     _leds.init();
+    auto factory_reset_mask = _buttons.rawMask();
 
     PollTimer leds_timer;
     for (uint8_t i = 0; is_pedal_long() && i < 128; ++i)
@@ -37,6 +38,14 @@ void Controller::init()
         }
         _leds.refresh();
         _leds.run();
+    }
+
+    // Factory reset gesture: exactly two switches held from boot through the
+    // LED init/startup sequence, and still the same two afterward.
+    printf("Initial switches state: %08X (%zu)\n", (uint32_t)factory_reset_mask.to_ulong(), factory_reset_mask.count());
+    if (factory_reset_mask.count() == 2 && _buttons.rawMask() == factory_reset_mask)
+    {
+        factoryReset();
     }
     footswitchMode(false);
 
@@ -411,6 +420,21 @@ void Controller::exitTunerMode(bool send_midi)
         _usb.midi().sendControl(channel, 47, 0);
     }
     footswitchMode(false);
+}
+
+void Controller::factoryReset()
+{
+    for (uint8_t led = 0; led < _leds.kNumLeds; ++led) {
+        _leds.setColor(led, kRed, true);
+    }
+    _leds.refresh(true);
+    _leds.run();
+    _display.showMessage("Factory reset");
+    Storage::factoryReset();
+    _config.load();
+    while (_buttons.rawMask().any()) {
+        _usb.run();
+    }
 }
 
 void Controller::footswitchMode(bool send_midi)

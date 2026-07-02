@@ -41,6 +41,13 @@ void Storage::init()
         (uint32_t)sizeof(Actions::Action));
 }
 
+void Storage::factoryReset()
+{
+    printf("Factory reset: erasing config and all programs\n");
+    Config::remove(false);
+    Program::initAll();
+}
+
 bool Config::init()
 {
     if (TocataFS.exists(kPath))

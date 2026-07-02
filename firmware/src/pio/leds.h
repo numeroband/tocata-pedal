@@ -21,7 +21,7 @@ public:
     void run();
     void setColor(uint8_t led, Color color, bool active);
     void setColor(uint8_t led, uint8_t r, uint8_t g, uint8_t b);
-    void refresh();
+    void refresh(bool wait = false);
 
 private:
     struct RGB

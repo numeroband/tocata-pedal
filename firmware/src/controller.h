@@ -51,6 +51,7 @@ private:
     void programChanged(uint8_t id) override;
 
     void sendIdentityReply(MidiSender& sender);
+    void factoryReset();
     void footswitchMode(bool send_midi = true);
     void setupMode();
     void changeProgramMode();

@@ -11,6 +11,7 @@ class Storage
 {
 public:
     static void init();
+    static void factoryReset();
 };
 
 class Config
