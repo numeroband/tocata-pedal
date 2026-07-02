@@ -117,8 +117,10 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     }
 
     // Fallback: only when no dedicated program-mode switch exists, treat 2+
-    // footswitches (excluding the inc/dec-program switches) newly activated in
-    // this same debounce tick as the trigger to enter program-change mode.
+    // footswitches (excluding the inc/dec-program switches) activated together as
+    // the trigger to enter program-change mode. Switches enables the detection
+    // delay for these programs, coalescing two near-simultaneous presses into this
+    // one callback so the gesture is easy to hit.
     if (_program_sw_id == Program::kInvalidId)
     {
         Switches::Mask combo_candidates;
@@ -451,6 +453,11 @@ void Controller::footswitchMode(bool send_midi)
     // MIDI actions would re-trigger them and create an inconsistency.
     loadProgram(_program_id, send_midi && restore == nullptr, true, restore);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
+    // Only when there's no dedicated program switch do we widen the two-press
+    // window so the fallback gesture is reachable; programs with a program switch
+    // keep zero-latency, immediate switch handling. Must follow setCallback, which
+    // resets the delay to off.
+    _buttons.setDetectionDelay(_program_sw_id == Program::kInvalidId);
     _exp.setCallback(std::bind(&Controller::sendExpression, this, _1));
 }
 

@@ -31,9 +31,31 @@ void Switches::run()
         }
     }
 
-    // Fire callback if any button changed and is now stable
-    if (changed_this_tick.any() && _callback) {
-        _callback(_stable_states, changed_this_tick);
+    if (!_detection_delay) {
+        // Immediate path: fire on any change, no added latency.
+        if (changed_this_tick.any() && _callback) {
+            _callback(_stable_states, changed_this_tick);
+        }
+        return;
+    }
+
+    // Detection-delay path: hold changes for up to kDetectionDelayMs, coalescing
+    // any further changes so two near-simultaneous presses arrive in one callback.
+    // The window starts on the first change and does not extend, bounding the added
+    // latency to kDetectionDelayMs.
+    if (changed_this_tick.any()) {
+        if (_pending_changed.none()) {
+            _window_start = now;
+        }
+        _pending_changed |= changed_this_tick;
+    }
+
+    if (_pending_changed.any() && (now - _window_start) >= kDetectionDelayMs) {
+        Mask to_report = _pending_changed;
+        _pending_changed.reset();
+        if (_callback) {
+            _callback(_stable_states, to_report);
+        }
     }
 }
 
