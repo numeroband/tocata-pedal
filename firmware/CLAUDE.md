@@ -32,7 +32,8 @@ cmake --build build
 cmake --build build-macos --target TocataPedal
 # TocataMidi (multicast-MIDI ↔ virtual-MIDI ↔ WING bridge, macOS only):
 cmake --build build-macos --target TocataMidi
-./build-macos/src/tocata-midi/TocataMidi.app/Contents/MacOS/TocataMidi <iface> [num_ports] [primary|secondary]
+./build-macos/src/tocata-midi/TocataMidi.app/Contents/MacOS/TocataMidi \
+    --iface en7 --role primary --devices "TocataMIDI 1,IAC Driver Bus 1"
 ```
 
 To configure from scratch: `cmake -S . -B build -G Ninja` (embedded, defaults to `pico2`) or `cmake -S . -B build-macos -G Xcode -DPICO_BOARD=none` (host).
@@ -70,6 +71,8 @@ The host build receives all incoming MIDI: it opens an input virtual port named 
 ### Networking & redundancy
 
 When ethernet is available, [src/network/](src/network/) brings up the W6100 over SPI and exposes a `MulticastMidi` sender that joins an IPv6 multicast group (RTP-MIDI-style). The same `mc_midi.hpp` is compiled into the host `TocataMidi` helper, which additionally runs a TCP session against a Behringer WING ([src/tocata-midi/wing_session.hpp](src/tocata-midi/wing_session.hpp)) and toggles the local ethernet output based on the `IO_ALTSW` node, implementing primary/secondary failover between two paired pedals.
+
+`--devices` is an ordered, comma-separated list of names (default `"TocataMIDI 1"`) — one per bridged port, and the port count is simply the list length (max 10, since each port's multicast group address encodes its position as a single hex digit). An entry starting with `TocataMIDI` ([src/tocata-midi/virt_midi.hpp](src/tocata-midi/virt_midi.hpp)) creates a new virtual CoreMIDI port using that exact name; any other entry ([src/tocata-midi/system_midi.hpp](src/tocata-midi/system_midi.hpp)) is matched by substring against an existing system MIDI source/destination (e.g. a real interface, or another app's virtual port like "IAC Driver Bus 1") to attach to instead. `--list-devices` enumerates currently available system MIDI sources/destinations by display name to help pick a name. If a non-`TocataMIDI` entry doesn't match any existing device, TocataMidi prints the available device names and exits non-zero rather than falling back to a virtual port.
 
 ### PIO
 

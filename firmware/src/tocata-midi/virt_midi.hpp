@@ -1,3 +1,5 @@
+#pragma once
+#include "midi_port.hpp"
 #include <CoreMIDI/CoreMIDI.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <functional>
@@ -8,12 +10,9 @@
 
 namespace tocata::midi {
 
-class VirtualMidi {
+class VirtualMidi : public MidiPort {
 public:
-    using Callback = std::function<void(std::span<const uint8_t>)>;
-
-    VirtualMidi(uint8_t port) {
-        std::string port_name{"TocataMIDI " + std::to_string(port + 1)};
+    VirtualMidi(const std::string& port_name) {
         CFStringRef name = CFStringCreateWithCString(
             kCFAllocatorDefault, port_name.c_str(), kCFStringEncodingUTF8);
 
@@ -26,7 +25,7 @@ public:
         CFRelease(name);
     }
 
-    ~VirtualMidi() {
+    ~VirtualMidi() override {
         if (_destination) MIDIEndpointDispose(_destination);
         if (_source) MIDIEndpointDispose(_source);
         if (_client) MIDIClientDispose(_client);
@@ -43,11 +42,11 @@ public:
         other._destination = 0;
     }
 
-    void setCallback(Callback callback) {
+    void setCallback(Callback callback) override {
         _callback = std::move(callback);
     }
 
-    void send(std::span<const uint8_t> data) {
+    void send(std::span<const uint8_t> data) override {
         std::vector<uint8_t> buffer(sizeof(MIDIPacketList) + data.size() + 256);
         MIDIPacketList* pkt_list = reinterpret_cast<MIDIPacketList*>(buffer.data());
 #pragma clang diagnostic push

@@ -1,24 +1,126 @@
+#include "midi_port.hpp"
 #include "virt_midi.hpp"
+#include "system_midi.hpp"
 #include "mc_midi.hpp"
 #include "wing_session.hpp"
 #include "player_connection.hpp"
+#include <memory>
 #include <optional>
 
 using namespace tocata::midi;
 using namespace tocata::wing;
 
 static constexpr const char* kPlayerUri = "ws://localhost:9999";
+static constexpr const char* kVirtualPrefix = "TocataMIDI";
+
+struct Args {
+    std::string iface = "en7";
+    std::optional<std::string> role;
+    std::vector<std::string> devices = {"TocataMIDI 1"};
+    bool list_devices = false;
+    bool show_help = false;
+    bool valid = true;
+};
+
+static std::vector<std::string> splitCommaList(const std::string& s) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    while (start <= s.size()) {
+        size_t comma = s.find(',', start);
+        if (comma == std::string::npos) {
+            out.push_back(s.substr(start));
+            break;
+        }
+        out.push_back(s.substr(start, comma - start));
+        start = comma + 1;
+    }
+    return out;
+}
+
+static void printUsage() {
+    printf("Usage: TocataMidi [--iface en7] [--role primary|secondary]\n");
+    printf("                   [--devices \"Name1,Name2,...\"] [--list-devices] [--help]\n");
+    printf("\n");
+    printf("Each --devices entry names one bridged port. An entry starting with\n");
+    printf("\"%s\" creates a new virtual CoreMIDI port using that exact name;\n", kVirtualPrefix);
+    printf("any other entry is matched (by substring) against an existing system\n");
+    printf("MIDI source/destination to attach to. Use --list-devices to see what's\n");
+    printf("currently available.\n");
+}
+
+static Args parseArgs(int argc, const char* argv[]) {
+    Args args;
+    bool devices_set = false;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        auto next = [&](const char* flag) -> std::optional<std::string> {
+            if (i + 1 >= argc) {
+                printf("Missing value for %s\n", flag);
+                args.valid = false;
+                return std::nullopt;
+            }
+            return std::string{argv[++i]};
+        };
+
+        if (a == "--iface") {
+            if (auto v = next("--iface")) args.iface = *v;
+        } else if (a == "--role") {
+            if (auto v = next("--role")) args.role = *v;
+        } else if (a == "--devices") {
+            if (auto v = next("--devices")) {
+                args.devices = splitCommaList(*v);
+                devices_set = true;
+            }
+        } else if (a == "--list-devices") {
+            args.list_devices = true;
+        } else if (a == "--help" || a == "-h") {
+            args.show_help = true;
+        } else {
+            printf("Unknown argument: %s\n", a.c_str());
+            args.valid = false;
+        }
+    }
+
+    if (!args.list_devices && !args.show_help) {
+        if (devices_set && (args.devices.empty() || args.devices.size() > 10)) {
+            printf("Invalid --devices count: %zu (must be 1-10)\n", args.devices.size());
+            args.valid = false;
+        }
+        for (auto& d : args.devices) {
+            if (d.empty()) {
+                printf("--devices entries must not be empty\n");
+                args.valid = false;
+                break;
+            }
+        }
+        if (args.role && *args.role != "primary" && *args.role != "secondary") {
+            printf("Invalid --role: %s (expected primary|secondary)\n", args.role->c_str());
+            args.valid = false;
+        }
+    }
+
+    return args;
+}
 
 int main(int argc, const char* argv[]) {
-    const char* iface = argc > 1 ? argv[1] : "en7";
-    uint8_t num_ports = argc > 2 ? uint8_t(atoi(argv[2])) : 1;
-    if (num_ports == 0 || num_ports > 10) {
-        printf("Invalid num ports: %u\n", num_ports);
-        return -1;
+    Args args = parseArgs(argc, argv);
+
+    if (args.show_help) {
+        printUsage();
+        return 0;
     }
-    bool mc_out_disabled = (argc > 3);
-    auto role = (argc > 3) ? argv[3] : nullptr;
-    bool primary = (mc_out_disabled && std::string{role} == "primary");
+    if (args.list_devices) {
+        SystemMidi::printAvailableDevices();
+        return 0;
+    }
+    if (!args.valid) {
+        printUsage();
+        return 1;
+    }
+
+    bool mc_out_disabled = args.role.has_value();
+    bool primary = (mc_out_disabled && *args.role == "primary");
 
     try {
         asio::io_context io_context;
@@ -27,7 +129,7 @@ int main(int argc, const char* argv[]) {
 
         if (mc_out_disabled) {
             player_connection.emplace(io_context, kPlayerUri);
-            wing_session.setParserCallback([primary, role, &mc_out_disabled, &player_connection](auto hash, auto value) {
+            wing_session.setParserCallback([primary, &mc_out_disabled, &player_connection](auto hash, auto value) {
                 if (hash == node::IO_ALTSW) {
                     bool not_alt = !std::get<int32_t>(value);
                     mc_out_disabled = primary ^ not_alt;
@@ -44,29 +146,38 @@ int main(int argc, const char* argv[]) {
                 }
             });
 
-            printf("Connecting to WING as %s...\n", role);
+            printf("Connecting to WING as %s...\n", args.role->c_str());
             wing_session.start();
         } else {
             printf("No redundancy. Ethernet out enabled.\n");
         }
 
-        std::vector<VirtualMidi> virt_ports;
+        std::vector<std::unique_ptr<MidiPort>> virt_ports;
         std::vector<MulticastMidi> mc_ports;
+        const size_t num_ports = args.devices.size();
         virt_ports.reserve(num_ports);
         mc_ports.reserve(num_ports);
-        for (uint8_t i = 0; i < num_ports; ++i) {
-            auto& virt_port = virt_ports.emplace_back(i);
-            auto& mc_port = mc_ports.emplace_back(io_context, i, iface, mc_out_disabled);
-            virt_port.setCallback(std::bind(&MulticastMidi::send, &mc_port, std::placeholders::_1));
-            mc_port.setCallback(std::bind(&VirtualMidi::send, &virt_port, std::placeholders::_1));
+
+        for (size_t i = 0; i < num_ports; ++i) {
+            const std::string& name = args.devices[i];
+
+            std::unique_ptr<MidiPort> port = name.rfind(kVirtualPrefix, 0) == 0
+                ? std::unique_ptr<MidiPort>(std::make_unique<VirtualMidi>(name))
+                : std::unique_ptr<MidiPort>(std::make_unique<SystemMidi>(name));
+
+            auto& mc_port = mc_ports.emplace_back(io_context, uint8_t(i), args.iface.c_str(), mc_out_disabled);
+            auto* port_ptr = port.get();
+            port_ptr->setCallback(std::bind(&MulticastMidi::send, &mc_port, std::placeholders::_1));
+            mc_port.setCallback(std::bind(&MidiPort::send, port_ptr, std::placeholders::_1));
+
+            virt_ports.push_back(std::move(port));
         }
 
         io_context.run();
     } catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
+        return 1;
     }
-
-
 
     return 0;
 }
