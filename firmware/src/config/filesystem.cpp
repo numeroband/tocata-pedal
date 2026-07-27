@@ -88,7 +88,8 @@ bool FS::init(bool formatOnFail)
 File FS::open(const char* path, const char* mode)
 {
     bool write = (mode[0] == 'w');
-    uint8_t file_id = (path[1] - '0') * 10 + (path[2] - '0');
+    auto nibble = [](char c) { return c <= '9' ? c - '0' : c - 'A' + 10; };
+    uint8_t file_id = (nibble(path[1]) << 4) | nibble(path[2]);
     uint8_t first_block = _block.id();
     File file = _block.open(file_id);
     if (!file)

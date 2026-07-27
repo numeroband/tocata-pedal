@@ -205,11 +205,14 @@ protected:
 
 private:
     static void remove(uint8_t id, bool check);
-    static void copyPath(uint8_t id, char* path) 
-    { 
+    static void copyPath(uint8_t id, char* path)
+    {
+        static const char hex[] = "0123456789ABCDEF";
+        // Offset by one: file id 0 ("/00") belongs to Config.
+        const uint8_t file_id = id + 1;
         path[0] = '/';
-        path[1] = '0' + ((id + 1) / 10);
-        path[2] = '0' + ((id + 1) % 10);
+        path[1] = hex[file_id >> 4];
+        path[2] = hex[file_id & 0x0F];
         path[3] = '\0';
     }
     void invalidate() { _name[0] = 0; }
