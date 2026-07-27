@@ -3,6 +3,7 @@ const MAX_FS_NAME_SIZE = 8;
 const MAX_NAMES_RESPONSE = 16;
 const MAX_ACTIONS = 5;
 const MAX_SWITCHES = 8;
+const MAX_PROGRAMS = 99;   // Program::kMaxPrograms
 
 function isEmpty(value) {
   return (
@@ -244,7 +245,22 @@ const idPlusProgram = {
   ]
 };
 
-const addressAndLength = { 
+const setlist = {
+  fields: [
+    ['name', 'str', MAX_PRG_NAME_SIZE],
+    ['programs', 'nArray', MAX_PROGRAMS, 'uint8'],
+  ],
+  valid: o => o.name
+};
+
+const idPlusSetlist = {
+  fields: [
+    ['id', 'uint8'],
+    ['setlist', 'struct', setlist],
+  ]
+};
+
+const addressAndLength = {
   fields: [
     ['address', 'uint32'],
     ['length', 'uint32'],
@@ -264,9 +280,11 @@ const serializeStruct = (buffer, value, parser) => buffer.slice(0, serializers.s
 export const parseConfig = buffer => parseStruct(buffer, config);
 export const parseNames = buffer => parseStruct(buffer, names);
 export const parseProgram = buffer => parseStruct(buffer, idPlusProgram);
+export const parseSetlist = buffer => parseStruct(buffer, idPlusSetlist);
 export const parseAddrPayload = buffer => parseStruct(buffer, addressAndPayload);
 export const serializeConfig = value => serializeStruct(new Uint8Array(512).buffer, value, config);
 export const serializeProgram = value => serializeStruct(new Uint8Array(512).buffer, value, idPlusProgram);
+export const serializeSetlist = value => serializeStruct(new Uint8Array(512).buffer, value, idPlusSetlist);
 export const serializeAddrPayload = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndPayload);
 export const serializeAddrLength = value => serializeStruct(new Uint8Array(512).buffer, value, addressAndLength);
 

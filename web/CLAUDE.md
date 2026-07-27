@@ -22,7 +22,7 @@ npm run deploy
 npm test
 
 # CLI against a connected pedal (Node `midi` transport, not Web MIDI):
-node src/api/cli.mjs <command> [args]      # get-config, set-program, backup, flash, read, ... see cli.mjs
+node src/api/cli.mjs <command> [args]      # get-config, set-program, get-setlists, set-setlist, backup, flash, read, ... see cli.mjs
 node src/api/cli.mjs flash <file.uf2>      # stream firmware over USB MIDI (no BOOTSEL/SWD needed)
 
 # Local simulator (fake pedal backed by ~/.tocata-sim, serves the built app on :8080):
@@ -37,10 +37,10 @@ npm run sim                                # needs `npm run build` first
 
 The core lives in `src/api/` as framework-agnostic `.mjs` modules so it can run in the browser, in Node (CLI), and in the sim:
 
-- **[Api.mjs](src/api/Api.mjs)** — the high-level surface: `getConfig`/`setProgram`/`flashFirmware`/`backup`/etc. Numeric `Command` constants here mirror the firmware's `config_protocol.h` enum (`GET_CONFIG=3`, `SET_PROGRAM=8`, `MEM_READ=0x10`, …). Requests are serialized through an internal queue so only one is in flight at a time. There are up to **99 programs**.
+- **[Api.mjs](src/api/Api.mjs)** — the high-level surface: `getConfig`/`setProgram`/`getSetlist`/`flashFirmware`/`backup`/etc. Numeric `Command` constants here mirror the firmware's `config_protocol.h` enum (`GET_CONFIG=3`, `SET_PROGRAM=8`, `GET_SETLISTS=0x0A`, `MEM_READ=0x10`, …). Requests are serialized through an internal queue so only one is in flight at a time. There are up to **99 programs** and **26 setlists**.
 - **[Protocol.mjs](src/api/Protocol.mjs)** — frames messages with a 4-byte header (`uint16 length`, `uint8 command`, `uint8 status`), reassembles fragmented responses, and rejects on non-zero status. Picks the transport by duck-typing the object passed in (`requestMIDIAccess` → Web MIDI, `createReadStream` → Node).
 - **[TransportMidi.mjs](src/api/TransportMidi.mjs)** (browser, Web MIDI) / **[TransportNodeMidi.mjs](src/api/TransportNodeMidi.mjs)** (Node `midi` package) — find the input/output ports named "Tocata Pedal" and move raw bytes. Both wrap payloads in SysEx via **[MidiSysEx.mjs](src/api/MidiSysEx.mjs)**.
-- **[Parsers.mjs](src/api/Parsers.mjs)** — a declarative struct (de)serializer. Schemes describe the on-the-wire layout (`config`, `program`, `footswitch`, `action`, …) and `parseX`/`serializeX` walk them. **This layout must stay byte-compatible with the firmware's packed structs** — changing a field order/type here without matching the firmware breaks the protocol.
+- **[Parsers.mjs](src/api/Parsers.mjs)** — a declarative struct (de)serializer. Schemes describe the on-the-wire layout (`config`, `program`, `footswitch`, `action`, `setlist`, …) and `parseX`/`serializeX` walk them. **This layout must stay byte-compatible with the firmware's packed structs** — changing a field order/type here without matching the firmware breaks the protocol.
 
 ### SysEx framing (must match firmware)
 
@@ -49,6 +49,12 @@ The core lives in `src/api/` as framework-agnostic `.mjs` modules so it can run 
 ### Footswitch mode model (mirrors firmware)
 
 Programs have a program-level `mode` (`default` / `scene`) and each footswitch has its own `mode` (`stomp` / `momentary` / `scene` / `program`) — see the `mode`/`fsMode` enums in [Parsers.mjs](src/api/Parsers.mjs). Legacy programs saved as whole-program `scene` are expanded on read into `mode: 'default'` with every switch forced to `scene` (see `getProgram` in [Api.mjs](src/api/Api.mjs)), so the per-switch editor renders them correctly and re-saving preserves the behavior. Keep this in sync with the firmware's two-level mode resolution (`Program::switchMode`). `program` mode has no on/off MIDI actions — it's a pure trigger the firmware uses to enter program-change mode — so the editor hides both Actions cards and strips any actions when a switch is set to it.
+
+### Setlists (no UI yet)
+
+A setlist is a named, ordered subset of the programs (`name` + `programs: [id, …]`, max 99) that the pedal uses to drive program-change navigation. Wire ids are **0-based, 0..25**, mirroring programs; the pedal displays them +1 and reserves its own index 0 for the built-in "All" setlist, which is synthetic and never stored — so there is no id 0 meaning "All" on this side. `getSetlistNames` pages like `getProgramNames` but trims to `NUM_SETLISTS`, because the device always replies with a full 16-slot page (the program version does *not* trim, so it returns 112 entries with a stale tail — pre-existing).
+
+`backup`/`restore`/`factory` in [Api.mjs](src/api/Api.mjs) and `readAll`/`updateAll` in [components/Api.js](src/components/Api.js) cover setlists, so the Backup/Restore screen round-trips them even though nothing renders them. **Restore is a full device sync**: slots absent from the JSON are deleted, so restoring a backup taken before setlists existed clears all 26. The **Programs editor deliberately has no setlist UI yet** — adding one means a new screen plus a `Navigation.js` entry.
 
 ### React app
 

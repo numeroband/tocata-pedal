@@ -1,6 +1,7 @@
 import Api from '../api/Api.mjs';
 
 const NUM_PROGRAMS = 99;
+const NUM_SETLISTS = 26;
 
 const urlParams = new URLSearchParams(window.location.search);
 const transport = urlParams.get('transport') || 'midi';
@@ -30,6 +31,10 @@ export const readProgramNames = () => api.getProgramNames();
 export const readProgram = id => api.getProgram(id);
 export const updateProgram = (id, program) => api.setProgram(id, program);
 export const deleteProgram = id => api.deleteProgram(id);
+export const readSetlistNames = () => api.getSetlistNames();
+export const readSetlist = id => api.getSetlist(id);
+export const updateSetlist = (id, setlist) => api.setSetlist(id, setlist);
+export const deleteSetlist = id => api.deleteSetlist(id);
 export const version = () => api.version();
 
 export async function readAll(progress) {
@@ -44,20 +49,29 @@ export async function readAll(progress) {
   updateProgress(5);
   const config = await readConfig();
   updateProgress(5);
+  const setlistNames = await readSetlistNames();
+  updateProgress(5);
   const programIds = names.reduce((ids, name, index) => name ? [...ids, index] : ids, [])
+  const setlistIds = setlistNames.reduce((ids, name, index) => name ? [...ids, index] : ids, [])
   const programs = [];
-  const programProgress = (100 - currentProgress) / programIds.length;
+  const setlists = [];
+  const itemProgress = (100 - currentProgress) / (programIds.length + setlistIds.length);
   for (const index in programIds) {
     const id = programIds[index];
     programs[id] = await readProgram(id);
-    updateProgress(programProgress);
+    updateProgress(itemProgress);
+  }
+  for (const index in setlistIds) {
+    const id = setlistIds[index];
+    setlists[id] = await readSetlist(id);
+    updateProgress(itemProgress);
   }
   progress && progress(100);
   console.log('end readAll');
-  return { config, programs };
+  return { config, programs, setlists };
 }
 
-export async function updateAll({config, programs = []}, progress) {
+export async function updateAll({config, programs = [], setlists = []}, progress) {
   let currentProgress = 0;
   function updateProgress(value) {
     currentProgress += value;
@@ -66,12 +80,19 @@ export async function updateAll({config, programs = []}, progress) {
   
   console.log('start updateAll');
 
-  const programProgress = 99 / NUM_PROGRAMS;
+  const itemProgress = 99 / (NUM_PROGRAMS + NUM_SETLISTS);
   for (let id = 0; id < NUM_PROGRAMS; ++id)
   {
     const program = programs[id];
     await (program ? updateProgram(id, program) : deleteProgram(id));
-    updateProgress(programProgress);
+    updateProgress(itemProgress);
+  }
+
+  for (let id = 0; id < NUM_SETLISTS; ++id)
+  {
+    const setlist = setlists[id];
+    await (setlist ? updateSetlist(id, setlist) : deleteSetlist(id));
+    updateProgress(itemProgress);
   }
 
   await (config ? updateConfig(config) : deleteConfig());
@@ -88,11 +109,16 @@ export async function restore(progress) {
   }
   
   console.log('start restore');
-  const programProgress = 99 / NUM_PROGRAMS;
+  const itemProgress = 99 / (NUM_PROGRAMS + NUM_SETLISTS);
   for (let id = 0; id < NUM_PROGRAMS; ++id)
   {
     await deleteProgram(id);
-    updateProgress(programProgress);
+    updateProgress(itemProgress);
+  }
+  for (let id = 0; id < NUM_SETLISTS; ++id)
+  {
+    await deleteSetlist(id);
+    updateProgress(itemProgress);
   }
   await deleteConfig();
   updateProgress(1);

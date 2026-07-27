@@ -5,6 +5,18 @@
 
 namespace tocata {
 
+// Builds the "/XX" path of a file from its id. The filesystem packs the id into
+// 7 bits of a single flash byte, so only ids 0x00..0x7D are addressable: /00 is
+// the config, /01../63 the 99 programs and /64../7D the 26 setlists.
+inline void copyFilePath(uint8_t file_id, char* path)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    path[0] = '/';
+    path[1] = hex[file_id >> 4];
+    path[2] = hex[file_id & 0x0F];
+    path[3] = '\0';
+}
+
 class MidiSender;
 
 class Storage
@@ -205,16 +217,8 @@ protected:
 
 private:
     static void remove(uint8_t id, bool check);
-    static void copyPath(uint8_t id, char* path)
-    {
-        static const char hex[] = "0123456789ABCDEF";
-        // Offset by one: file id 0 ("/00") belongs to Config.
-        const uint8_t file_id = id + 1;
-        path[0] = '/';
-        path[1] = hex[file_id >> 4];
-        path[2] = hex[file_id & 0x0F];
-        path[3] = '\0';
-    }
+    // Offset by one: file id 0 ("/00") belongs to Config.
+    static void copyPath(uint8_t id, char* path) { copyFilePath(id + 1, path); }
     void invalidate() { _name[0] = 0; }
 
     char _name[kMaxNameLength + 1] = "";
@@ -223,6 +227,57 @@ private:
     Actions _actions;
     Mode _channel_and_mode; // Expression channel in first most significant 4 bits
     uint8_t _expression;
+} __attribute__((packed));
+
+// An ordered subset of the programs, used to drive program-change navigation
+// during a performance. Setlist 0 is not stored: it is the synthetic "All"
+// setlist, a 1:1 mapping over every program, which is what the pedal uses when
+// no setlist has been selected.
+class Setlist
+{
+public:
+    // Files /64../7D -- everything the file-id encoding leaves after the config
+    // and the 99 programs (see copyFilePath).
+    static constexpr uint8_t kMaxSetlists = 26;
+
+    // Copies the name of setlist `id` and returns its program count. Reads only
+    // the 32-byte header, so it is cheap enough to probe every slot. A return of
+    // 0 means missing, unnamed or empty -- i.e. not selectable.
+    static uint8_t copyName(uint8_t id, char* name);
+    static void remove(uint8_t id);
+    static void removeAll();
+
+    Setlist() { loadAll(); }
+
+    // Loads setlist `id`, falling back to "All" when the file is missing,
+    // unnamed or empty. Returns whether the stored setlist was usable.
+    bool load(uint8_t id);
+    void loadAll();
+
+    bool available() const { return _name[0]; }
+    const char* name() const { return _name; }
+    uint8_t numPrograms() const { return _num_programs; }
+    uint8_t program(uint8_t pos) const
+    {
+        if (pos >= _num_programs) { return 0; }
+        const uint8_t id = _programs[pos];
+        return (id < Program::kMaxPrograms) ? id : 0;
+    }
+    // Position of `program_id` within the setlist, or -1 when it isn't in it.
+    int16_t find(uint8_t program_id) const;
+    void save(uint8_t id) const;
+    bool operator==(const Setlist& other) const;
+
+private:
+    static constexpr uint8_t kFirstFileId = 0x64;
+    static constexpr size_t kHeaderSize = Program::kMaxNameLength + 2;
+
+    static void copyPath(uint8_t id, char* path) { copyFilePath(kFirstFileId + id, path); }
+    void invalidate() { _name[0] = 0; }
+
+    char _name[Program::kMaxNameLength + 1] = "";
+    uint8_t _num_programs = 0;
+    uint8_t _programs[Program::kMaxPrograms] = {};
 } __attribute__((packed));
 
 }

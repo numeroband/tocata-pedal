@@ -110,6 +110,7 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     if (_program_sw_id != Program::kInvalidId && activated[swMap(_program_sw_id)])
     {
         _saved_program_id = _program_id;
+        _saved_setlist_pos = _setlist_pos;
         _saved_switches_state = _switches_state;
         _restore_state = true;
         changeProgramMode();
@@ -149,10 +150,10 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
     constexpr uint8_t dec_one = Program::kNumSwitches + 1;
 
     if (activated[swMap(inc_one)]) {
-        loadProgram((_program_id + 1) % 99, false, false);
+        movePosition(1);
         footswitchMode();
     } else if (activated[swMap(dec_one)]) {
-        loadProgram((_program_id + 99 - 1) % 99, false, false);
+        movePosition(-1);
         footswitchMode();
     } else {
         _leds.refresh();
@@ -164,13 +165,13 @@ void Controller::programCallback(Switches::Mask status, Switches::Mask modified)
     auto activated = status & modified;
 
     if (activated[swMap(kIncOneSwitch)]) {
-        loadProgram((_program_id + 1) % 99, false, false);
+        movePosition(1);
     } else if (activated[swMap(kIncTenSwitch)]) {
-        loadProgram((_program_id + 10) % 99, false, false);
+        movePosition(10);
     } else if (activated[swMap(kDecOneSwitch)]) {
-        loadProgram((_program_id + 99 - 1) % 99, false, false);
+        movePosition(-1);
     } else if (activated[swMap(kDecTenSwitch)]) {
-        loadProgram((_program_id + 99 - 10) % 99, false, false);
+        movePosition(-10);
     } else if (activated[swMap(kSetupSwitch)]) {
         setupMode();
     } else if (activated[swMap(kLoadSwitch)]) {
@@ -193,16 +194,36 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
         uint8_t msg_channel = packet[0] & 0x0F;
         uint8_t msg_type = packet[0] & 0xF0;
         if (msg_channel == channel && msg_type == 0xC0) {
+            // The value is an absolute program id, but only programs that belong
+            // to the active setlist are reachable; anything else is ignored.
             uint8_t value = packet[1];
-            if (_tuner_mode) {
+            const int16_t pos = _setlist.find(value);
+            if (pos < 0) {
+                // Not in this setlist: leave the pedal exactly as it is.
+            } else if (_tuner_mode) {
                 Program target;
                 target.load(value);
                 _saved_program_id = value;
+                _saved_setlist_pos = uint8_t(pos);
                 defaultSwitchesState(target, _saved_switches_state);
                 _restore_state = true;
             } else {
                 footswitchMode(false);
-                loadProgram(value, false, true);
+                loadPosition(uint8_t(pos), false, true);
+            }
+        } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 32) {
+            // Setlist select: 0 is "All", 1..kMaxSetlists the stored setlists.
+            // Unknown, empty or already-active values are ignored.
+            if (selectSetlist(packet[2])) {
+                if (_tuner_mode) {
+                    Program target;
+                    target.load(_saved_program_id);
+                    defaultSwitchesState(target, _saved_switches_state);
+                    _restore_state = true;
+                } else {
+                    footswitchMode(false);
+                    loadPosition(0, false, true);
+                }
             }
         } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
             if (_tuner_mode) {
@@ -286,9 +307,8 @@ void Controller::setupCallback(Switches::Mask status, Switches::Mask modified)
         _exp.resetMax();
     } else if (activated[swMap(kExpMinSwitch)]) {
         _exp.resetMin();
-    } else if (activated[swMap(kExpEnabledSwitch)]) {
-        _expEnabled = !_expEnabled;
-        _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
+    } else if (activated[swMap(kSetlistsSwitch)]) {
+        setlistMode();
     } else if (activated[swMap(kIncExpFilterSwitch)]) {
         _exp.incFilter();
     } else if (activated[swMap(kDecExpFilterSwitch)]) {
@@ -348,7 +368,7 @@ void Controller::setExpValue(uint8_t value) {
 void Controller::setupMode()
 {
     _pendingChannel = _config.midi().channel();
-    loadProgram(_program_id, false, false);
+    loadPosition(_setlist_pos, false, false);
     _display.setBlink(false);
     setExpValue(_exp.getValue());
     _display.clearSwitches();
@@ -358,7 +378,7 @@ void Controller::setupMode()
     _display.setFootswitch(kExpMinSwitch, "XPMIN");
     _display.setFootswitch(kIncExpFilterSwitch, "FILT+");
     _display.setFootswitch(kDecExpFilterSwitch, "FILT-");
-    _display.setFootswitch(kExpEnabledSwitch, _expEnabled ? "XPOFF" : "XPON");
+    _display.setFootswitch(kSetlistsSwitch, "SETLISTS");
     _display.setFootswitch(kExitSwitch, "EXIT");
     _switches_state.reset();
     _buttons.setCallback(std::bind(&Controller::setupCallback, this, _1, _2));
@@ -368,7 +388,7 @@ void Controller::setupMode()
 void Controller::changeProgramMode()
 {
     _display.setBlink(true); 
-    loadProgram(_program_id, false, false);
+    loadPosition(_setlist_pos, false, false);
     _display.clearSwitches();
     _display.setFootswitch(kIncOneSwitch, " +1");
     _display.setFootswitch(kIncTenSwitch, " +10");
@@ -382,6 +402,135 @@ void Controller::changeProgramMode()
     _buttons.setCallback(std::bind(&Controller::programCallback, this, _1, _2));
 }
 
+bool Controller::selectSetlist(uint8_t setlist_id)
+{
+    if (setlist_id == _setlist_id || setlist_id > Setlist::kMaxSetlists)
+    {
+        return false;
+    }
+
+    if (setlist_id == kAllSetlist)
+    {
+        _setlist.loadAll();
+    }
+    else
+    {
+        char name[Program::kMaxNameLength + 1];
+        if (Setlist::copyName(setlist_id - 1, name) == 0)
+        {
+            // Missing or empty slot: not selectable.
+            return false;
+        }
+        _setlist.load(setlist_id - 1);
+    }
+
+    _setlist_id = setlist_id;
+    // A newly selected setlist always starts on its first program, and any
+    // position saved against the previous setlist is meaningless now.
+    _setlist_pos = 0;
+    _restore_state = false;
+    _saved_setlist_pos = 0;
+    _saved_program_id = _setlist.program(0);
+
+    return true;
+}
+
+void Controller::displaySetlistSelection()
+{
+    const uint8_t setlist_id = _sel_setlists[_sel_setlist_idx];
+
+    // Setlists are identified by name only -- no number.
+    _display.setNumber(Display::kNoNumber);
+    if (setlist_id == kAllSetlist)
+    {
+        _display.setText("All");
+    }
+    else
+    {
+        Setlist::copyName(setlist_id - 1, _sel_setlist_name);
+        _display.setText(_sel_setlist_name);
+    }
+    _display.refresh();
+}
+
+void Controller::setlistMode()
+{
+    // Rebuild the selectable list on every entry so empty slots are never
+    // reachable. "All" is always present, so the list is never empty.
+    _num_sel_setlists = 0;
+    _sel_setlists[_num_sel_setlists++] = kAllSetlist;
+    char name[Program::kMaxNameLength + 1];
+    for (uint8_t id = 0; id < Setlist::kMaxSetlists; ++id)
+    {
+        if (Setlist::copyName(id, name) > 0)
+        {
+            _sel_setlists[_num_sel_setlists++] = uint8_t(id + 1);
+        }
+    }
+
+    // Start browsing from the active setlist when it is still in the list.
+    _sel_setlist_idx = 0;
+    for (uint8_t idx = 0; idx < _num_sel_setlists; ++idx)
+    {
+        if (_sel_setlists[idx] == _setlist_id)
+        {
+            _sel_setlist_idx = idx;
+            break;
+        }
+    }
+
+    _display.setBlink(true);
+    _display.clearSwitches();
+    _display.setFootswitch(kIncOneSwitch, " +1");
+    _display.setFootswitch(kIncTenSwitch, " +10");
+    _display.setFootswitch(kDecOneSwitch, " -1");
+    _display.setFootswitch(kDecTenSwitch, " -10");
+    _display.setFootswitch(kLoadSwitch, "LOAD");
+    _display.setFootswitch(kExitProgramSwitch, "EXIT");
+    displaySetlistSelection();
+
+    for (uint8_t lid = 0; lid < _leds.kNumLeds; ++lid)
+    {
+        _leds.setColor(lid, kWhite, false);
+    }
+    _leds.refresh();
+
+    _switches_state.reset();
+    _buttons.setCallback(std::bind(&Controller::setlistCallback, this, _1, _2));
+    // Browsing must not repaint the header with the expression readout.
+    _exp.setCallback(nullptr);
+}
+
+void Controller::setlistCallback(Switches::Mask status, Switches::Mask modified)
+{
+    auto activated = status & modified;
+
+    auto move = [this](int8_t delta) {
+        const int num = _num_sel_setlists;
+        const int step = delta % num;
+        _sel_setlist_idx = uint8_t((_sel_setlist_idx + num + step) % num);
+        displaySetlistSelection();
+    };
+
+    if (activated[swMap(kIncOneSwitch)]) {
+        move(1);
+    } else if (activated[swMap(kIncTenSwitch)]) {
+        move(10);
+    } else if (activated[swMap(kDecOneSwitch)]) {
+        move(-1);
+    } else if (activated[swMap(kDecTenSwitch)]) {
+        move(-10);
+    } else if (activated[swMap(kLoadSwitch)]) {
+        // LOAD commits the browsed setlist and starts on its first program,
+        // sending its MIDI. Re-selecting the active setlist changes nothing, so
+        // the pre-menu program is restored instead.
+        selectSetlist(_sel_setlists[_sel_setlist_idx]);
+        footswitchMode(true);
+    } else if (activated[swMap(kExitProgramSwitch)]) {
+        footswitchMode(false);
+    }
+}
+
 void Controller::tunerMode() {
     _tuner_mode = true;
     // Only capture the live state when there isn't already a pending restore.
@@ -391,6 +540,7 @@ void Controller::tunerMode() {
     // defaults, so recapturing here would clobber the live state with defaults.
     if (!_restore_state) {
         _saved_program_id = _program_id;
+        _saved_setlist_pos = _setlist_pos;
         _saved_switches_state = _switches_state;
         _restore_state = true;
     }
@@ -445,13 +595,13 @@ void Controller::footswitchMode(bool send_midi)
     _display.setBlink(false);
     const std::bitset<Program::kNumSwitches>* restore = nullptr;
     if (_restore_state) {
-        _program_id = _saved_program_id;
+        _setlist_pos = _saved_setlist_pos;
         restore = &_saved_switches_state;
     }
     _restore_state = false;
     // When restoring the saved state the program is already live; re-running its
     // MIDI actions would re-trigger them and create an inconsistency.
-    loadProgram(_program_id, send_midi && restore == nullptr, true, restore);
+    loadPosition(_setlist_pos, send_midi && restore == nullptr, true, restore);
     _buttons.setCallback(std::bind(&Controller::footswitchCallback, this, _1, _2));
     // Only when there's no dedicated program switch do we widen the two-press
     // window so the fallback gesture is reachable; programs with a program switch
@@ -585,7 +735,7 @@ void Controller::setSwitchEnabled(uint8_t id, bool enable)
 void Controller::sendExpression(uint8_t value)
 {
     if (value == Expression::kDisconnected) { return; } // nothing to send
-    if (_expEnabled && _program.available() && _program.expressionEnabled())
+    if (_program.available() && _program.expressionEnabled())
     {
         _program.sendExpression(_network.midi(), value);
         _program.sendExpression(_usb.midi(), value);
@@ -721,8 +871,24 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches,
     _leds.refresh();
 }
 
+void Controller::loadPosition(uint8_t pos, bool send_midi, bool display_switches,
+                              const std::bitset<Program::kNumSwitches>* restore_state)
+{
+    _setlist_pos = pos;
+    loadProgram(_setlist.program(pos), send_midi, display_switches, restore_state);
+}
+
+void Controller::movePosition(int8_t delta)
+{
+    // Navigation wraps within the active setlist, so under "All" this is the
+    // familiar modulo-99 walk over every program.
+    const int num = _setlist.numPrograms();
+    const int step = delta % num;
+    loadPosition(uint8_t((_setlist_pos + num + step) % num), false, false);
+}
+
 void Controller::displayProgram(bool display_switches) {
-    _display.setNumber(_program_id + 1);
+    _display.setNumber(_setlist_pos + 1);
     _display.setText(_program.available() ? _program.name() : "<EMPTY>");
     if (!display_switches)
     {

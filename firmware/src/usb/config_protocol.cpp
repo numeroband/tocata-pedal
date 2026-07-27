@@ -39,6 +39,18 @@ void ConfigProtocol::processRequest()
     case kDeleteProgram:
       deleteProgram();
       break;
+    case kGetSetlists:
+      getSetlists();
+      break;
+    case kGetSetlist:
+      getSetlist();
+      break;
+    case kSetSetlist:
+      setSetlist();
+      break;
+    case kDeleteSetlist:
+      deleteSetlist();
+      break;
     case kMemRead:
       memRead();
       break;
@@ -186,6 +198,103 @@ void ConfigProtocol::deleteProgram()
   Program::remove(req.id);
   sendStatus(kOk);
   _delegate.programChanged(req.id);
+}
+
+void ConfigProtocol::getSetlists()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const GetSetlistsReq& req = reinterpret_cast<const GetSetlistsReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.id >= Setlist::kMaxSetlists)
+  {
+    sendStatus(kInvalidSetlistId);
+    return;
+  }
+
+  GetSetlistsRes& res = reinterpret_cast<GetSetlistsRes&>(msg.payload);
+  res.from_id = req.id;
+  const uint8_t remaining = Setlist::kMaxSetlists - req.id;
+  res.num_names = (kMaxNamesPerResponse < remaining) ? kMaxNamesPerResponse : remaining;
+  for (uint8_t i = 0; i < res.num_names; ++i)
+  {
+    Setlist::copyName(req.id + i, res.names[i]);
+  }
+
+  sendResponse(sizeof(res) + kMaxNamesPerResponse * sizeof(res.names[0]));
+}
+
+void ConfigProtocol::getSetlist()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const GetSetlistReq& req = reinterpret_cast<const GetSetlistReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.id >= Setlist::kMaxSetlists)
+  {
+    sendStatus(kInvalidSetlistId);
+    return;
+  }
+
+  const uint8_t id = req.id;
+  GetSetlistRes& res = reinterpret_cast<GetSetlistRes&>(msg.payload);
+  res.id = id;
+  // load() substitutes "All" for a missing setlist, which would look like real
+  // stored data to the host; report the empty slot as empty instead.
+  if (!res.setlist.load(id))
+  {
+    memset(&res.setlist, 0, sizeof(res.setlist));
+  }
+
+  sendResponse(sizeof(res));
+}
+
+void ConfigProtocol::setSetlist()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const SetSetlistReq& req = reinterpret_cast<const SetSetlistReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.id >= Setlist::kMaxSetlists)
+  {
+    sendStatus(kInvalidSetlistId);
+    return;
+  }
+
+  req.setlist.save(req.id);
+  sendStatus(kOk);
+}
+
+void ConfigProtocol::deleteSetlist()
+{
+  Message& msg = reinterpret_cast<Message&>(_in_out_buf);
+  const DeleteSetlistReq& req = reinterpret_cast<const DeleteSetlistReq&>(msg.payload);
+  if (msg.length < sizeof(req))
+  {
+    sendStatus(kInvalidLength);
+    return;
+  }
+
+  if (req.id >= Setlist::kMaxSetlists)
+  {
+    sendStatus(kInvalidSetlistId);
+    return;
+  }
+
+  Setlist::remove(req.id);
+  sendStatus(kOk);
 }
 
 void ConfigProtocol::memRead()

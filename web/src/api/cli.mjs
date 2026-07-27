@@ -93,6 +93,40 @@ async function main() {
         await api.deleteProgram(id);
         break;
       }
+      case 'get-setlists':
+      {
+        const names = await api.getSetlistNames();
+        const data = JSON.stringify(names, null, 2);
+        console.log(data);
+        break;
+      }
+      case 'get-setlist':
+      {
+        const id = Number(process.argv[3]);
+        const path = process.argv[4];
+        const setlist = await api.getSetlist(id);
+        const data = JSON.stringify(setlist, null, 2);
+        if (path) {
+          fs.writeFileSync(path, data);
+        } else {
+          console.log(data);
+        }
+        break;
+      }
+      case 'set-setlist':
+      {
+        const id = Number(process.argv[3]);
+        const path = process.argv[4];
+        const setlist = JSON.parse(fs.readFileSync(path));
+        await api.setSetlist(id, setlist);
+        break;
+      }
+      case 'del-setlist':
+      {
+        const id = Number(process.argv[3]);
+        await api.deleteSetlist(id);
+        break;
+      }
       case 'restart':
       {
         await api.restart();

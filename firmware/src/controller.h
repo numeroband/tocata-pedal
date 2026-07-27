@@ -45,6 +45,7 @@ private:
     void footswitchCallback(Switches::Mask status, Switches::Mask modified);
     void programCallback(Switches::Mask status, Switches::Mask modified);
     void setupCallback(Switches::Mask status, Switches::Mask modified);
+    void setlistCallback(Switches::Mask status, Switches::Mask modified);
     void midiCallback(std::span<const uint8_t> packet, std::span<uint8_t> buffer, MidiSender& sender);
 
     void configChanged() override;
@@ -55,6 +56,9 @@ private:
     void footswitchMode(bool send_midi = true);
     void setupMode();
     void changeProgramMode();
+    void setlistMode();
+    bool selectSetlist(uint8_t setlist_id);
+    void displaySetlistSelection();
     void tunerMode();
     void exitTunerMode(bool send_midi);
     void changeSwitch(uint8_t id, bool active, bool send_midi);
@@ -65,6 +69,9 @@ private:
     void updateConfig();
     void loadProgram(uint8_t id, bool send_midi, bool display_switches,
                      const std::bitset<Program::kNumSwitches>* restore_state = nullptr);
+    void loadPosition(uint8_t pos, bool send_midi, bool display_switches,
+                      const std::bitset<Program::kNumSwitches>* restore_state = nullptr);
+    void movePosition(int8_t delta);
     void defaultSwitchesState(const Program& program, std::bitset<Program::kNumSwitches>& state) const;
     void applySceneToState(const Program& program, std::bitset<Program::kNumSwitches>& state, uint8_t scene_id) const;
     void displayProgram(bool display_switches);
@@ -81,15 +88,30 @@ private:
     Network _network;
     Config _config{};
     Program _program{};
+    // The active setlist drives program-change navigation. It defaults to the
+    // synthetic "All" setlist (every program, in order), which reproduces the
+    // pre-setlist behavior exactly, and is not persisted across reboots.
+    Setlist _setlist{};
+    static constexpr uint8_t kAllSetlist = 0;   // cursor value for "All"
+    uint8_t _setlist_id = kAllSetlist;          // 0 = All, 1..26 = Setlist id 0..25
+    uint8_t _setlist_pos = 0;                   // cursor within _setlist
     uint8_t _program_id = 0;
     uint8_t _fs_id = 0;
     uint8_t _program_sw_id = Program::kInvalidId;  // cached id of the kProgram switch for
                                                     // the current program, or kInvalidId
     uint8_t _saved_program_id = 0;
+    uint8_t _saved_setlist_pos = 0;
+    // Setlist menu: the ids that are actually selectable, rebuilt on entry so
+    // empty slots are never reachable. Entry 0 is always kAllSetlist.
+    uint8_t _sel_setlists[Setlist::kMaxSetlists + 1] = {};
+    uint8_t _num_sel_setlists = 0;
+    uint8_t _sel_setlist_idx = 0;
+    // Display::setText keeps the pointer rather than a copy, so the browsed name
+    // has to outlive the call.
+    char _sel_setlist_name[Program::kMaxNameLength + 1] = "";
     std::bitset<Program::kNumSwitches> _saved_switches_state{};
     bool _restore_state = false;
     uint8_t _counter = 0;
-    bool _expEnabled = true;
     std::bitset<Program::kNumSwitches> _switches_state{};
     char _expValue[sizeof(EXP_VALUE_TEXT)]{EXP_VALUE_TEXT};
     bool _tuner_mode = false;
@@ -110,7 +132,7 @@ private:
     static constexpr uint8_t kExpMaxSwitch = 0;
     static constexpr uint8_t kIncExpFilterSwitch = 1;
     static constexpr uint8_t kIncChannelSwitch = 2;
-    const uint8_t kExpEnabledSwitch = uint8_t(_leds.kNumLeds / 2 - 1);
+    const uint8_t kSetlistsSwitch = uint8_t(_leds.kNumLeds / 2 - 1);
     const uint8_t kExpMinSwitch = uint8_t(_leds.kNumLeds / 2);
     const uint8_t kDecExpFilterSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
     const uint8_t kDecChannelSwitch = uint8_t(_leds.kNumLeds - 2);

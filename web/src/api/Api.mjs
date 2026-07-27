@@ -4,8 +4,10 @@ import {
   parseConfig, 
   serializeConfig,
   parseNames,
-  parseProgram, 
+  parseProgram,
   serializeProgram,
+  parseSetlist,
+  serializeSetlist,
   parseAddrPayload,
   serializeAddrPayload,
   serializeAddrLength,
@@ -20,11 +22,18 @@ const GET_NAMES = 6;
 const GET_PROGRAM = 7;
 const SET_PROGRAM = 8;
 const DEL_PROGRAM = 9;
+const GET_SETLISTS = 0x0A;
+const GET_SETLIST = 0x0B;
+const SET_SETLIST = 0x0C;
+const DEL_SETLIST = 0x0D;
 const MEM_READ = 0x10;
 const MEM_WRITE = 0x11;
 const FLASH_ERASE = 0x12;
 
 const NUM_PROGRAMS = 99;
+// Setlist 0 on the pedal is the built-in "All" setlist and is not stored, so
+// these ids address the 26 editable setlists (files /64../7D).
+const NUM_SETLISTS = 26;
 
 export default class Api {
   constructor(transport) {
@@ -126,6 +135,37 @@ export default class Api {
     await this.sendRequest(DEL_PROGRAM, new Uint8Array([id]));
   }
 
+  async getSetlistNames() {
+    console.log('getSetlistNames');
+    const names = [];
+    while (names.length < NUM_SETLISTS) {
+      const data = await this.sendRequest(GET_SETLISTS, new Uint8Array([names.length]));
+      const res = parseNames(data);
+      names.push(...res.names);
+    }
+    // The device always replies with a full page of name slots, so the last
+    // response overshoots NUM_SETLISTS.
+    return names.slice(0, NUM_SETLISTS);
+  }
+
+  async getSetlist(id) {
+    console.log('getSetlist', id);
+    const data = await this.sendRequest(GET_SETLIST, new Uint8Array([id]));
+    const {setlist} = parseSetlist(data);
+    return setlist || {};
+  }
+
+  async setSetlist(id, setlist) {
+    console.log('setSetlist', id);
+    const data = serializeSetlist({id, setlist});
+    await this.sendRequest(SET_SETLIST, data);
+  }
+
+  async deleteSetlist(id) {
+    console.log('deleteSetlist', id);
+    await this.sendRequest(DEL_SETLIST, new Uint8Array([id]));
+  }
+
   async memRead(address, length) {
     console.log(`memRead ${address.toString(16)} - ${length}`);
     const req = serializeAddrLength({address, length});
@@ -163,6 +203,13 @@ export default class Api {
         res.programs[id] = await this.getProgram(id);
       }
     }
+    const setlistNames = await this.getSetlistNames();
+    res.setlists = [];
+    for (const id in setlistNames) {
+      if (setlistNames[id]) {
+        res.setlists[id] = await this.getSetlist(id);
+      }
+    }
     return res;
   }
 
@@ -176,12 +223,26 @@ export default class Api {
         await this.deleteProgram(id);
       }
     }
+    // Restore is a full device sync, so slots missing from the backup are
+    // cleared -- including every setlist when the file predates setlists.
+    const setlists = backup.setlists || [];
+    for (let id = 0; id < NUM_SETLISTS; ++id) {
+      const setlist = setlists[id];
+      if (setlist && setlist.name) {
+        await this.setSetlist(id, setlist);
+      } else {
+        await this.deleteSetlist(id);
+      }
+    }
     await this.setConfig(backup);
   }
 
   async factory() {
     for (let id = 0; id < NUM_PROGRAMS; ++id) {
       await this.deleteProgram(id);
+    }
+    for (let id = 0; id < NUM_SETLISTS; ++id) {
+      await this.deleteSetlist(id);
     }
     await this.deleteConfig();
   }

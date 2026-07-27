@@ -46,6 +46,10 @@ private:
     kGetProgram = 7,
     kSetProgram = 8,
     kDeleteProgram = 9,
+    kGetSetlists = 0x0A,
+    kGetSetlist = 0x0B,
+    kSetSetlist = 0x0C,
+    kDeleteSetlist = 0x0D,
     kMemRead = 0x10,
     kMemWrite = 0x11,
     kFlashErase = 0x12,
@@ -59,6 +63,7 @@ private:
     kInvalidProgramId = 3,
     kInvalidAddress = 4,
     kInvalidPayloadLength = 5,
+    kInvalidSetlistId = 6,
   };
 
   struct ConfigReqRes
@@ -72,6 +77,12 @@ private:
   {
     uint8_t id;
     Program program;
+  } __attribute__((packed));
+
+  struct IdAndSetlist
+  {
+    uint8_t id;
+    Setlist setlist;
   } __attribute__((packed));
 
   struct Id
@@ -109,6 +120,14 @@ private:
   using GetProgramRes = IdAndProgram;
   using SetProgramReq = IdAndProgram;
   using DeleteProgramReq = Id;
+  // Setlists reuse the program name-listing response verbatim: same layout, and
+  // the same kMaxNamesPerResponse cap (so 26 setlists take two round trips).
+  using GetSetlistsReq = Id;
+  using GetSetlistsRes = GetNamesRes;
+  using GetSetlistReq = Id;
+  using GetSetlistRes = IdAndSetlist;
+  using SetSetlistReq = IdAndSetlist;
+  using DeleteSetlistReq = Id;
   using MemReadReq = AddressAndLength;
   using MemReadRes = AddressAndPayload;
   using MemWriteReq = AddressAndPayload;
@@ -126,6 +145,10 @@ private:
   void getProgram();
   void setProgram();
   void deleteProgram();
+  void getSetlists();
+  void getSetlist();
+  void setSetlist();
+  void deleteSetlist();
   void memRead();
   void memWrite();
   void flashErase();

@@ -33,9 +33,10 @@ void Storage::init()
     printf("Storage init in ms: %u\n", end - start);
     printf("Usage: %u / %u\n", (uint32_t)TocataFS.usedBytes(), (uint32_t)TocataFS.totalBytes());
 #endif
-    printf("Config size: %u, Program size: %u, Footswitch size: %u, Actions size: %u, Action size: %u\n",
+    printf("Config size: %u, Program size: %u, Setlist size: %u, Footswitch size: %u, Actions size: %u, Action size: %u\n",
         (uint32_t)sizeof(Config),
         (uint32_t)sizeof(Program),
+        (uint32_t)sizeof(Setlist),
         (uint32_t)sizeof(Program::Footswitch),
         (uint32_t)sizeof(Actions),
         (uint32_t)sizeof(Actions::Action));
@@ -43,9 +44,10 @@ void Storage::init()
 
 void Storage::factoryReset()
 {
-    printf("Factory reset: erasing config and all programs\n");
+    printf("Factory reset: erasing config, all programs and all setlists\n");
     Config::remove(false);
     Program::initAll();
+    Setlist::removeAll();
 }
 
 bool Config::init()
@@ -484,6 +486,178 @@ void Program::Footswitch::run(MidiSender& midi, bool active) const
         _off_actions.run(midi);
     }    
 } 
+
+void Setlist::loadAll()
+{
+    static constexpr char kAllName[] = "All";
+
+    memset(_name, 0, sizeof(_name));
+    memcpy(_name, kAllName, sizeof(kAllName));
+    _num_programs = Program::kMaxPrograms;
+    for (uint8_t pos = 0; pos < Program::kMaxPrograms; ++pos)
+    {
+        _programs[pos] = pos;
+    }
+}
+
+uint8_t Setlist::copyName(uint8_t id, char* name)
+{
+    name[0] = 0;
+
+    if (id >= kMaxSetlists)
+    {
+        return 0;
+    }
+
+    char path[Program::kMaxPathSize];
+    copyPath(id, path);
+
+    File file = TocataFS.open(path, FILE_READ);
+    if (!file)
+    {
+        return 0;
+    }
+
+    uint8_t header[kHeaderSize];
+    size_t bytes_read = file.read(header, sizeof(header));
+    file.close();
+
+    if (bytes_read != sizeof(header))
+    {
+        _log(F("Invalid setlist file "));
+        _logln(path);
+        return 0;
+    }
+
+    memcpy(name, header, Program::kMaxNameLength + 1);
+    name[Program::kMaxNameLength] = 0;
+
+    const uint8_t num_programs = header[Program::kMaxNameLength + 1];
+    if (!name[0] || num_programs == 0 || num_programs > Program::kMaxPrograms)
+    {
+        name[0] = 0;
+        return 0;
+    }
+
+    return num_programs;
+}
+
+bool Setlist::load(uint8_t id)
+{
+    invalidate();
+    _num_programs = 0;
+
+    bool usable = false;
+    if (id < kMaxSetlists)
+    {
+        char path[Program::kMaxPathSize];
+        copyPath(id, path);
+
+        File file = TocataFS.open(path, FILE_READ);
+        if (file)
+        {
+            size_t bytes_read = file.read((uint8_t*)this, sizeof(*this));
+            file.close();
+            usable = bytes_read == sizeof(*this)
+                && available()
+                && _num_programs > 0
+                && _num_programs <= Program::kMaxPrograms;
+        }
+    }
+
+    if (!usable)
+    {
+        // Never leave the caller holding an unusable setlist: navigation wraps
+        // modulo numPrograms(), and "All" is the natural fallback.
+        loadAll();
+        return false;
+    }
+
+    _name[Program::kMaxNameLength] = 0;
+    return true;
+}
+
+int16_t Setlist::find(uint8_t program_id) const
+{
+    for (uint8_t pos = 0; pos < _num_programs; ++pos)
+    {
+        if (_programs[pos] == program_id)
+        {
+            return int16_t(pos);
+        }
+    }
+
+    return -1;
+}
+
+void Setlist::remove(uint8_t id)
+{
+    if (id >= kMaxSetlists)
+    {
+        _log(F("Invalid setlist to remove "));
+        _logln(id);
+        return;
+    }
+
+    char path[Program::kMaxPathSize];
+    copyPath(id, path);
+    // Unlike programs, setlists are never pre-created, so deleting frees the
+    // slot outright instead of leaving an empty file behind. That keeps the file
+    // table small on the short pedal, where one 64K block holds just 127 files.
+    TocataFS.remove(path);
+}
+
+void Setlist::removeAll()
+{
+    for (uint8_t id = 0; id < kMaxSetlists; ++id)
+    {
+        remove(id);
+    }
+}
+
+void Setlist::save(uint8_t id) const
+{
+    if (id >= kMaxSetlists || !available() || _num_programs == 0)
+    {
+        return;
+    }
+
+    Setlist current;
+    if (current.load(id) && current == *this)
+    {
+        return;
+    }
+
+    char path[Program::kMaxPathSize];
+    copyPath(id, path);
+
+    File file = TocataFS.open(path, FILE_WRITE);
+    if (!file)
+    {
+        _log(F("Cannot open setlist file to write "));
+        _logln(path);
+        return;
+    }
+
+    size_t written = file.write((const uint8_t*)this, sizeof(*this));
+    file.close();
+
+    if (written != sizeof(*this))
+    {
+        _log(F("Cannot write setlist to file "));
+        _logln(path);
+        TocataFS.remove(path);
+    }
+}
+
+bool Setlist::operator==(const Setlist& other) const
+{
+    return (true
+        && _num_programs == other._num_programs
+        && strncmp(_name, other._name, sizeof(_name)) == 0
+        && memcmp(_programs, other._programs, _num_programs) == 0
+    );
+}
 
 bool Program::Footswitch::operator==(const Program::Footswitch& other)
 {
