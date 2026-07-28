@@ -194,12 +194,17 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
         uint8_t msg_channel = packet[0] & 0x0F;
         uint8_t msg_type = packet[0] & 0xF0;
         if (msg_channel == channel && msg_type == 0xC0) {
-            // The value is an absolute program id, but only programs that belong
-            // to the active setlist are reachable; anything else is ignored.
+            // The value is an absolute program id. A program outside the active
+            // setlist switches the pedal to the "All" setlist (which holds every
+            // program) instead of being dropped.
             uint8_t value = packet[1];
-            const int16_t pos = _setlist.find(value);
+            int16_t pos = _setlist.find(value);
             if (pos < 0) {
-                // Not in this setlist: leave the pedal exactly as it is.
+                selectSetlist(kAllSetlist);
+                pos = _setlist.find(value);
+            }
+            if (pos < 0) {
+                // Still not a valid program id: leave the pedal exactly as it is.
             } else if (_tuner_mode) {
                 Program target;
                 target.load(value);
@@ -222,7 +227,7 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
                     _restore_state = true;
                 } else {
                     footswitchMode(false);
-                    loadPosition(0, false, true);
+                    loadPosition(_setlist_pos, false, true);
                 }
             }
         } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 43) {
@@ -425,12 +430,13 @@ bool Controller::selectSetlist(uint8_t setlist_id)
     }
 
     _setlist_id = setlist_id;
-    // A newly selected setlist always starts on its first program, and any
-    // position saved against the previous setlist is meaningless now.
-    _setlist_pos = 0;
+    // Stay on the current program if the new setlist still holds it;
+    // otherwise fall back to its first program.
+    const int16_t pos = _setlist.find(_program_id);
+    _setlist_pos = (pos >= 0) ? uint8_t(pos) : 0;
     _restore_state = false;
-    _saved_setlist_pos = 0;
-    _saved_program_id = _setlist.program(0);
+    _saved_setlist_pos = _setlist_pos;
+    _saved_program_id = _setlist.program(_setlist_pos);
 
     return true;
 }
@@ -521,14 +527,16 @@ void Controller::setlistCallback(Switches::Mask status, Switches::Mask modified)
     } else if (activated[swMap(kDecTenSwitch)]) {
         move(-10);
     } else if (activated[swMap(kLoadSwitch)]) {
-        // LOAD commits the browsed setlist and starts on its first program,
-        // sending its MIDI. Re-selecting the active setlist changes nothing, so
-        // the pre-menu program is restored instead.
+        // LOAD commits the browsed setlist, staying on the current program if
+        // it's still in the setlist or moving to its first program otherwise,
+        // and sends its MIDI. Re-selecting the active setlist changes nothing,
+        // so the pre-menu program is restored instead.
         if (selectSetlist(_sel_setlists[_sel_setlist_idx])) {
             // Report the change before footswitchMode sends the program change
-            // for the setlist's first program: a host tracking setlists has to
-            // see the setlist first, since a program is only addressable from
-            // within the setlist that holds it.
+            // for whatever program the setlist lands on (current, if retained,
+            // else its first): a host tracking setlists has to see the setlist
+            // first, since a program is only addressable from within the
+            // setlist that holds it.
             sendSetlist();
         }
         footswitchMode(true);
