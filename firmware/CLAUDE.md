@@ -72,6 +72,8 @@ The controller navigates by **position within the active setlist**, not by absol
 
 On the pedal, setlists live behind Setup: the `SETLISTS` cell (`kSetlistsSwitch`, which replaced the old RAM-only `XPOFF`/`XPON` expression toggle) opens setlist mode, laid out like program mode (`+1`/`+10`/`-1`/`-10`/`LOAD`/`EXIT`). `setlistMode()` rebuilds the selectable list on entry by probing each slot with `Setlist::copyName()` — which returns the program count, so `0` means "not selectable" — so empty slots are unreachable and "All" is always entry 0. The browsed setlist is shown by name only, with no number.
 
+A setlist committed with `LOAD` is reported back over CC 32 (`sendSetlist()`, same encoding as the incoming CC), sent **before** the program change `footswitchMode` emits for the setlist's first program — a host tracking setlists has to see the setlist first, since a program is only addressable from within the setlist holding it. The CC 32 branch of `midiCallback` deliberately stays silent: a host-driven selection is already known to the host. Without this echo a host sees only a bare Program Change for a program its own active setlist doesn't hold, indistinguishable from the user stepping to another program.
+
 ### USB protocol
 
 [src/usb/config_protocol.h](src/usb/config_protocol.h) (`ConfigProtocol::processSysEx`) defines the binary control protocol the browser config tool (`web/` at the repo root) speaks: numbered `Command`s (`kGetConfig`, `kSetProgram`, `kGetSetlists`, `kMemRead`, `kFlashErase`, etc.) with packed request/response structs. It's carried over MIDI SysEx — [src/midi_sysex.h](src/midi_sysex.h) implements the 7-bit encoding under the manufacturer prefix `F0 00 2F 7F`.
