@@ -524,7 +524,13 @@ void Controller::setlistCallback(Switches::Mask status, Switches::Mask modified)
         // LOAD commits the browsed setlist and starts on its first program,
         // sending its MIDI. Re-selecting the active setlist changes nothing, so
         // the pre-menu program is restored instead.
-        selectSetlist(_sel_setlists[_sel_setlist_idx]);
+        if (selectSetlist(_sel_setlists[_sel_setlist_idx])) {
+            // Report the change before footswitchMode sends the program change
+            // for the setlist's first program: a host tracking setlists has to
+            // see the setlist first, since a program is only addressable from
+            // within the setlist that holds it.
+            sendSetlist();
+        }
         footswitchMode(true);
     } else if (activated[swMap(kExitProgramSwitch)]) {
         footswitchMode(false);
@@ -561,6 +567,16 @@ void Controller::tunerMode() {
     auto channel = _config.midi().channel();
     _network.midi().sendControl(channel, 47, 127);;
     _usb.midi().sendControl(channel, 47, 127);
+}
+
+// Reports the active setlist, in the same encoding an incoming CC 32 uses: 0 for
+// "All", 1..kMaxSetlists for the stored setlists. Only sent for setlists picked
+// on the pedal -- a host-driven change is already known to the host.
+void Controller::sendSetlist()
+{
+    auto channel = _config.midi().channel();
+    _network.midi().sendControl(channel, 32, _setlist_id);
+    _usb.midi().sendControl(channel, 32, _setlist_id);
 }
 
 void Controller::exitTunerMode(bool send_midi)

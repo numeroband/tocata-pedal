@@ -65,6 +65,7 @@ private:
     bool stompLike(const Program& program, uint8_t id) const;
     void setSwitchEnabled(uint8_t id, bool enable);
     void sendExpression(uint8_t value);
+    void sendSetlist();
     void updateProgram(uint8_t id);
     void updateConfig();
     void loadProgram(uint8_t id, bool send_midi, bool display_switches,
