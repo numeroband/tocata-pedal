@@ -4,6 +4,7 @@
 #include <asio.hpp>
 #include <iostream>
 #include <array>
+#include <cstring>
 #include <functional>
 
 using asio::ip::udp;

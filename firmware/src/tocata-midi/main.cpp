@@ -1,11 +1,14 @@
 #include "midi_port.hpp"
-#include "virt_midi.hpp"
-#include "system_midi.hpp"
 #include "mc_midi.hpp"
 #include "wing_session.hpp"
 #include "player_connection.hpp"
+#include <cstdio>
+#include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 using namespace tocata::midi;
 using namespace tocata::wing;
@@ -13,8 +16,17 @@ using namespace tocata::wing;
 static constexpr const char* kPlayerUri = "ws://localhost:9999";
 static constexpr const char* kVirtualPrefix = "TocataMIDI";
 
+// Interface whose link-local scope the multicast groups are joined on. There is
+// no portable default, so pick the one that is right on the machine each
+// backend runs on; override with --iface.
+#if defined(__APPLE__)
+static constexpr const char* kDefaultIface = "en7";
+#else
+static constexpr const char* kDefaultIface = "eth0";
+#endif
+
 struct Args {
-    std::string iface = "en7";
+    std::string iface = kDefaultIface;
     std::optional<std::string> role;
     std::vector<std::string> devices = {"TocataMIDI 1"};
     bool list_devices = false;
@@ -38,11 +50,11 @@ static std::vector<std::string> splitCommaList(const std::string& s) {
 }
 
 static void printUsage() {
-    printf("Usage: TocataMidi [--iface en7] [--role primary|secondary]\n");
+    printf("Usage: TocataMidi [--iface %s] [--role primary|secondary]\n", kDefaultIface);
     printf("                   [--devices \"Name1,Name2,...\"] [--list-devices] [--help]\n");
     printf("\n");
     printf("Each --devices entry names one bridged port. An entry starting with\n");
-    printf("\"%s\" creates a new virtual CoreMIDI port using that exact name;\n", kVirtualPrefix);
+    printf("\"%s\" creates a new virtual MIDI port using that exact name;\n", kVirtualPrefix);
     printf("any other entry is matched (by substring) against an existing system\n");
     printf("MIDI source/destination to attach to. Use --list-devices to see what's\n");
     printf("currently available.\n");
@@ -162,8 +174,8 @@ int main(int argc, const char* argv[]) {
             const std::string& name = args.devices[i];
 
             std::unique_ptr<MidiPort> port = name.rfind(kVirtualPrefix, 0) == 0
-                ? std::unique_ptr<MidiPort>(std::make_unique<VirtualMidi>(name))
-                : std::unique_ptr<MidiPort>(std::make_unique<SystemMidi>(name));
+                ? std::unique_ptr<MidiPort>(std::make_unique<VirtualMidi>(io_context, name))
+                : std::unique_ptr<MidiPort>(std::make_unique<SystemMidi>(io_context, name));
 
             auto& mc_port = mc_ports.emplace_back(io_context, uint8_t(i), args.iface.c_str(), mc_out_disabled);
             auto* port_ptr = port.get();

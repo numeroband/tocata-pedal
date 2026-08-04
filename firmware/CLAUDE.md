@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Firmware for the **Tocata Pedal**, a MIDI footswitch built on the Raspberry Pi Pico family. The same source tree builds two very different binaries from one CMake project, controlled by `PICO_BOARD`:
 
 - **Embedded** (`PICO_BOARD=pico2` or `pico`): the on-pedal firmware, using the Pico SDK 2.2.0, TinyUSB, U8G2, and a Wiznet W6100 stack.
-- **Host simulator** (`PICO_BOARD=none`): a desktop executable that compiles the same controller against an SDL/libremidi-backed HAL for development on macOS. On macOS this also builds a second target, `TocataMidi`, a standalone helper that bridges multicast MIDI to virtual MIDI ports and talks to a Behringer WING for primary/secondary failover.
+- **Host simulator** (`PICO_BOARD=none`): a desktop executable that compiles the same controller against an SDL/libremidi-backed HAL for development on macOS. On macOS this also builds a second target, `TocataMidi`, a standalone helper that bridges multicast MIDI to virtual MIDI ports and talks to a Behringer WING for primary/secondary failover. `TocataMidi` also builds on Linux against ALSA, as its own CMake project — see [Build & flash](#build--flash).
 
 Out-of-tree build dirs already exist: `build/` (pico2, ninja) and `build-macos/` (none, Xcode).
 
@@ -30,10 +30,18 @@ cmake --build build
 
 # Host build (macOS, Xcode generator already in build-macos/):
 cmake --build build-macos --target TocataPedal
-# TocataMidi (multicast-MIDI ↔ virtual-MIDI ↔ WING bridge, macOS only):
+# TocataMidi (multicast-MIDI ↔ virtual-MIDI ↔ WING bridge), macOS:
 cmake --build build-macos --target TocataMidi
 ./build-macos/src/tocata-midi/TocataMidi.app/Contents/MacOS/TocataMidi \
     --iface en7 --role primary --devices "TocataMIDI 1,IAC Driver Bus 1"
+
+# TocataMidi on Linux. src/tocata-midi/CMakeLists.txt is dual-mode: the parent
+# project add_subdirectory()s it on macOS, but it also configures standalone,
+# which is how Linux avoids needing the Pico SDK or the u8g2/SDL/libremidi
+# submodules (only asio + websocketpp, plus libasound2-dev):
+cmake -S src/tocata-midi -B build-linux
+cmake --build build-linux
+./build-linux/TocataMidi --iface eth0 --devices "TocataMIDI 1"
 ```
 
 To configure from scratch: `cmake -S . -B build -G Ninja` (embedded, defaults to `pico2`) or `cmake -S . -B build-macos -G Xcode -DPICO_BOARD=none` (host).
@@ -82,7 +90,18 @@ A setlist committed with `LOAD` is reported back over CC 32 (`sendSetlist()`, sa
 
 When ethernet is available, [src/network/](src/network/) brings up the W6100 over SPI and exposes a `MulticastMidi` sender that joins an IPv6 multicast group (RTP-MIDI-style). The same `mc_midi.hpp` is compiled into the host `TocataMidi` helper, which additionally runs a TCP session against a Behringer WING ([src/tocata-midi/wing_session.hpp](src/tocata-midi/wing_session.hpp)) and toggles the local ethernet output based on the `IO_ALTSW` node, implementing primary/secondary failover between two paired pedals.
 
-`--devices` is an ordered, comma-separated list of names (default `"TocataMIDI 1"`) — one per bridged port, and the port count is simply the list length (max 10, since each port's multicast group address encodes its position as a single hex digit). An entry starting with `TocataMIDI` ([src/tocata-midi/virt_midi.hpp](src/tocata-midi/virt_midi.hpp)) creates a new virtual CoreMIDI port using that exact name; any other entry ([src/tocata-midi/system_midi.hpp](src/tocata-midi/system_midi.hpp)) is matched by substring against an existing system MIDI source/destination (e.g. a real interface, or another app's virtual port like "IAC Driver Bus 1") to attach to instead. `--list-devices` enumerates currently available system MIDI sources/destinations by display name to help pick a name. If a non-`TocataMIDI` entry doesn't match any existing device, TocataMidi prints the available device names and exits non-zero rather than falling back to a virtual port.
+`--devices` is an ordered, comma-separated list of names (default `"TocataMIDI 1"`) — one per bridged port, and the port count is simply the list length (max 10, since each port's multicast group address encodes its position as a single hex digit). An entry starting with `TocataMIDI` creates a new virtual MIDI port using that exact name; any other entry is matched by substring against an existing system MIDI source/destination (e.g. a real interface, or another app's virtual port like "IAC Driver Bus 1") to attach to instead. `--list-devices` enumerates currently available system MIDI sources/destinations by display name to help pick a name. If a non-`TocataMIDI` entry doesn't match any existing device, TocataMidi prints the available device names and exits non-zero rather than falling back to a virtual port.
+
+Every port socket binds to its own **multicast group address**, not the wildcard — all ports share UDP 30001 and differ only by group, so a wildcard bind would deliver every group's datagrams to every port.
+
+### TocataMidi's platform MIDI backends
+
+[src/tocata-midi/midi_port.hpp](src/tocata-midi/midi_port.hpp) declares the `MidiPort` interface and then `#include`s one of two backends on `__APPLE__`/`__linux__` — the same dispatch idiom as [hal.h](src/hal/hal.h). Both export identically-signed `VirtualMidi` and `SystemMidi`, so `main.cpp` has a single call site and CMake never selects sources; it only picks the library (CoreMIDI/CoreFoundation frameworks vs `ALSA::ALSA`).
+
+- [coremidi_port.hpp](src/tocata-midi/coremidi_port.hpp) — `VirtualMidi` is a `MIDISourceCreate` + `MIDIDestinationCreate` pair; `SystemMidi` matches by `kMIDIPropertyDisplayName`. CoreMIDI runs read procs on its own thread, so they copy the packet and `asio::post` it rather than reaching into the asio socket from there.
+- [alsa_port.hpp](src/tocata-midi/alsa_port.hpp) — one duplex `snd_seq` port carries what CoreMIDI splits across a source and a destination. Display names are `"<client>:<port>"`, exactly as `aconnect -l` prints them, so substring matching works the same way. The sequencer has no callback thread, so its poll descriptor is registered with the shared `asio::io_context` (via a `::dup()`, since asio closes the fd it owns and `snd_seq_close` closes the original) — making TocataMidi fully single-threaded on Linux. ALSA splits long SysEx across several `SND_SEQ_EVENT_SYSEX` events, so the backend reassembles them before handing a message on.
+
+`--iface` defaults to `en7` on macOS and `eth0` on Linux; there is no portable right answer, so expect to pass it explicitly.
 
 ### PIO
 

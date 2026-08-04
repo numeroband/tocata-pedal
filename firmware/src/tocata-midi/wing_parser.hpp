@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <functional>
 #include <array>
+#include <utility>
+#include <variant>
 
 namespace tocata::wing {
 

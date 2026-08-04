@@ -2,8 +2,14 @@
 
 #define ASIO_STANDALONE
 #include <asio.hpp>
+#include <array>
 #include <cstdint>
+#include <cstring>
+#include <functional>
 #include <iostream>
+#include <span>
+#include <string>
+#include <vector>
 
 using asio::ip::udp;
 
@@ -49,10 +55,13 @@ public:
     using Callback = std::function<void(std::span<const uint8_t>)>;
 
     MulticastMidi(asio::io_context& io_context, uint8_t port, const char* iface, bool& out_disabled)
-        : socket_(io_context),
+        // Mem-init order must match declaration order below, or gcc warns
+        // (-Wreorder): _out_disabled is declared first, then the socket and
+        // the address/endpoint pair.
+        : _out_disabled{out_disabled},
+          socket_(io_context),
           multicast_address_{from_port(port, iface)},
-          multicast_endpoint_(asio::ip::make_address(multicast_address_), multicast_port),
-          _out_disabled{out_disabled} {
+          multicast_endpoint_(asio::ip::make_address(multicast_address_), multicast_port) {
         
         // 1. Open the socket with IPv6
         socket_.open(udp::v6());
@@ -60,8 +69,13 @@ public:
         // 2. Allow multiple processes to bind to the same port
         socket_.set_option(udp::socket::reuse_address(true));
 
-        // 3. Bind to the wildcard address and the specific port
-        socket_.bind(udp::endpoint(udp::v6(), multicast_port));
+        // 3. Bind to the group address, NOT the wildcard. Every bridged port
+        // uses the same UDP port and differs only by group, so a wildcard bind
+        // would deliver every group's datagrams to every socket -- port 0 would
+        // re-emit port 1's MIDI into its own device. Binding to the group makes
+        // the kernel filter by destination address. Sending still works from a
+        // group-bound socket (source address selection is unaffected).
+        socket_.bind(udp::endpoint(multicast_endpoint_.address(), multicast_port));
 
         socket_.set_option(asio::ip::multicast::enable_loopback{false});
 

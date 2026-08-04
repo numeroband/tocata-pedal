@@ -4,6 +4,7 @@
 #include "wing_parser.hpp"
 #define ASIO_STANDALONE
 #include "asio.hpp"
+#include <cstdio>
 
 using asio::ip::tcp;
 using namespace std::chrono_literals;
