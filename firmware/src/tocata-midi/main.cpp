@@ -136,12 +136,16 @@ int main(int argc, const char* argv[]) {
 
     try {
         asio::io_context io_context;
-        WingSession wing_session{io_context};
+        // Both are built only with --role: WingSession's discovery socket binds
+        // UDP 2222 on construction, which would otherwise occupy the WING
+        // discovery port and stop a second TocataMidi from starting at all.
+        std::optional<WingSession> wing_session;
         std::optional<PlayerConnection> player_connection;
 
         if (mc_out_disabled) {
+            wing_session.emplace(io_context);
             player_connection.emplace(io_context, kPlayerUri);
-            wing_session.setParserCallback([primary, &mc_out_disabled, &player_connection](auto hash, auto value) {
+            wing_session->setParserCallback([primary, &mc_out_disabled, &player_connection](auto hash, auto value) {
                 if (hash == node::IO_ALTSW) {
                     bool not_alt = !std::get<int32_t>(value);
                     mc_out_disabled = primary ^ not_alt;
@@ -150,7 +154,7 @@ int main(int argc, const char* argv[]) {
                     player_connection->setMuted(std::get<int32_t>(value) != 0);
                 }
             });
-            wing_session.setSessionCallback([&io_context](bool connected) {
+            wing_session->setSessionCallback([&io_context](bool connected) {
                 if (connected) {
                     printf("Connected to WING\n");
                 } else {
@@ -159,7 +163,7 @@ int main(int argc, const char* argv[]) {
             });
 
             printf("Connecting to WING as %s...\n", args.role->c_str());
-            wing_session.start();
+            wing_session->start();
         } else {
             printf("No redundancy. Ethernet out enabled.\n");
         }
