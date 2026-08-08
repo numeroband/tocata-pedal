@@ -12,8 +12,11 @@
 #include <functional>
 #include <deque>
 #include <mutex>
+#include <optional>
+#include <string_view>
 #include <vector>
 #include <cstdlib>
+#include <cstdio>
 
 namespace tocata {
 
@@ -195,10 +198,51 @@ uint32_t usb_midi_stream_read(void* buffer, uint32_t bufsize) {
   return count;
 }
 
+template <typename Port>
+static std::optional<Port> find_port(const std::vector<Port>& ports, std::string_view name_substr) {
+  for (auto& port : ports) {
+    if (port.port_name.find(name_substr) != std::string::npos ||
+        port.display_name.find(name_substr) != std::string::npos) {
+      return port;
+    }
+  }
+  return std::nullopt;
+}
+
+template <typename Port>
+static void print_available_ports(const char* label, const std::vector<Port>& ports) {
+  printf("Available %s ports:\n", label);
+  for (auto& port : ports) {
+    printf("  - %s\n", port.display_name.c_str());
+  }
+}
+
 void usb_init() {
   flash_init();
-  midi.open_virtual_port("Virtual Tocata Pedal");
-  midi_in.open_virtual_port("Virtual Tocata Pedal");
+
+  const char* physical_port_name = std::getenv("TOCATA_PEDAL_MIDI_PORT");
+  if (!physical_port_name || !physical_port_name[0]) {
+    midi.open_virtual_port("Virtual Tocata Pedal");
+    midi_in.open_virtual_port("Virtual Tocata Pedal");
+    return;
+  }
+
+  libremidi::observer obs{{.track_hardware = true, .track_virtual = true}};
+  auto output_ports = obs.get_output_ports();
+  auto input_ports = obs.get_input_ports();
+
+  auto out_port = find_port(output_ports, physical_port_name);
+  auto in_port = find_port(input_ports, physical_port_name);
+
+  if (!out_port || !in_port) {
+    printf("No MIDI port matching \"%s\" found.\n", physical_port_name);
+    print_available_ports("output", output_ports);
+    print_available_ports("input", input_ports);
+    exit(1);
+  }
+
+  midi.open_port(*out_port, "Tocata Pedal");
+  midi_in.open_port(*in_port, "Tocata Pedal");
 }
 
 void usb_run() {
