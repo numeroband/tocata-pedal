@@ -16,7 +16,16 @@ import logging
 import sys
 import time
 
-QC_MINI_PRODUCT_ID = 35119  # pyquadcortex.hid_ids.PRODUCT_ID only knows the regular QC
+NEURAL_DSP_VENDOR_ID = 0x152A
+# pyquadcortex.hid_ids only knows the regular Quad Cortex (its PRODUCT_ID is 0x880A); the
+# Mini is a different product id it has no constant for, so we supply both here and
+# override hid_ids.PRODUCT_ID with whichever unit is actually attached. That override
+# works because pyquadcortex/session.py reads hid_ids.PRODUCT_ID at connect time, not at
+# import time.
+QC_PRODUCT_IDS = {
+    "qc": (0x880A, "Quad Cortex"),
+    "mini": (0x892F, "Quad Cortex Mini"),  # 35119
+}
 
 # CC#32 (bank LSB) selects the setlist: 0 = Factory Library, 1 = "My Presets",
 # 2..n = the user setlists in device order. That order is NOT alphabetical and is
@@ -185,13 +194,66 @@ def read_setlist_folders(qc, pa, root: str, timeout: float):
     return best, order, default_key[0]
 
 
-def collect_qc_data(timeout: float) -> dict:
+def detect_product_id(model: str):
+    """(product_id, label) for the QC to open, or None if nothing was detected.
+
+    ``model`` is "auto" or a key of QC_PRODUCT_IDS. An explicit (non-"auto") model is
+    returned without touching USB at all -- it must work even on a host where HID
+    enumeration is unreliable. "auto" enumerates HID for Neural DSP's vendor id; this
+    does NOT open the device, so it still finds a unit that Cortex Control is holding
+    exclusively (which would make the later pyquadcortex.connect() fail regardless).
+    """
+    if model != "auto":
+        return QC_PRODUCT_IDS[model]
+
+    import hid
+
+    found = set()
+    for d in hid.enumerate():
+        if d["vendor_id"] != NEURAL_DSP_VENDOR_ID:
+            continue
+        found.add(d["product_id"])
+
+    known = {pid: label for pid, label in QC_PRODUCT_IDS.values()}
+    known_found = {pid for pid in found if pid in known}
+
+    for pid in sorted(found - known_found):
+        log.warning(
+            "a Neural DSP USB device with unrecognized product id %#x was seen; "
+            "add it to QC_PRODUCT_IDS if it's a new Quad Cortex model.",
+            pid,
+        )
+
+    if len(known_found) > 1:
+        names = ", ".join(known[pid] for pid in sorted(known_found))
+        sys.exit(
+            f"error: multiple Quad Cortex models detected over USB ({names}). "
+            f"Pick one with --qc-model {{{'|'.join(QC_PRODUCT_IDS)}}}."
+        )
+    if len(known_found) == 1:
+        pid = next(iter(known_found))
+        return pid, known[pid]
+    return None
+
+
+def collect_qc_data(timeout: float, model: str = "auto") -> dict:
     import pyquadcortex
     import pyquadcortex.hid_ids as hid_ids
     from pyquadcortex.proto import ProductionAutomation_pb2 as pa
 
-    hid_ids.PRODUCT_ID = QC_MINI_PRODUCT_ID
-    log.debug("overrode pyquadcortex product id to %d (Quad Cortex Mini)", QC_MINI_PRODUCT_ID)
+    detected = detect_product_id(model)
+    if detected is not None:
+        product_id, product_label = detected
+        hid_ids.PRODUCT_ID = product_id
+        log.info("detected %s (product id %#x) over USB", product_label, product_id)
+    else:
+        product_id, product_label = hid_ids.PRODUCT_ID, "unknown model"
+        log.warning(
+            "no Neural DSP device enumerated over USB; falling back to pyquadcortex's "
+            "default product id %#x -- if this is a Quad Cortex Mini, pass "
+            "--qc-model mini",
+            product_id,
+        )
 
     log.info("connecting to Quad Cortex over USB...")
     with pyquadcortex.connect() as qc:
@@ -250,7 +312,11 @@ def collect_qc_data(timeout: float) -> dict:
             len(setlists),
             sum(len(s["presets"]) for s in setlists),
         )
-        return {"setlist_root": root, "setlists": setlists}
+        return {
+            "setlist_root": root,
+            "device": {"model": product_label, "product_id": product_id},
+            "setlists": setlists,
+        }
 
 
 def nearest_footswitch_color(argb: int) -> str:
@@ -416,6 +482,9 @@ def main():
     parser.add_argument("--collect-timeout", type=float, default=30.0,
                         help="ceiling on the wait for the device's setlist listings "
                              "(it typically answers in ~7s); not a fixed delay")
+    parser.add_argument("--qc-model", choices=["auto", *QC_PRODUCT_IDS], default="auto",
+                        help="which Quad Cortex to open; 'auto' picks the model that is "
+                             "actually attached over USB")
     parser.add_argument("--qc-data-out", default="qc_data.json")
     parser.add_argument("--qc-data-in", default=None,
                         help="skip live collection, reuse a saved qc_data.json")
@@ -440,8 +509,14 @@ def main():
                   args.qc_data_in)
         with open(args.qc_data_in) as f:
             qc_data = json.load(f)
+        device = qc_data.get("device")
+        if device:
+            log.info("cached data was collected from %s (product id %#x)",
+                      device["model"], device["product_id"])
+        else:
+            log.info("cached data predates device-model recording")
     else:
-        qc_data = collect_qc_data(args.collect_timeout)
+        qc_data = collect_qc_data(args.collect_timeout, model=args.qc_model)
         with open(args.qc_data_out, "w") as f:
             json.dump(qc_data, f, indent=2)
         log.info(f"wrote {args.qc_data_out}")
