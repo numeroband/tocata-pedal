@@ -38,6 +38,13 @@ MAX_PRG_NAME_SIZE = 30
 MAX_FS_NAME_SIZE = 8
 NUM_PROGRAMS = 99
 NUM_SETLISTS = 26
+NUM_FOOTSWITCHES = 8
+
+# Label given to the footswitch designated as the program-mode trigger via
+# --program-mode-switch; that switch has no onActions/offActions (mode "program"
+# is a pure trigger, see web/CLAUDE.md's "Footswitch mode model"), so it doesn't
+# carry a QC scene label.
+PROGRAM_MODE_FS_NAME = "..."
 
 # The 6 footswitch LED colors the pedal's enum supports (web/src/api/Parsers.mjs
 # `colors`), given as the literal CSS color values the web UI renders them with
@@ -274,6 +281,18 @@ def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: 
     }
 
 
+def program_mode_footswitch() -> dict:
+    return {
+        "name": PROGRAM_MODE_FS_NAME,
+        # Explicit "no color" (colors[0] in web/src/api/Parsers.mjs) rather than
+        # an omitted key: the enum serializer does `colors.findIndex(v => v ===
+        # value)`, and findIndex on undefined returns -1, which wraps to a
+        # bogus 255 on the wire instead of a real "unset" value.
+        "color": None,
+        "mode": "program",
+    }
+
+
 def preset_recall_actions(index: int, bank: int, channel: int) -> list:
     group, pc = (0, index) if index < 128 else (1, index - 128)
     return [
@@ -283,12 +302,21 @@ def preset_recall_actions(index: int, bank: int, channel: int) -> list:
     ]
 
 
-def build_program(preset: dict, bank: int, channel: int) -> dict:
+def build_program(preset: dict, bank: int, channel: int, program_mode_switch: int = None) -> dict:
     scenes = preset["scene_labels"]
     colors = preset["scene_colors"]
     default_scene = preset["default_scene"]
+    if program_mode_switch is not None and program_mode_switch < len(scenes):
+        scene_label = scenes[program_mode_switch].strip()
+        if scene_label:
+            log.warning(
+                f"preset {preset['name']!r}: scene {scene_label!r} on footswitch "
+                f"{program_mode_switch} is being replaced by the program-mode "
+                f"trigger and will not be reachable.",
+            )
     fs = [
-        scene_footswitch(i, scenes[i], colors[i], i == default_scene, channel)
+        program_mode_footswitch() if i == program_mode_switch
+        else scene_footswitch(i, scenes[i], colors[i], i == default_scene, channel)
         for i in range(min(len(scenes), len(colors)))
     ]
     log.debug(
@@ -308,7 +336,7 @@ def build_program(preset: dict, bank: int, channel: int) -> dict:
     }
 
 
-def build_backup(qc_data: dict, channel: int, pedal_channel: int) -> dict:
+def build_backup(qc_data: dict, channel: int, pedal_channel: int, program_mode_switch: int = None) -> dict:
     log.info(
         "building backup: %d setlist(s) from qc_data, channel=%d, pedal_channel=%d",
         len(qc_data["setlists"]),
@@ -335,7 +363,7 @@ def build_backup(qc_data: dict, channel: int, pedal_channel: int) -> dict:
                 )
                 continue
             program_ids.append(len(programs))
-            programs.append(build_program(preset, bank, channel))
+            programs.append(build_program(preset, bank, channel, program_mode_switch))
         if len(setlists) >= NUM_SETLISTS:
             log.warning(
                 f"dropping setlist {setlist['name']!r} -- "
@@ -367,6 +395,10 @@ def main():
     parser.add_argument("--pedal-channel", type=int, default=None,
                         help="Tocata pedal's own MIDI channel (1-16); "
                              "defaults to --channel")
+    parser.add_argument("--program-mode-switch", type=int, default=None,
+                        help="footswitch index (0-7) to configure as 'program' mode "
+                             "instead of 'scene' mode; that switch becomes a pure "
+                             "program-change trigger and its QC scene is ignored")
     parser.add_argument("--collect-timeout", type=float, default=30.0,
                         help="ceiling on the wait for the device's setlist listings "
                              "(it typically answers in ~7s); not a fixed delay")
@@ -386,6 +418,8 @@ def main():
     pedal_channel = args.pedal_channel if args.pedal_channel is not None else args.channel
     if not (1 <= pedal_channel <= 16):
         parser.error("--pedal-channel must be 1-16")
+    if args.program_mode_switch is not None and not (0 <= args.program_mode_switch < NUM_FOOTSWITCHES):
+        parser.error(f"--program-mode-switch must be 0-{NUM_FOOTSWITCHES - 1}")
 
     if args.qc_data_in:
         log.info("loading cached Quad Cortex data from %s (skipping live collection)",
@@ -398,7 +432,8 @@ def main():
             json.dump(qc_data, f, indent=2)
         log.info(f"wrote {args.qc_data_out}")
 
-    backup = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1)
+    backup = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1,
+                           program_mode_switch=args.program_mode_switch)
     with open(args.out, "w") as f:
         json.dump(backup, f, indent=2)
     log.info(f"wrote {args.out}: {len(backup['programs'])} program(s), "
