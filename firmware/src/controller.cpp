@@ -132,6 +132,7 @@ void Controller::footswitchCallback(Switches::Mask status, Switches::Mask modifi
         if (combo_candidates.count() >= 2)
         {
             _saved_program_id = _program_id;
+            _saved_setlist_pos = _setlist_pos;
             _saved_switches_state = _switches_state;
             _restore_state = true;
             changeProgramMode();
