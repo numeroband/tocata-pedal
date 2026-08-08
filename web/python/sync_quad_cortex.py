@@ -12,7 +12,9 @@ Then, separately and manually:
 
 import argparse
 import json
+import logging
 import sys
+import time
 
 QC_MINI_PRODUCT_ID = 35119  # pyquadcortex.hid_ids.PRODUCT_ID only knows the regular QC
 
@@ -50,6 +52,39 @@ FOOTSWITCH_COLOR_RGB = {
     "turquoise": (0x40, 0xE0, 0xD0),
 }
 
+log = logging.getLogger("sync_quad_cortex")
+
+
+class _MillisecondFormatter(logging.Formatter):
+    """A Formatter whose %(asctime)s includes milliseconds, e.g. 14:23:01.123."""
+
+    converter = time.localtime
+
+    def formatTime(self, record, datefmt=None):
+        ct = self.converter(record.created)
+        base = time.strftime("%Y-%m-%d %H:%M:%S", ct)
+        return f"{base}.{int(record.msecs):03d}"
+
+
+def configure_logging(verbose: bool) -> None:
+    """INFO+ (or DEBUG+ with --verbose) to stdout, WARNING+ to stderr, both timestamped."""
+    log.setLevel(logging.DEBUG if verbose else logging.INFO)
+    log.propagate = False
+
+    formatter = _MillisecondFormatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(formatter)
+    stdout_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+    stdout_handler.addFilter(lambda record: record.levelno < logging.WARNING)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(formatter)
+    stderr_handler.setLevel(logging.WARNING)
+
+    log.addHandler(stdout_handler)
+    log.addHandler(stderr_handler)
+
 
 def read_setlist_folders(qc, pa, root: str, timeout: float):
     """The user setlist folder listings, in the order the device pushes them.
@@ -74,6 +109,7 @@ def read_setlist_folders(qc, pa, root: str, timeout: float):
     something else" both ends the wait and leaves us holding the whole burst.
     """
     best, order, default_key = {}, [], [None]
+    start = time.monotonic()
 
     def record(m):
         f = m.folder
@@ -81,9 +117,24 @@ def read_setlist_folders(qc, pa, root: str, timeout: float):
             return False
         if not f.key.startswith(root):
             # A non-setlist folder: the burst is over IF we actually got one.
+            if order:
+                log.debug(
+                    "folder enumeration moved past the setlist burst at %r "
+                    "after %.3fs",
+                    f.key,
+                    time.monotonic() - start,
+                )
             return bool(order)
         if f.key not in best:
             order.append(f.key)
+            log.debug(
+                "setlist folder #%d seen: key=%r name=%r files=%d (t=%.3fs)",
+                len(order),
+                f.key,
+                f.name,
+                len(f.files),
+                time.monotonic() - start,
+            )
         if f.HasField("is_user_default") and f.is_user_default:
             default_key[0] = f.key
         prev = best.get(f.key)
@@ -91,6 +142,11 @@ def read_setlist_folders(qc, pa, root: str, timeout: float):
             best[f.key] = f
         return False
 
+    log.info(
+        "requesting File READ and waiting up to %.1fs for the setlist burst under %r",
+        timeout,
+        root,
+    )
     try:
         qc._t.await_broadcast(
             pa.FileMessage,
@@ -104,12 +160,21 @@ def read_setlist_folders(qc, pa, root: str, timeout: float):
         # the full wait is still correct and correctly ordered -- this degrades to
         # the fixed-window behavior rather than failing.
         if not order:
+            log.warning(
+                "folder enumeration timed out after %.1fs with no setlists seen at all",
+                timeout,
+            )
             raise
-        print(
-            f"WARNING: folder enumeration did not settle within {timeout}s; "
+        log.warning(
+            f"folder enumeration did not settle within {timeout}s; "
             f"using the {len(order)} setlist(s) seen so far.",
-            file=sys.stderr,
         )
+    log.info(
+        "folder enumeration finished: %d setlist(s) in %.3fs, default=%r",
+        len(order),
+        time.monotonic() - start,
+        default_key[0],
+    )
     return best, order, default_key[0]
 
 
@@ -119,8 +184,11 @@ def collect_qc_data(timeout: float) -> dict:
     from pyquadcortex.proto import ProductionAutomation_pb2 as pa
 
     hid_ids.PRODUCT_ID = QC_MINI_PRODUCT_ID
+    log.debug("overrode pyquadcortex product id to %d (Quad Cortex Mini)", QC_MINI_PRODUCT_ID)
 
+    log.info("connecting to Quad Cortex over USB...")
     with pyquadcortex.connect() as qc:
+        log.info("connected")
         root = pyquadcortex.USER_SETLIST_ROOT
 
         # `order` is the arrival order, which is the CC#32 bank order (see
@@ -128,21 +196,34 @@ def collect_qc_data(timeout: float) -> dict:
         best, order, default_key = read_setlist_folders(qc, pa, root, timeout)
 
         if default_key is not None and order and order[0] != default_key:
-            print(
-                f"WARNING: expected the device-default setlist ({default_key!r}) "
+            log.warning(
+                f"expected the device-default setlist ({default_key!r}) "
                 f"to arrive first, but {order[0]!r} did -- CC#32 bank numbers "
                 f"below are probably wrong.",
-                file=sys.stderr,
             )
 
         setlists = []
         for bank, key in enumerate(order, start=FACTORY_BANK + 1):
             folder = best[key]
+            log.info(
+                "reading setlist %r (key=%r, bank=%d): %d preset(s)",
+                folder.name,
+                key,
+                bank,
+                len(folder.files),
+            )
             presets = []
             for pd in folder.files:
                 if not (pd.HasField("name") and pd.name):
                     continue
+                t0 = time.monotonic()
                 bp = qc.read_preset(key, pd.index)
+                log.debug(
+                    "read preset index=%d name=%r in %.3fs",
+                    pd.index,
+                    bp.name,
+                    time.monotonic() - t0,
+                )
                 presets.append({
                     "name": bp.name,
                     "index": pd.index,
@@ -157,6 +238,11 @@ def collect_qc_data(timeout: float) -> dict:
                 "presets": presets,
             })
 
+        log.info(
+            "collection complete: %d setlist(s), %d preset(s) total",
+            len(setlists),
+            sum(len(s["presets"]) for s in setlists),
+        )
         return {"setlist_root": root, "setlists": setlists}
 
 
@@ -205,6 +291,13 @@ def build_program(preset: dict, bank: int, channel: int) -> dict:
         scene_footswitch(i, scenes[i], colors[i], i == default_scene, channel)
         for i in range(min(len(scenes), len(colors)))
     ]
+    log.debug(
+        "built program %r (preset index=%d, bank=%d) with %d footswitch(es)",
+        preset["name"],
+        preset["index"],
+        bank,
+        len(fs),
+    )
     return {
         "name": preset["name"][:MAX_PRG_NAME_SIZE],
         "fs": fs,
@@ -216,6 +309,12 @@ def build_program(preset: dict, bank: int, channel: int) -> dict:
 
 
 def build_backup(qc_data: dict, channel: int, pedal_channel: int) -> dict:
+    log.info(
+        "building backup: %d setlist(s) from qc_data, channel=%d, pedal_channel=%d",
+        len(qc_data["setlists"]),
+        channel,
+        pedal_channel,
+    )
     programs = []
     setlists = []
     for setlist in qc_data["setlists"]:
@@ -225,22 +324,22 @@ def build_backup(qc_data: dict, channel: int, pedal_channel: int) -> dict:
                 "no 'bank' field. Re-collect from the device (drop --qc-data-in)."
             )
         bank = setlist["bank"]
+        log.debug("processing setlist %r (bank=%d, %d preset(s))",
+                   setlist["name"], bank, len(setlist["presets"]))
         program_ids = []
         for preset in setlist["presets"]:
             if len(programs) >= NUM_PROGRAMS:
-                print(
-                    f"WARNING: dropping preset {preset['name']!r} from "
+                log.warning(
+                    f"dropping preset {preset['name']!r} from "
                     f"{setlist['name']!r} -- {NUM_PROGRAMS} program slots exhausted.",
-                    file=sys.stderr,
                 )
                 continue
             program_ids.append(len(programs))
             programs.append(build_program(preset, bank, channel))
         if len(setlists) >= NUM_SETLISTS:
-            print(
-                f"WARNING: dropping setlist {setlist['name']!r} -- "
+            log.warning(
+                f"dropping setlist {setlist['name']!r} -- "
                 f"{NUM_SETLISTS} setlist slots exhausted.",
-                file=sys.stderr,
             )
             continue
         setlists.append({
@@ -248,6 +347,11 @@ def build_backup(qc_data: dict, channel: int, pedal_channel: int) -> dict:
             "programs": program_ids,
         })
 
+    log.info(
+        "backup built: %d program(s), %d setlist(s)",
+        len(programs),
+        len(setlists),
+    )
     return {
         "version": 1,
         "midi": {"channel": pedal_channel},
@@ -270,7 +374,12 @@ def main():
     parser.add_argument("--qc-data-in", default=None,
                         help="skip live collection, reuse a saved qc_data.json")
     parser.add_argument("--out", default="tocata-backup.json")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="also log per-preset/per-folder DEBUG detail")
     args = parser.parse_args()
+
+    configure_logging(args.verbose)
+    log.info("sync_quad_cortex starting: %s", vars(args))
 
     if not (1 <= args.channel <= 16):
         parser.error("--channel must be 1-16")
@@ -279,19 +388,21 @@ def main():
         parser.error("--pedal-channel must be 1-16")
 
     if args.qc_data_in:
+        log.info("loading cached Quad Cortex data from %s (skipping live collection)",
+                  args.qc_data_in)
         with open(args.qc_data_in) as f:
             qc_data = json.load(f)
     else:
         qc_data = collect_qc_data(args.collect_timeout)
         with open(args.qc_data_out, "w") as f:
             json.dump(qc_data, f, indent=2)
-        print(f"wrote {args.qc_data_out}", file=sys.stderr)
+        log.info(f"wrote {args.qc_data_out}")
 
     backup = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1)
     with open(args.out, "w") as f:
         json.dump(backup, f, indent=2)
-    print(f"wrote {args.out}: {len(backup['programs'])} program(s), "
-          f"{len(backup['setlists'])} setlist(s)", file=sys.stderr)
+    log.info(f"wrote {args.out}: {len(backup['programs'])} program(s), "
+             f"{len(backup['setlists'])} setlist(s)")
 
 
 if __name__ == "__main__":
