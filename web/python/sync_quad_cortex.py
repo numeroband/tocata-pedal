@@ -267,8 +267,13 @@ def nearest_footswitch_color(argb: int) -> str:
 
 def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: bool,
                       channel: int) -> dict:
-    letter = chr(ord("A") + scene_index)
-    name = label.strip() or letter
+    # An empty name makes the firmware treat the footswitch as unavailable
+    # (Footswitch::available() is `_name[0]`, see firmware/src/config/config.h)
+    # -- exactly what an empty QC scene label should mean here. The default
+    # scene is the exception: it's named explicitly so it stays available
+    # even when the QC preset never labeled it.
+    stripped = label.strip()
+    name = stripped or ("DEFAULT" if is_default else "")
     return {
         "name": name[:MAX_FS_NAME_SIZE],
         "color": nearest_footswitch_color(color_argb),
