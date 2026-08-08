@@ -311,16 +311,24 @@ def build_program(preset: dict, bank: int, channel: int, program_mode_switch: in
     scenes = preset["scene_labels"]
     colors = preset["scene_colors"]
     default_scene = preset["default_scene"]
+    # Only turn program_mode_switch into the program-mode trigger if the QC
+    # preset left that scene unlabeled. A labeled scene is a real, in-use QC
+    # scene -- overwriting it with the trigger would make it unreachable, so
+    # we keep the proper scene footswitch there instead and warn that this
+    # preset doesn't get a program-mode trigger.
+    program_mode_index = None
     if program_mode_switch is not None and program_mode_switch < len(scenes):
         scene_label = scenes[program_mode_switch].strip()
         if scene_label:
             log.warning(
-                f"preset {preset['name']!r}: scene {scene_label!r} on footswitch "
-                f"{program_mode_switch} is being replaced by the program-mode "
-                f"trigger and will not be reachable.",
+                f"preset {preset['name']!r}: footswitch {program_mode_switch} has "
+                f"QC scene {scene_label!r}; not using program mode for this preset "
+                f"to avoid overwriting it.",
             )
+        else:
+            program_mode_index = program_mode_switch
     fs = [
-        program_mode_footswitch() if i == program_mode_switch
+        program_mode_footswitch() if i == program_mode_index
         else scene_footswitch(i, scenes[i], colors[i], i == default_scene, channel)
         for i in range(min(len(scenes), len(colors)))
     ]
@@ -402,8 +410,9 @@ def main():
                              "defaults to --channel")
     parser.add_argument("--program-mode-switch", type=int, default=None,
                         help="footswitch index (0-7) to configure as 'program' mode "
-                             "instead of 'scene' mode; that switch becomes a pure "
-                             "program-change trigger and its QC scene is ignored")
+                             "instead of 'scene' mode, for presets where that scene "
+                             "has no label; a labeled scene is left as-is and a "
+                             "warning is logged instead of overwriting it")
     parser.add_argument("--collect-timeout", type=float, default=30.0,
                         help="ceiling on the wait for the device's setlist listings "
                              "(it typically answers in ~7s); not a fixed delay")
