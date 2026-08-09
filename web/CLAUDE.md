@@ -64,31 +64,6 @@ A setlist is a named, ordered subset of the programs (`name` + `programs: [id, �
 
 [sim/](sim) is a separate Express app (`sim/index.mjs`) that serves the production `build/` and implements the pedal's REST/file API against `~/.tocata-sim`, with [sim/Sim.mjs](sim/Sim.mjs) emulating the device. It's an older REST-style path (see [setupProxy.js](src/setupProxy.js), which proxies `/api` to `:8080` in dev) and is independent of the MIDI transport used against real hardware. `sim-package.json` / `tocata-sim.bat` package it as a standalone distributable (`npm run tocata-sim`).
 
-## Quad Cortex sync script (`python/`)
-
-[python/sync_quad_cortex.py](python/sync_quad_cortex.py) is a standalone Python script (not part of the npm toolchain) that generates a `cli.mjs restore`-compatible backup JSON from a connected Neural DSP Quad Cortex's user setlists. Run it with a venv that has [pyquadcortex](https://pypi.org/project/pyquadcortex/) installed:
-
-```bash
-python sync_quad_cortex.py --channel 1
-```
-
-It connects over USB, working around pyquadcortex only knowing the regular Quad Cortex's product id (`hid_ids.PRODUCT_ID`, 0x880A): the script enumerates HID for Neural DSP's vendor id (0x152A), matches the attached unit against its own `QC_PRODUCT_IDS` table (regular QC or Mini), and overrides `hid_ids.PRODUCT_ID` accordingly before connecting -- `--qc-model qc|mini` forces this when auto-detection can't decide (e.g. both are attached) or finds nothing. It then reads the folders under `pyquadcortex.USER_SETLIST_ROOT`, and reads each preset's full `BinaryPreset` (name, 8 scene labels/colors, `default_scene`). It writes two files: a raw `qc_data.json` snapshot (recording which model it came from, reusable via `--qc-data-in` to regenerate without touching hardware again) and the final backup (`--out`, default `tocata-backup.json`).
-
-A `File{READ}` makes the device enumerate its **whole** tree — ~800 folders over ~15s — but the setlists are the front of that stream: measured on a QC Mini they arrive first, contiguously, ~10ms apart, each already complete, with the first non-setlist folder ~50ms later. The cost is the device's ~6.5s delay before it answers at all, not the enumeration. So `read_setlist_folders` waits for that burst and stops as soon as the enumeration moves past it (`--collect-timeout` is a ceiling, not a duration); it falls back to whatever it recorded if the burst never ends that way. Don't replace this with a fixed-duration `collect` — the window has to cover a device latency that isn't ours to predict.
-
-The mapping to Tocata's schema, per the Quad Cortex's documented MIDI implementation ("Incoming MIDI Messages" / "Incoming MIDI CC List" in its manual):
-
-- **One program per QC preset** — its `actions` send the preset-recall sequence `CC#32` (setlist bank), `CC#0` (0-127 vs 128-255 group), then `PC` (preset within that group), all on `--channel`. Expression pedal is enabled and mapped to the QC's own `CC#1` ("Expression Pedal 1").
-- **One footswitch per QC scene** (always 8, `mode: 'scene'`) — its `onActions` sends `CC#43` with the scene's 0-7 value, and its name is the scene label (truncated to 8 chars). An empty scene label leaves the name empty, which the firmware's `Footswitch::available()` (`_name[0]`) treats as unavailable — except the preset's `default_scene`, which gets the literal name `"DEFAULT"` instead so it stays available even when the QC preset never labeled it. The `default_scene` footswitch also starts `enabled`. Colors are the nearest CSS-distance match to Tocata's 6-color enum (QC's ARGB vs. `blue`/`purple`/`red`/`yellow`/`green`/`turquoise`).
-- **`--program-mode-switch <0-7>`** replaces one footswitch with `mode: 'program'` (a pure program-change trigger — no `onActions`/`offActions`/color) instead of a scene switch, but only for presets where that scene has no label. If the QC preset labeled that scene, it's a real, in-use scene and would become unreachable if overwritten, so it's left as a normal scene footswitch instead, and a warning is logged per-preset noting that program mode isn't used there.
-- **One setlist per QC setlist**, referencing its programs by id.
-
-**CC#32 setlist-bank values come from the device's own folder-push order.** `0` = Factory Library, `1` = "My Presets", `2`..n = the user setlists in device order. That order is not alphabetical and no `FolderInfo` field carries it — the only place the device exposes it is the order it pushes folder listings in when answering a `File{READ}`, which is also the order its Directory screen shows. `collect_qc_data` records first-arrival order and stores the resulting `bank` in `qc_data.json`; a `qc_data.json` predating this has no `bank` and the script errors rather than guessing.
-
-Verified against a Quad Cortex Mini: push order matched banks 1-4 exactly, banks past the last setlist were ignored (the PC applied within the current setlist instead), and creating a fifth setlist put it last in push order and made it answer to bank `5`. Replaying every generated program's recall actions over USB MIDI landed the unit on the right preset 13/13.
-
-The script only **generates** the JSON — running the destructive `node src/api/cli.mjs restore <file>` against a real pedal is a separate, manual step.
-
 ## Relationship to firmware
 
 This app is one half of a contract with `../firmware`: the command numbers ([Api.mjs](src/api/Api.mjs) ↔ `config_protocol.h`), the packed struct layouts ([Parsers.mjs](src/api/Parsers.mjs) ↔ `config/` structs), and the SysEx encoding ([MidiSysEx.mjs](src/api/MidiSysEx.mjs) ↔ `midi_sysex.h`) must all change together. When editing the protocol, update both trees and keep `package.json` `version` aligned with the firmware release whose UF2 the updater downloads.

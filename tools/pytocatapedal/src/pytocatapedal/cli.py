@@ -18,6 +18,7 @@ import time
 from .api import Api
 from .midi_sysex import ANY_CHANNEL
 from .models import Backup, Config, Program, Setlist, from_wire, to_wire
+from .quad_cortex import QC_PRODUCT_IDS, build_backup, collect_qc_data, configure_logging
 from .transport_midi import TransportMidi
 from .uf2 import UF2
 
@@ -112,6 +113,30 @@ def _build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("uf2-info")
     p.add_argument("path")
 
+    p = sub.add_parser("sync-quad-cortex")
+    p.add_argument("--channel", type=int, required=True,
+                    help="Quad Cortex MIDI channel (1-16)")
+    p.add_argument("--pedal-channel", type=int, default=None,
+                    help="Tocata pedal's own MIDI channel (1-16); "
+                         "defaults to --channel")
+    p.add_argument("--program-mode-switch", type=int, default=None,
+                    help="footswitch index (0-7) to configure as 'program' mode "
+                         "instead of 'scene' mode, for presets where that scene "
+                         "has no label; a labeled scene is left as-is and a "
+                         "warning is logged instead of overwriting it")
+    p.add_argument("--collect-timeout", type=float, default=30.0,
+                    help="ceiling on the wait for the device's setlist listings "
+                         "(it typically answers in ~7s); not a fixed delay")
+    p.add_argument("--qc-model", choices=["auto", *QC_PRODUCT_IDS], default="auto",
+                    help="which Quad Cortex to open; 'auto' picks the model that is "
+                         "actually attached over USB")
+    p.add_argument("--qc-data-out", default=None,
+                    help="optionally save the raw Quad Cortex snapshot to this path")
+    p.add_argument("--qc-data-in", default=None,
+                    help="skip live USB collection, reuse a saved --qc-data-out snapshot")
+    p.add_argument("-v", "--verbose", action="store_true",
+                    help="also log per-preset/per-folder DEBUG detail")
+
     return parser
 
 
@@ -182,6 +207,25 @@ def _dispatch(api: Api, args: argparse.Namespace):
             print(f"address=0x{block.address:x}")
             print(f"size={len(block.payload)}")
             print()
+    elif command == "sync-quad-cortex":
+        configure_logging(args.verbose)
+        if not (1 <= args.channel <= 16):
+            sys.exit("error: --channel must be 1-16")
+        pedal_channel = args.pedal_channel if args.pedal_channel is not None else args.channel
+        if not (1 <= pedal_channel <= 16):
+            sys.exit("error: --pedal-channel must be 1-16")
+        if args.program_mode_switch is not None and not (0 <= args.program_mode_switch < 8):
+            sys.exit("error: --program-mode-switch must be 0-7")
+        if args.qc_data_in:
+            qc_data = _read_json(args.qc_data_in)
+        else:
+            qc_data = collect_qc_data(args.collect_timeout, model=args.qc_model)
+            if args.qc_data_out:
+                _write_json_or_print(qc_data, args.qc_data_out)
+        backup_dict = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1,
+                                    program_mode_switch=args.program_mode_switch)
+        api.restore(from_wire(Backup, backup_dict))
+        print("synced from Quad Cortex")
     else:
         raise ValueError(f'invalid arg "{command}"')
 

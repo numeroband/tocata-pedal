@@ -1,17 +1,11 @@
-#!/usr/bin/env python3
-"""Generate a Tocata Pedal restore JSON from a Quad Cortex's user setlists.
+"""Generate a Tocata Pedal backup from a Quad Cortex's user setlists.
 
-Run with the pyquadcortex venv:
-
-    ~/qc_venv/bin/python tools/qc_sync/sync_quad_cortex.py --channel 1
-
-Then, separately and manually:
-
-    node ../web/src/api/cli.mjs restore tocata-backup.json
+Ported from the former web/python/sync_quad_cortex.py -- see cli.py's
+`sync-quad-cortex` command, which drives this module's `collect_qc_data()`
+and `build_backup()` and feeds the result straight into `Api.restore()`
+instead of writing an intermediate JSON file.
 """
 
-import argparse
-import json
 import logging
 import sys
 import time
@@ -55,10 +49,8 @@ NUM_FOOTSWITCHES = 8
 # carry a QC scene label.
 PROGRAM_MODE_FS_NAME = "..."
 
-# The 6 footswitch LED colors the pedal's enum supports (web/src/api/Parsers.mjs
-# `colors`), given as the literal CSS color values the web UI renders them with
-# (web/src/components/Footswitches.js:54 uses the enum string directly as a CSS
-# backgroundColor) -- used as the reference palette for nearest-color matching.
+# The 6 footswitch LED colors the pedal's enum supports (models.Color) -- used
+# as the reference palette for nearest-color matching against the QC's ARGB.
 FOOTSWITCH_COLOR_RGB = {
     "blue": (0x00, 0x00, 0xFF),
     "purple": (0x80, 0x00, 0x80),
@@ -68,7 +60,7 @@ FOOTSWITCH_COLOR_RGB = {
     "turquoise": (0x40, 0xE0, 0xD0),
 }
 
-log = logging.getLogger("sync_quad_cortex")
+log = logging.getLogger("pytocatapedal.quad_cortex")
 
 
 class _MillisecondFormatter(logging.Formatter):
@@ -465,69 +457,3 @@ def build_backup(qc_data: dict, channel: int, pedal_channel: int, program_mode_s
         "programs": programs,
         "setlists": setlists,
     }
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--channel", type=int, required=True,
-                        help="Quad Cortex MIDI channel (1-16)")
-    parser.add_argument("--pedal-channel", type=int, default=None,
-                        help="Tocata pedal's own MIDI channel (1-16); "
-                             "defaults to --channel")
-    parser.add_argument("--program-mode-switch", type=int, default=None,
-                        help="footswitch index (0-7) to configure as 'program' mode "
-                             "instead of 'scene' mode, for presets where that scene "
-                             "has no label; a labeled scene is left as-is and a "
-                             "warning is logged instead of overwriting it")
-    parser.add_argument("--collect-timeout", type=float, default=30.0,
-                        help="ceiling on the wait for the device's setlist listings "
-                             "(it typically answers in ~7s); not a fixed delay")
-    parser.add_argument("--qc-model", choices=["auto", *QC_PRODUCT_IDS], default="auto",
-                        help="which Quad Cortex to open; 'auto' picks the model that is "
-                             "actually attached over USB")
-    parser.add_argument("--qc-data-out", default="qc_data.json")
-    parser.add_argument("--qc-data-in", default=None,
-                        help="skip live collection, reuse a saved qc_data.json")
-    parser.add_argument("--out", default="tocata-backup.json")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="also log per-preset/per-folder DEBUG detail")
-    args = parser.parse_args()
-
-    configure_logging(args.verbose)
-    log.info("sync_quad_cortex starting: %s", vars(args))
-
-    if not (1 <= args.channel <= 16):
-        parser.error("--channel must be 1-16")
-    pedal_channel = args.pedal_channel if args.pedal_channel is not None else args.channel
-    if not (1 <= pedal_channel <= 16):
-        parser.error("--pedal-channel must be 1-16")
-    if args.program_mode_switch is not None and not (0 <= args.program_mode_switch < NUM_FOOTSWITCHES):
-        parser.error(f"--program-mode-switch must be 0-{NUM_FOOTSWITCHES - 1}")
-
-    if args.qc_data_in:
-        log.info("loading cached Quad Cortex data from %s (skipping live collection)",
-                  args.qc_data_in)
-        with open(args.qc_data_in) as f:
-            qc_data = json.load(f)
-        device = qc_data.get("device")
-        if device:
-            log.info("cached data was collected from %s (product id %#x)",
-                      device["model"], device["product_id"])
-        else:
-            log.info("cached data predates device-model recording")
-    else:
-        qc_data = collect_qc_data(args.collect_timeout, model=args.qc_model)
-        with open(args.qc_data_out, "w") as f:
-            json.dump(qc_data, f, indent=2)
-        log.info(f"wrote {args.qc_data_out}")
-
-    backup = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1,
-                           program_mode_switch=args.program_mode_switch)
-    with open(args.out, "w") as f:
-        json.dump(backup, f, indent=2)
-    log.info(f"wrote {args.out}: {len(backup['programs'])} program(s), "
-             f"{len(backup['setlists'])} setlist(s)")
-
-
-if __name__ == "__main__":
-    main()

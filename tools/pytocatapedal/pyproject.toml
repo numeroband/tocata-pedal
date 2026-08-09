@@ -16,6 +16,10 @@ dependencies = [
 dev = [
     "pytest>=7",
 ]
+quad-cortex = [
+    "pyquadcortex",
+    "hidapi",
+]
 
 [project.scripts]
 pytocatapedal = "pytocatapedal.cli:main"
