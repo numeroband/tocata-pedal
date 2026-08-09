@@ -125,6 +125,9 @@ private:
     static constexpr uint8_t kIncTenSwitch = 1;
     static constexpr uint8_t kSetupSwitch = 2;
     static constexpr uint8_t kTunerSwitch = 3;
+    // MIDI CC that toggles tuner mode with a host (127 = enter, 0 = exit);
+    // unrelated to kTunerSwitch's setup-cell index.
+    static constexpr uint8_t kTunerModeCc = 45;
     const uint8_t kDecOneSwitch = uint8_t(_leds.kNumLeds / 2);
     const uint8_t kDecTenSwitch = uint8_t(_leds.kNumLeds / 2 + 1);
     const uint8_t kLoadSwitch = uint8_t(_leds.kNumLeds - 1);

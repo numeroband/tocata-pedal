@@ -263,7 +263,7 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
             } else {
                 setSwitchEnabled(switch_id, enable);
             }
-        } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == 47) {
+        } else if (msg_channel == channel && msg_type == 0xB0 && packet[1] == kTunerModeCc) {
             uint8_t value = packet[2];
             if (value > 0 && !_tuner_mode) {
                 tunerMode();
@@ -574,8 +574,8 @@ void Controller::tunerMode() {
     });
 
     auto channel = _config.midi().channel();
-    _network.midi().sendControl(channel, 47, 127);;
-    _usb.midi().sendControl(channel, 47, 127);
+    _network.midi().sendControl(channel, kTunerModeCc, 127);
+    _usb.midi().sendControl(channel, kTunerModeCc, 127);
 }
 
 // Reports the active setlist, in the same encoding an incoming CC 32 uses: 0 for
@@ -593,8 +593,8 @@ void Controller::exitTunerMode(bool send_midi)
     _tuner_mode = false;
     if (send_midi) {
         auto channel = _config.midi().channel();
-        _network.midi().sendControl(channel, 47, 0);
-        _usb.midi().sendControl(channel, 47, 0);
+        _network.midi().sendControl(channel, kTunerModeCc, 0);
+        _usb.midi().sendControl(channel, kTunerModeCc, 0);
     }
     footswitchMode(false);
 }
