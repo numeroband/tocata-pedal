@@ -110,6 +110,49 @@ collected snapshot (including the detected bank order); `--qc-data-in <path>`
 replays a saved snapshot without touching USB again, useful for retrying the
 pedal sync after a partial failure.
 
+## Quad Cortex tuner bridge
+
+`pytocatapedal-qc-bridge` drives the pedal's tuner display from a rack-mounted
+Quad Cortex's own tuner, over a live MIDI connection -- no SysEx, no config
+protocol, just a CC in and a stream of Note On out. It needs the
+`quad-cortex` extra (same as `sync-quad-cortex`):
+
+```bash
+pip install -e tools/pytocatapedal[quad-cortex]
+pytocatapedal-qc-bridge "<midi port name>" --channel 1
+```
+
+`<midi port name>` is used for both input and output (the pedal's own MIDI
+port, in the intended deployment). The bridge:
+
+- listens for CC#45 on `--channel` (1-16, default 1): **>=64 enables** the
+  Quad Cortex's tuner meter feed, **<64 disables** it. This is the exact CC
+  the pedal's own tuner mode sends/expects (`kTunerModeCc` in
+  `firmware/src/controller.h` -- it used to be hardcoded to CC 47, a firmware
+  bug fixed alongside this tool so the two sides agree).
+- while enabled, forwards every detected-pitch push from the Quad Cortex as a
+  MIDI Note On, encoding note + cents-off exactly the way the pedal's
+  firmware decodes it (`controller.cpp`'s incoming `0x90` handler: velocity
+  is a signed cents-times-two offset folded into note, not an independent
+  value; see `freq_to_midi_note()` in `qc_bridge.py`). `freq == 0` (no pitch
+  detected) becomes `note=0, velocity=0`, which the firmware already treats
+  as "clear the tuner display".
+- connects to the Quad Cortex once at startup and holds that connection for
+  the whole run -- avoids re-running pyquadcortex's connect handshake (up to
+  ~30s) on every CC toggle, at the cost of holding the Quad Cortex's USB HID
+  interface exclusively (Cortex Control can't be opened) while the bridge is
+  running.
+- like `sync-quad-cortex`, auto-detects the regular Quad Cortex vs. the Mini
+  over USB; `--qc-model qc|mini` forces it when auto-detection can't decide.
+
+The Quad Cortex's own tuner-meter fields (`Tuner.enable_meter`/`Tuner.meter`)
+aren't exposed by any public `pyquadcortex` method -- that project's own docs
+call the meter permanently unsupported, based on a full-size Quad Cortex on
+an older firmware that refused the write. That's stale for at least the Quad
+Cortex Mini, which streams the meter fine; `qc_bridge.py` drives it directly
+through `pyquadcortex`'s transport layer (`qc._t.send`/`qc._t.collect`) since
+`pyquadcortex` isn't ours to change.
+
 ## Tests
 
 ```bash

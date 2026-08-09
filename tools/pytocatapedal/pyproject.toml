@@ -23,6 +23,7 @@ quad-cortex = [
 
 [project.scripts]
 pytocatapedal = "pytocatapedal.cli:main"
+pytocatapedal-qc-bridge = "pytocatapedal.qc_bridge:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
