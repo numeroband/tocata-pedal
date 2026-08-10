@@ -31,7 +31,12 @@ struct Header {
 
 struct Packet {
     Header header;
-    std::array<uint8_t, 512> data;
+    // Worst-case encoded SysEx on this protocol is ~592 bytes (config
+    // protocol's kBuffSize=512 raw, 7-bit packed plus the F0..F7/channel
+    // envelope -- see midi_sysex.h and config_protocol.h's kBuffSize).
+    // 600 covers that with a little room; must match network/mc_midi.hpp's
+    // Packet::message, since a mismatch would truncate on receive again.
+    std::array<uint8_t, 600> data;
     bool validate(size_t size) const {
         return size > sizeof(header) && header.validate();
     }

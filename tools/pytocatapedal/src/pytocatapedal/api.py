@@ -51,7 +51,7 @@ NUM_PROGRAMS = 99
 # these ids address the 26 editable setlists (files /64../7D).
 NUM_SETLISTS = 26
 
-_CHUNK_SIZE = 256
+_CHUNK_SIZE = 500
 
 
 class Api:

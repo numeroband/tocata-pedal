@@ -20,7 +20,11 @@ namespace tocata::mcmidi {
 
     struct Packet {
         Header header;
-        std::array<uint8_t, 512> message;
+        // Worst-case encoded SysEx on this protocol is ~592 bytes (config
+        // protocol's kBuffSize=512 raw, 7-bit packed plus the F0..F7/channel
+        // envelope -- see midi_sysex.h and config_protocol.h's kBuffSize).
+        // 600 covers that with a little room.
+        std::array<uint8_t, 600> message;
         bool validate(size_t size) const {
             return size > sizeof(header) && header.validate();
 
@@ -105,7 +109,7 @@ public:
     }
 
 private:
-    void sendPacket(uint8_t data_size) {
+    void sendPacket(uint16_t data_size) {
         _socket.beginPacket(_addr, kPort);
         _socket.write(_packet.bytes(), _packet.total_size(data_size));
         _socket.endPacket();

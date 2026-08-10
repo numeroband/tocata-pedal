@@ -221,7 +221,7 @@ protected:
 
 private:
     // Worst-case SysEx on this protocol is ~593 bytes (midi_sysex.h), and the
-    // multicast transport caps payloads at 512 (mc_midi.hpp), so 2048 leaves
+    // multicast transport caps payloads at 600 (mc_midi.hpp), so 2048 leaves
     // room for both the codec scratch and SysEx reassembly.
     static constexpr size_t kEventBufSize = 2048;
     static constexpr size_t kMaxSysExSize = 2048;
