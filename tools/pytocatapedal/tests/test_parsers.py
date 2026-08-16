@@ -2,6 +2,7 @@ from pytocatapedal.models import (
     Action,
     Color,
     Config,
+    ExpressionCal,
     Footswitch,
     FsMode,
     Midi,
@@ -28,9 +29,18 @@ from pytocatapedal.parsers import (
 
 
 def test_config_round_trip():
-    config = Config(version=3, midi=Midi(channel=7))
+    config = Config(version=3, midi=Midi(channel=7), expression=ExpressionCal(min_raw=100, max_raw=4000))
     data = serialize_config(config)
     assert parse_config(data) == config
+
+
+def test_config_round_trip_default_expression_calibration():
+    # A config with no explicit calibration still round-trips the firmware's
+    # defaults, since all 6 bytes of Config are always written (see
+    # EXPRESSION_CAL_SCHEME's comment).
+    config = Config(version=1, midi=Midi(channel=0))
+    data = serialize_config(config)
+    assert parse_config(data) == Config(version=1, midi=Midi(channel=0), expression=ExpressionCal())
 
 
 def test_program_round_trip_with_mixed_footswitches():
@@ -89,19 +99,46 @@ def test_addr_payload_round_trip():
 
 
 def test_type_and_channel_compact_packing():
-    # type=CC (index 2), channel=5 -> low nibble 2, high nibble 5 -> byte 0x52
+    # type=CC (index 2, bits 0-2), globalChannel=0 (bit 3), channel=5 (bits 4-7)
+    # -> byte 0x52. globalChannel=0 happens to leave this identical to the old
+    # 4-bit-type/4-bit-channel packing, since CC's index fits in 3 bits.
     action = Action(type=MessageType.CC, channel=5, values=[0, 0])
     data = _serialize_buffer(to_wire(action), ACTION_SCHEME)
     assert data[0] == 0x52
 
 
+def test_type_and_channel_compact_packing_global():
+    # type=PC (index 1), globalChannel=1 (bit 3 set) -> byte 0x09, regardless of
+    # the explicit channel value underneath (kept at its default here).
+    action = Action(type=MessageType.PC, global_channel=1, values=[0, 0])
+    data = _serialize_buffer(to_wire(action), ACTION_SCHEME)
+    assert data[0] == 0x09
+
+
+def test_action_global_channel_round_trip():
+    # The explicit channel underneath a set globalChannel flag is preserved on
+    # the wire (so unsetting the flag later restores it), even though the
+    # firmware ignores it while the flag is set.
+    action = Action(type=MessageType.CC, global_channel=1, channel=5, values=[10, 20])
+    data = _serialize_buffer(to_wire(action), ACTION_SCHEME)
+    assert data[0] == 0x02 | 0x08 | (5 << 4)
+
+
 def test_mode_and_channel_compact_packing():
-    # mode=scene (index 1), expChannel=9 -> low nibble 1, high nibble 9 -> byte 0x91
+    # mode=scene (index 1), expGlobalChannel=0 (bit 3), expChannel=9 -> byte 0x91
     program = Program(name="X", mode=Mode.SCENE, exp_channel=9)
     data = serialize_program(0, program)
     # idPlusProgram layout: id(1) + name(31) + fs(1 + 8*44=353) + actions(1 + 5*3=16) + modeAndChannel(1) + expression(1)
     offset = 1 + 31 + 353 + 16
     assert data[offset] == 0x91
+
+
+def test_mode_and_channel_compact_packing_global():
+    # mode=default (index 0), expGlobalChannel=1 (bit 3 set) -> byte 0x08
+    program = Program(name="X", mode=Mode.DEFAULT, exp_global_channel=1, exp_channel=9)
+    data = serialize_program(0, program)
+    offset = 1 + 31 + 353 + 16
+    assert data[offset] == 0x08 | (9 << 4)
 
 
 def test_enum_unmatched_value_wraps_to_255():

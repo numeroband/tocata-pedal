@@ -117,8 +117,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--channel", type=int, required=True,
                     help="Quad Cortex MIDI channel (1-16)")
     p.add_argument("--pedal-channel", type=int, default=None,
-                    help="Tocata pedal's own MIDI channel (1-16); "
-                         "defaults to --channel")
+                    help="Tocata pedal's own MIDI channel (1-16); defaults to "
+                         "--channel. Every generated action follows this channel "
+                         "(Config.midi.channel) rather than a channel baked into "
+                         "it, so it must match the Quad Cortex's own channel "
+                         "(--channel) for the synced programs to reach it.")
     p.add_argument("--program-mode-switch", type=int, default=None,
                     help="footswitch index (0-7) to configure as 'program' mode "
                          "instead of 'scene' mode, for presets where that scene "
@@ -222,7 +225,7 @@ def _dispatch(api: Api, args: argparse.Namespace):
             qc_data = collect_qc_data(args.collect_timeout, model=args.qc_model)
             if args.qc_data_out:
                 _write_json_or_print(qc_data, args.qc_data_out)
-        backup_dict = build_backup(qc_data, channel=args.channel - 1, pedal_channel=pedal_channel - 1,
+        backup_dict = build_backup(qc_data, pedal_channel=pedal_channel - 1,
                                     program_mode_switch=args.program_mode_switch)
         api.restore(from_wire(Backup, backup_dict))
         print("synced from Quad Cortex")

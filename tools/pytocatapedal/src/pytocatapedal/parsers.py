@@ -250,12 +250,31 @@ SERIALIZERS = {
 # --- wire schemes (byte-exact mirror of Parsers.mjs) ---
 
 MIDI_SCHEME = {"fields": [("channel", "uint8")]}
-CONFIG_SCHEME = {"fields": [("version", "uint8"), ("midi", "struct", MIDI_SCHEME)]}
+# Config::ExpressionConfig -- present so set-config writes all 6 bytes the firmware
+# reinterpret_casts as a Config; sending only version+channel would leave the
+# pedal's expression calibration to whatever trailed in the request buffer.
+EXPRESSION_CAL_SCHEME = {"fields": [("minRaw", "uint16"), ("maxRaw", "uint16")]}
+CONFIG_SCHEME = {
+    "fields": [
+        ("version", "uint8"),
+        ("midi", "struct", MIDI_SCHEME),
+        ("expression", "struct", EXPRESSION_CAL_SCHEME),
+    ]
+}
 
-TYPE_AND_CHANNEL_SCHEME = {"parser": ("uint8",), "fields": [(4, "enum", MESSAGE_TYPES), (4, "uint8")]}
+# Bit 3 of the low nibble marks "follow Config.midi.channel" (the pedal's global
+# MIDI channel) instead of the explicit channel in the high nibble; see
+# kGlobalChannelMask in firmware/src/config/config.h. The flag is parsed/serialized
+# as 'uint8', not 'bool': _is_empty() treats False as empty and _serialize_compact
+# only pushes non-empty positional values, so a false flag would shift the
+# channel into its slot. Numeric 0 survives.
+TYPE_AND_CHANNEL_SCHEME = {
+    "parser": ("uint8",),
+    "fields": [(3, "enum", MESSAGE_TYPES), (1, "uint8"), (4, "uint8")],
+}
 ACTION_SCHEME = {
     "fields": [
-        (("type", "channel"), "compact", TYPE_AND_CHANNEL_SCHEME),
+        (("type", "globalChannel", "channel"), "compact", TYPE_AND_CHANNEL_SCHEME),
         ("values", "array", 2, "uint8"),
     ]
 }
@@ -279,14 +298,18 @@ NAMES_SCHEME = {
     ]
 }
 
-MODE_AND_CHANNEL_SCHEME = {"parser": ("uint8",), "fields": [(4, "enum", MODES), (4, "uint8")]}
+# Same low-nibble split as TYPE_AND_CHANNEL_SCHEME, for the expression pedal channel.
+MODE_AND_CHANNEL_SCHEME = {
+    "parser": ("uint8",),
+    "fields": [(3, "enum", MODES), (1, "uint8"), (4, "uint8")],
+}
 
 PROGRAM_SCHEME = {
     "fields": [
         ("name", "str", MAX_PRG_NAME_SIZE),
         ("fs", "nArray", MAX_SWITCHES, "struct", FOOTSWITCH_SCHEME),
         ("actions", "nArray", MAX_ACTIONS, "struct", ACTION_SCHEME),
-        (("mode", "expChannel"), "compact", MODE_AND_CHANNEL_SCHEME),
+        (("mode", "expGlobalChannel", "expChannel"), "compact", MODE_AND_CHANNEL_SCHEME),
         ("expression", "uint8"),
     ],
     "valid": lambda o: bool(o.get("name")),

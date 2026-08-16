@@ -48,14 +48,27 @@ class Midi:
 
 
 @dataclass
+class ExpressionCal:
+    """Config::ExpressionConfig -- raw ADC calibration, not the per-program expression CC."""
+
+    min_raw: int = field(default=0, metadata={"wire": "minRaw"})
+    max_raw: int = field(default=4095, metadata={"wire": "maxRaw"})
+
+
+@dataclass
 class Config:
     version: int = 0
     midi: Midi = field(default_factory=Midi)
+    expression: ExpressionCal = field(default_factory=ExpressionCal)
 
 
 @dataclass
 class Action:
     type: Optional[MessageType] = None
+    # Follow Config.midi.channel instead of `channel` below; see kGlobalChannelMask
+    # in firmware/src/config/config.h. Kept as an int (not bool) so it survives
+    # parsers._is_empty(), which treats False as an absent value.
+    global_channel: int = field(default=0, metadata={"wire": "globalChannel"})
     channel: int = 0
     values: List[int] = field(default_factory=lambda: [0, 0])
 
@@ -76,6 +89,8 @@ class Program:
     fs: List[Optional[Footswitch]] = field(default_factory=list)
     actions: List[Action] = field(default_factory=list)
     mode: Mode = Mode.DEFAULT
+    # Same global-channel flag as Action.global_channel, for the expression pedal.
+    exp_global_channel: int = field(default=0, metadata={"wire": "expGlobalChannel"})
     exp_channel: int = field(default=0, metadata={"wire": "expChannel"})
     expression: int = 0
 
@@ -92,6 +107,7 @@ class Backup:
 
     version: int = 0
     midi: Midi = field(default_factory=Midi)
+    expression: ExpressionCal = field(default_factory=ExpressionCal)
     programs: List[Optional[Program]] = field(default_factory=list)
     setlists: List[Optional[Setlist]] = field(default_factory=list)
 

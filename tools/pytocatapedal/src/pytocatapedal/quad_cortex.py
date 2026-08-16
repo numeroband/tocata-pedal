@@ -323,8 +323,7 @@ def nearest_footswitch_color(argb: int) -> str:
     )
 
 
-def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: bool,
-                      channel: int) -> dict:
+def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: bool) -> dict:
     # An empty name makes the firmware treat the footswitch as unavailable
     # (Footswitch::available() is `_name[0]`, see firmware/src/config/config.h)
     # -- exactly what an empty QC scene label should mean here. The default
@@ -338,7 +337,10 @@ def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: 
         "enabled": is_default,
         "mode": "scene",
         "onActions": [
-            {"type": "CC", "channel": channel, "values": [SCENE_SELECT_CC, scene_index]},
+            # globalChannel: follow the pedal's own MIDI channel (see build_backup's
+            # `pedal_channel`) rather than a channel baked into this action, so
+            # re-pointing the whole rig at another channel is a single config edit.
+            {"type": "CC", "globalChannel": 1, "values": [SCENE_SELECT_CC, scene_index]},
         ],
         "offActions": [],
     }
@@ -356,16 +358,16 @@ def program_mode_footswitch() -> dict:
     }
 
 
-def preset_recall_actions(index: int, bank: int, channel: int) -> list:
+def preset_recall_actions(index: int, bank: int) -> list:
     group, pc = (0, index) if index < 128 else (1, index - 128)
     return [
-        {"type": "CC", "channel": channel, "values": [BANK_LSB_CC, bank]},
-        {"type": "CC", "channel": channel, "values": [BANK_MSB_CC, group]},
-        {"type": "PC", "channel": channel, "values": [pc, 0]},
+        {"type": "CC", "globalChannel": 1, "values": [BANK_LSB_CC, bank]},
+        {"type": "CC", "globalChannel": 1, "values": [BANK_MSB_CC, group]},
+        {"type": "PC", "globalChannel": 1, "values": [pc, 0]},
     ]
 
 
-def build_program(preset: dict, bank: int, channel: int, program_mode_switch: int = None) -> dict:
+def build_program(preset: dict, bank: int, program_mode_switch: int = None) -> dict:
     scenes = preset["scene_labels"]
     colors = preset["scene_colors"]
     default_scene = preset["default_scene"]
@@ -387,7 +389,7 @@ def build_program(preset: dict, bank: int, channel: int, program_mode_switch: in
             program_mode_index = program_mode_switch
     fs = [
         program_mode_footswitch() if i == program_mode_index
-        else scene_footswitch(i, scenes[i], colors[i], i == default_scene, channel)
+        else scene_footswitch(i, scenes[i], colors[i], i == default_scene)
         for i in range(min(len(scenes), len(colors)))
     ]
     log.debug(
@@ -400,18 +402,17 @@ def build_program(preset: dict, bank: int, channel: int, program_mode_switch: in
     return {
         "name": preset["name"][:MAX_PRG_NAME_SIZE],
         "fs": fs,
-        "actions": preset_recall_actions(preset["index"], bank, channel),
+        "actions": preset_recall_actions(preset["index"], bank),
         "mode": "default",
-        "expChannel": channel,
+        "expGlobalChannel": 1,
         "expression": EXPRESSION_1_CC,
     }
 
 
-def build_backup(qc_data: dict, channel: int, pedal_channel: int, program_mode_switch: int = None) -> dict:
+def build_backup(qc_data: dict, pedal_channel: int, program_mode_switch: int = None) -> dict:
     log.info(
-        "building backup: %d setlist(s) from qc_data, channel=%d, pedal_channel=%d",
+        "building backup: %d setlist(s) from qc_data, pedal_channel=%d",
         len(qc_data["setlists"]),
-        channel,
         pedal_channel,
     )
     programs = []
@@ -434,7 +435,7 @@ def build_backup(qc_data: dict, channel: int, pedal_channel: int, program_mode_s
                 )
                 continue
             program_ids.append(len(programs))
-            programs.append(build_program(preset, bank, channel, program_mode_switch))
+            programs.append(build_program(preset, bank, program_mode_switch))
         if len(setlists) >= NUM_SETLISTS:
             log.warning(
                 f"dropping setlist {setlist['name']!r} -- "

@@ -185,7 +185,13 @@ class Api:
                 while len(setlists) <= id:
                     setlists.append(None)
                 setlists[id] = self.get_setlist(id)
-        return Backup(version=config.version, midi=config.midi, programs=programs, setlists=setlists)
+        return Backup(
+            version=config.version,
+            midi=config.midi,
+            expression=config.expression,
+            programs=programs,
+            setlists=setlists,
+        )
 
     def restore(self, backup: Backup):
         for id in range(NUM_PROGRAMS):
@@ -202,7 +208,7 @@ class Api:
                 self.set_setlist(id, setlist)
             else:
                 self.delete_setlist(id)
-        self.set_config(Config(version=backup.version, midi=backup.midi))
+        self.set_config(Config(version=backup.version, midi=backup.midi, expression=backup.expression))
 
     def factory(self):
         for id in range(NUM_PROGRAMS):

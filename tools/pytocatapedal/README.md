@@ -86,8 +86,12 @@ manual):
 
 - **One program per QC preset** -- its `actions` send the preset-recall
   sequence `CC#32` (setlist bank), `CC#0` (0-127 vs 128-255 group), then `PC`
-  (preset within that group), all on `--channel`. Expression pedal is enabled
-  and mapped to the QC's own `CC#1` ("Expression Pedal 1").
+  (preset within that group), and the expression pedal is enabled and mapped
+  to the QC's own `CC#1` ("Expression Pedal 1"). All of these follow the
+  pedal's global MIDI channel (`--pedal-channel`, which defaults to
+  `--channel`) rather than a channel baked into each action, so re-pointing
+  the whole rig at another channel is a single config edit instead of
+  re-syncing.
 - **One footswitch per QC scene** (always 8, `mode: 'scene'`) -- its
   `onActions` sends `CC#43` with the scene's 0-7 value, and its name is the
   scene label (truncated to 8 chars). An empty scene label leaves the name
