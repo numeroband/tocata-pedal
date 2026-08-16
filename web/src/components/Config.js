@@ -37,12 +37,32 @@ export default function Config() {
     setConfig({ ...config, [group]: {...config[group], [value]: event.target.value} });
   };
 
+  // Channels are stored 0-based and displayed 1-based, as in Actions/Programs.
+  function updateNumberPlusOne(event) {
+    const [group, value] = event.target.name.split('.');
+    setConfig({ ...config, [group]: {...config[group], [value]: Number(event.target.value) - 1} });
+  };
+
   if (!config) {
     return <LinearProgress />;
   }
 
   return (
     <div>
+      <div>
+        <TextField
+          type="number"
+          label="MIDI channel"
+          className={classes.root}
+          name="midi.channel"
+          value={(config.midi ? config.midi.channel : 0) + 1}
+          onChange={updateNumberPlusOne}
+          inputProps={{
+            min: 1,
+            max: 16,
+          }}
+        ></TextField>
+      </div>
       <div>
         <TextField
           label="SSID"

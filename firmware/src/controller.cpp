@@ -720,8 +720,8 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
             _switches_state[_fs_id] = false;
             _leds.setColor(_fs_id, prev.color(), false);
             if (send_midi) {
-                prev.run(_network.midi(), false);
-                prev.run(_usb.midi(), false);
+                prev.run(_network.midi(), false, _config.midi().channel());
+                prev.run(_usb.midi(), false, _config.midi().channel());
             }
         }
         _switches_state[id] = true;
@@ -731,8 +731,8 @@ void Controller::changeSwitch(uint8_t id, bool active, bool send_midi)
     }
 
     if (send_midi) {
-        fs.run(_network.midi(), _switches_state[id]);
-        fs.run(_usb.midi(), _switches_state[id]);
+        fs.run(_network.midi(), _switches_state[id], _config.midi().channel());
+        fs.run(_usb.midi(), _switches_state[id], _config.midi().channel());
     }
     _leds.setColor(id, fs.color(), _switches_state[id]);
 }
@@ -762,13 +762,19 @@ void Controller::sendExpression(uint8_t value)
     if (value == Expression::kDisconnected) { return; } // nothing to send
     if (_program.available() && _program.expressionEnabled())
     {
-        _program.sendExpression(_network.midi(), value);
-        _program.sendExpression(_usb.midi(), value);
+        _program.sendExpression(_network.midi(), value, _config.midi().channel());
+        _program.sendExpression(_usb.midi(), value, _config.midi().channel());
     }
 }
 
 void Controller::configChanged()
 {
+    // The host wrote a new config straight to flash; _config is the stale copy
+    // loaded at boot. Reload it, or the pedal keeps using the old global MIDI
+    // channel -- which actions and the expression pedal now resolve against --
+    // and the old expression calibration until the next reboot.
+    _config.load();
+    _exp.setCalibration(_config.expression().minRaw(), _config.expression().maxRaw());
     _network.reinitMidi(_config.midi().channel());
 }
 
@@ -819,8 +825,8 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches,
         _program.switchMode(_fs_id) == Program::Footswitch::kScene &&
         _switches_state[_fs_id])
     {
-        _program.footswitch(_fs_id).run(_usb.midi(), false);
-        _program.footswitch(_fs_id).run(_network.midi(), false);
+        _program.footswitch(_fs_id).run(_usb.midi(), false, _config.midi().channel());
+        _program.footswitch(_fs_id).run(_network.midi(), false, _config.midi().channel());
     }
     _program_id = id;
     _fs_id = 0;
@@ -830,8 +836,8 @@ void Controller::loadProgram(uint8_t id, bool send_midi, bool display_switches,
 
     if (send_midi && _program.available())
     {
-        _program.run(_usb.midi());
-        _program.run(_network.midi());
+        _program.run(_usb.midi(), _config.midi().channel());
+        _program.run(_network.midi(), _config.midi().channel());
         sendExpression(_exp.getValue());
     }
 

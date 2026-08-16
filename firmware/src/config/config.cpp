@@ -183,15 +183,15 @@ bool Config::operator==(const Config& other)
     );
 }
 
-void Actions::Action::run(MidiSender& midi) const
+void Actions::Action::run(MidiSender& midi, uint8_t global_channel) const
 {
     switch (type())
     {
     case kProgramChange:
-        midi.sendProgram(channel(), _values[0]);
+        midi.sendProgram(channel(global_channel), _values[0]);
         break;
     case kControlChange:
-        midi.sendControl(channel(), _values[0], _values[1]);
+        midi.sendControl(channel(global_channel), _values[0], _values[1]);
         break;
     default:
         break;
@@ -206,11 +206,11 @@ bool Actions::Action::operator==(const Actions::Action& other)
     );
 }
 
-void Actions::run(MidiSender& midi) const
+void Actions::run(MidiSender& midi, uint8_t global_channel) const
 {
     for (uint8_t i = 0; i < _num_actions; ++i)
     {
-        _actions[i].run(midi);
+        _actions[i].run(midi, global_channel);
     }
 }
 
@@ -256,22 +256,22 @@ void Program::initAll()
     }
 }
 
-void Program::run(MidiSender& midi) const
+void Program::run(MidiSender& midi, uint8_t global_channel) const
 {
-    _actions.run(midi);
+    _actions.run(midi, global_channel);
     for (uint8_t i = 0; i < _num_switches; ++i)
     {
         const Footswitch& fs = _switches[i];
         if (fs.available())
         {
-            fs.run(midi, fs.enabled());
+            fs.run(midi, fs.enabled(), global_channel);
         }
     }
 }
 
-void Program::sendExpression(MidiSender& midi, uint8_t value) const
+void Program::sendExpression(MidiSender& midi, uint8_t value, uint8_t global_channel) const
 {
-    midi.sendControl(expressionChannel(), expression(), value);
+    midi.sendControl(expressionChannel(global_channel), expression(), value);
 }
 
 uint8_t Program::copyName(uint8_t id, char* name)
@@ -475,17 +475,17 @@ bool Program::operator==(const Program& other)
     return true;
 }
 
-void Program::Footswitch::run(MidiSender& midi, bool active) const
+void Program::Footswitch::run(MidiSender& midi, bool active, uint8_t global_channel) const
 {
     if (active)
     {
-        _on_actions.run(midi);
-    }    
+        _on_actions.run(midi, global_channel);
+    }
     else
     {
-        _off_actions.run(midi);
-    }    
-} 
+        _off_actions.run(midi, global_channel);
+    }
+}
 
 void Setlist::loadAll()
 {

@@ -10,6 +10,7 @@ import {
   MenuItem,
   TextField,
   Switch,
+  FormControlLabel,
   Button,
   Fab,
   Dialog,
@@ -82,6 +83,7 @@ function ProgramDialog(props) {
     mode: DEFAULT_MODE,
     expression: invalidCC(DEFAULT_EXP_CC),
     expChannel: 0,
+    expGlobalChannel: 0,
     actions: [],
     fs: [],
   }), [])
@@ -95,6 +97,9 @@ function ProgramDialog(props) {
     const validate = event.target.checked ? validCC : invalidCC;
     setState(state => ({ ...state, [event.target.name]: validate(state.expression)}));
   }
+  // Keeps the explicit channel underneath, so unticking restores it.
+  const updateGlobalChannel = event =>
+    setState(state => ({ ...state, expGlobalChannel: event.target.checked ? 1 : 0 }));
 
   function update() {
     setProgram(id, state);
@@ -141,19 +146,32 @@ function ProgramDialog(props) {
                 onChange={updateSwitch}
             />          
           </div>
-          <TextField
-              type="number"
-              label="Exp channel"
-              className={classes.root}
-              disabled={!isValidCC(state.expression)}
-              name="expChannel"
-              value={state.expChannel + 1}
-              onChange={updateNumberPlusOne}
-              inputProps={{
-                min: 1,
-                max: 16,
-              }}
-            ></TextField>
+          <div>
+            <TextField
+                type="number"
+                label="Exp channel"
+                className={classes.root}
+                disabled={!isValidCC(state.expression) || !!state.expGlobalChannel}
+                name="expChannel"
+                value={state.expChannel + 1}
+                onChange={updateNumberPlusOne}
+                inputProps={{
+                  min: 1,
+                  max: 16,
+                }}
+              ></TextField>
+            <FormControlLabel
+                className={classes.switch}
+                label="Global"
+                control={
+                  <Switch
+                    checked={!!state.expGlobalChannel}
+                    disabled={!isValidCC(state.expression)}
+                    onChange={updateGlobalChannel}
+                  />
+                }
+            />
+          </div>
         </Grid>
       </DialogContent>
       <DialogActions>

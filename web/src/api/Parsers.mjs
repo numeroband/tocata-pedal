@@ -178,24 +178,44 @@ const midi = {
   valid: () => true
 };
 
+// Config::ExpressionConfig. Present here so setConfig sends all 6 bytes the
+// firmware reinterpret_casts as a Config: sending only version+channel left the
+// pedal's expression calibration to whatever trailed in the request buffer.
+const expressionCal = {
+  fields: [
+    ['minRaw', 'uint16'],
+    ['maxRaw', 'uint16'],
+  ],
+  valid: () => true
+};
+
 const config = {
   fields: [
     ['version', 'uint8'],
     ['midi', 'struct', midi, () => true],
+    ['expression', 'struct', expressionCal, () => true],
   ],
 };
 
+// Bit 3 of the low nibble marks "send on the pedal's global MIDI channel", in
+// which case the explicit channel in the high nibble is kept but ignored. See
+// kGlobalChannelMask in ../../../firmware/src/config/config.h.
+// The flag must be parsed as 'uint8' and not 'bool': isEmpty() treats false as
+// empty and parsers.compact only pushes non-empty values into the positional
+// array that parsers.struct spreads by index, so a false flag would be dropped
+// and the channel would land in its slot. Numeric 0 survives.
 const typeAndChannel = {
   parser: ['uint8'],
   fields: [
-    [4, 'enum', messageTypes],
+    [3, 'enum', messageTypes],
+    [1, 'uint8'],
     [4, 'uint8'],
   ],
 };
 
 const action = {
   fields: [
-    [['type', 'channel'], 'compact', typeAndChannel],
+    [['type', 'globalChannel', 'channel'], 'compact', typeAndChannel],
     ['values', 'array', 2, 'uint8'],
   ],
 };
@@ -219,10 +239,12 @@ const names = {
   ],
 };
 
+// Same low-nibble split as typeAndChannel, for the expression pedal channel.
 const modeAndChannel = {
   parser: ['uint8'],
   fields: [
-    [4, 'enum', mode],
+    [3, 'enum', mode],
+    [1, 'uint8'],
     [4, 'uint8'],
   ],
 };
@@ -232,7 +254,7 @@ const program = {
     ['name', 'str', MAX_PRG_NAME_SIZE],
     ['fs', 'nArray', MAX_SWITCHES, 'struct', footswitch],
     ['actions', 'nArray', MAX_ACTIONS, 'struct', action],
-    [['mode', 'expChannel'], 'compact', modeAndChannel],
+    [['mode', 'expGlobalChannel', 'expChannel'], 'compact', modeAndChannel],
     ['expression', 'uint8'],
   ],
   valid: o => o.name

@@ -13,6 +13,8 @@ import {
   DialogActions,
   TextField,
   MenuItem,
+  Switch,
+  FormControlLabel,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { useState, useEffect } from 'react';
@@ -28,10 +30,15 @@ const useStyles = makeStyles((theme) => ({
   card: {
     padding: theme.spacing(1, 2),
   },
+  switch: {
+    marginTop: 20,
+  },
 }));
 
 function actionDescription(action) {
-  return `${scheme[action.type].description(action)}(${action.channel + 1})`;
+  // 'G' means the action follows the pedal's global MIDI channel.
+  const channel = action.globalChannel ? 'G' : action.channel + 1;
+  return `${scheme[action.type].description(action)}(${channel})`;
 }
 
 const scheme = {
@@ -60,8 +67,8 @@ const scheme = {
   },
 }
 
-function initAction(actionType = 'PC', channel = 0) {
-  const action = {type: actionType, values: [0, 0], channel}
+function initAction(actionType = 'PC', channel = 0, globalChannel = 0) {
+  const action = {type: actionType, values: [0, 0], channel, globalChannel}
   scheme[actionType].values.forEach((current, i) => action.values[i] = (current.min || 0));
   return action;
 }
@@ -74,7 +81,11 @@ function ActionDialog(props) {
 
   function updateSelect(event) {
     const actionType = event.target.value;
-    setState((action && action.type === actionType) ? action : initAction(actionType, action.channel));
+    // `action` is undefined when adding, so carry the channel over from `state`,
+    // which always holds what the dialog is currently showing.
+    setState((action && action.type === actionType)
+      ? action
+      : initAction(actionType, state.channel, state.globalChannel));
   };
 
   function updateText(event) {
@@ -84,6 +95,8 @@ function ActionDialog(props) {
   };
 
   const updateNumberPlusOne = event => setState({ ...state, [event.target.name]: event.target.value - 1});
+  // Keeps the explicit channel underneath, so unticking restores it.
+  const updateGlobalChannel = event => setState({ ...state, globalChannel: event.target.checked ? 1 : 0 });
 
   function update() {
     setAction(id, state);
@@ -129,18 +142,26 @@ function ActionDialog(props) {
           </TextField>
           {valueField(0)}
           {valueField(1)}
-          <TextField
-            type="number"
-            label="Channel"
-            className={classes.root}
-            name="channel"
-            value={state.channel + 1}
-            onChange={updateNumberPlusOne}
-            inputProps={{
-              min: 1,
-              max: 16,
-            }}
-          ></TextField>
+          <div>
+            <TextField
+              type="number"
+              label="Channel"
+              className={classes.root}
+              disabled={!!state.globalChannel}
+              name="channel"
+              value={state.channel + 1}
+              onChange={updateNumberPlusOne}
+              inputProps={{
+                min: 1,
+                max: 16,
+              }}
+            ></TextField>
+            <FormControlLabel
+              className={classes.switch}
+              label="Global"
+              control={<Switch checked={!!state.globalChannel} onChange={updateGlobalChannel} />}
+            />
+          </div>
         </Grid>
       </DialogContent>
       <DialogActions>

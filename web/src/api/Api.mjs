@@ -35,6 +35,11 @@ const NUM_PROGRAMS = 99;
 // these ids address the 26 editable setlists (files /64../7D).
 const NUM_SETLISTS = 26;
 
+// Config::ExpressionConfig::kDefaultMinRaw / kDefaultMaxRaw. Backups taken
+// before the calibration was part of the config scheme have no expression
+// field, and serializing it as absent would write a degenerate 0..0 range.
+const DEFAULT_EXP_CAL = { minRaw: 0, maxRaw: 4095 };
+
 export default class Api {
   constructor(transport) {
     this.protocol = null;
@@ -90,7 +95,10 @@ export default class Api {
 
   async setConfig(config) {
     console.log('setConfig');
-    const data = serializeConfig(config);
+    const data = serializeConfig({
+      ...config,
+      expression: { ...DEFAULT_EXP_CAL, ...(config.expression || {}) },
+    });
     await this.sendRequest(SET_CONFIG, data);
   }
 

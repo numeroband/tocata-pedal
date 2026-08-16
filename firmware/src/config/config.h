@@ -85,12 +85,20 @@ private:
     ExpressionConfig _expression;
 } __attribute__((packed));
 
+// Bit 3 of the low nibble of the bytes that pack a 4-bit channel next to a
+// small enum (Actions::Action and Program below). All 16 channel values are
+// legal MIDI channels, so the "follow the device-wide channel" marker has no
+// room in the channel nibble itself; the enums it shares a byte with use at
+// most values 0..4, leaving this bit free. Every byte written by earlier
+// firmware has it clear, so old data keeps its explicit channel.
+static constexpr uint8_t kGlobalChannelMask = 0x08;
+
 class Actions
 {
 public:
     static constexpr size_t kMaxActions = 5;
 
-    void run(MidiSender& midi) const;
+    void run(MidiSender& midi, uint8_t global_channel) const;
     bool operator==(const Actions& other);
 
     class Action
@@ -105,12 +113,18 @@ public:
             kNoteOff,
         };
 
-        void run(MidiSender& midi) const;
+        void run(MidiSender& midi, uint8_t global_channel) const;
         bool operator==(const Action& other);
 
     private:
-        Type type() const { return Type(_channel_and_type & 0x0F); }
-        uint8_t channel() const { return _channel_and_type >> 4; }
+        Type type() const { return Type(_channel_and_type & 0x07); }
+        bool globalChannel() const { return _channel_and_type & kGlobalChannelMask; }
+        // `global_channel` comes from Config::MidiConfig, a full unclamped byte,
+        // so mask it here rather than trusting every send backend to do it.
+        uint8_t channel(uint8_t global_channel) const
+        {
+            return (globalChannel() ? global_channel : (_channel_and_type >> 4)) & 0x0F;
+        }
 
         uint8_t _channel_and_type = kNone;
         uint8_t _values[2];
@@ -169,7 +183,7 @@ public:
         bool enabled() const { return _enabled; }
         Color color() const { return _color; }
         bool available() const { return _name[0]; }
-        void run(MidiSender& midi, bool active) const;
+        void run(MidiSender& midi, bool active, uint8_t global_channel) const;
         bool operator==(const Footswitch& other);
 
     private:
@@ -189,13 +203,13 @@ public:
 
     bool load(uint8_t id);
 
-    void run(MidiSender& midi) const;
-    void sendExpression(MidiSender& midi, uint8_t value) const;
+    void run(MidiSender& midi, uint8_t global_channel) const;
+    void sendExpression(MidiSender& midi, uint8_t value, uint8_t global_channel) const;
     Footswitch& footswitch(uint8_t id) { return _switches[id]; }
     const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }
     uint8_t numFootswitches() const { return _num_switches; }
     const char* name() const { return _name; }
-    Mode mode() const { return Mode(_channel_and_mode & 0x0F); }
+    Mode mode() const { return Mode(_channel_and_mode & 0x07); }
     // Effective mode of a single switch: kScene programs force every switch to
     // scene; kDefault programs defer to the switch's own stored mode.
     Footswitch::Mode switchMode(uint8_t id) const
@@ -205,7 +219,11 @@ public:
     }
     uint8_t defaultScene() const;
     uint8_t expression() const { return _expression; }
-    uint8_t expressionChannel() const { return _channel_and_mode >> 4; }
+    bool expressionGlobalChannel() const { return _channel_and_mode & kGlobalChannelMask; }
+    uint8_t expressionChannel(uint8_t global_channel) const
+    {
+        return (expressionGlobalChannel() ? global_channel : (_channel_and_mode >> 4)) & 0x0F;
+    }
     bool expressionEnabled() const { return _expression < 128; }
     bool available() const { return _name[0]; }
     void save(uint8_t id) const;
