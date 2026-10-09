@@ -114,6 +114,23 @@ collected snapshot (including the detected bank order); `--qc-data-in <path>`
 replays a saved snapshot without touching USB again, useful for retrying the
 pedal sync after a partial failure.
 
+**`--stage <file.json>`** skips the pedal entirely (no MIDI connection is
+opened, `--channel` isn't needed) and writes a TocataStage `User` file
+instead (`TocataStage/Model/User.swift`'s JSON shape): one preset per QC
+preset with no effects -- only TocataStage's hardware in/out nodes, wired
+straight through, since the Quad Cortex does the processing -- keeping the
+scene names, colors, default scene and `--program-mode-switch` (as a
+`preset`-mode switch), plus one setlist per QC setlist. Loaded into
+TocataStage (copy it into its `Users` folder), the app pushes those presets
+to the pedal itself. The user is named after the file unless
+`--stage-user-name` says otherwise, and its id is derived from that name, so
+regenerating the file replaces the same TocataStage user instead of adding
+another:
+
+```bash
+pytocatapedal sync-quad-cortex --stage QuadCortex.json --program-mode-switch 3
+```
+
 ## Quad Cortex tuner bridge
 
 `pytocatapedal-qc-bridge` drives the pedal's tuner display from a rack-mounted

@@ -9,6 +9,7 @@ instead of writing an intermediate JSON file.
 import logging
 import sys
 import time
+import uuid
 
 NEURAL_DSP_VENDOR_ID = 0x152A
 # pyquadcortex.hid_ids only knows the regular Quad Cortex (its PRODUCT_ID is 0x880A); the
@@ -324,15 +325,8 @@ def nearest_footswitch_color(argb: int) -> str:
 
 
 def scene_footswitch(scene_index: int, label: str, color_argb: int, is_default: bool) -> dict:
-    # An empty name makes the firmware treat the footswitch as unavailable
-    # (Footswitch::available() is `_name[0]`, see firmware/src/config/config.h)
-    # -- exactly what an empty QC scene label should mean here. The default
-    # scene is the exception: it's named explicitly so it stays available
-    # even when the QC preset never labeled it.
-    stripped = label.strip()
-    name = stripped or ("DEFAULT" if is_default else "")
     return {
-        "name": name[:MAX_FS_NAME_SIZE],
+        "name": scene_name(label, is_default)[:MAX_FS_NAME_SIZE],
         "color": nearest_footswitch_color(color_argb),
         "enabled": is_default,
         "mode": "scene",
@@ -367,28 +361,44 @@ def preset_recall_actions(index: int, bank: int) -> list:
     ]
 
 
+def program_mode_index(preset: dict, program_mode_switch: int = None):
+    """The footswitch to turn into the program-mode trigger for this preset, or None.
+
+    Only turns program_mode_switch into the trigger if the QC preset left that
+    scene unlabeled. A labeled scene is a real, in-use QC scene -- overwriting it
+    with the trigger would make it unreachable, so the proper scene footswitch is
+    kept there instead, with a warning that this preset doesn't get a trigger.
+    """
+    scenes = preset["scene_labels"]
+    if program_mode_switch is None or program_mode_switch >= len(scenes):
+        return None
+    scene_label = scenes[program_mode_switch].strip()
+    if scene_label:
+        log.warning(
+            f"preset {preset['name']!r}: footswitch {program_mode_switch} has "
+            f"QC scene {scene_label!r}; not using program mode for this preset "
+            f"to avoid overwriting it.",
+        )
+        return None
+    return program_mode_switch
+
+
+def scene_name(label: str, is_default: bool) -> str:
+    # An empty name makes the firmware treat the footswitch as unavailable
+    # (Footswitch::available() is `_name[0]`, see firmware/src/config/config.h)
+    # -- exactly what an empty QC scene label should mean here. The default
+    # scene is the exception: it's named explicitly so it stays available
+    # even when the QC preset never labeled it.
+    return label.strip() or ("DEFAULT" if is_default else "")
+
+
 def build_program(preset: dict, bank: int, program_mode_switch: int = None) -> dict:
     scenes = preset["scene_labels"]
     colors = preset["scene_colors"]
     default_scene = preset["default_scene"]
-    # Only turn program_mode_switch into the program-mode trigger if the QC
-    # preset left that scene unlabeled. A labeled scene is a real, in-use QC
-    # scene -- overwriting it with the trigger would make it unreachable, so
-    # we keep the proper scene footswitch there instead and warn that this
-    # preset doesn't get a program-mode trigger.
-    program_mode_index = None
-    if program_mode_switch is not None and program_mode_switch < len(scenes):
-        scene_label = scenes[program_mode_switch].strip()
-        if scene_label:
-            log.warning(
-                f"preset {preset['name']!r}: footswitch {program_mode_switch} has "
-                f"QC scene {scene_label!r}; not using program mode for this preset "
-                f"to avoid overwriting it.",
-            )
-        else:
-            program_mode_index = program_mode_switch
+    program_mode_fs = program_mode_index(preset, program_mode_switch)
     fs = [
-        program_mode_footswitch() if i == program_mode_index
+        program_mode_footswitch() if i == program_mode_fs
         else scene_footswitch(i, scenes[i], colors[i], i == default_scene)
         for i in range(min(len(scenes), len(colors)))
     ]
@@ -456,5 +466,110 @@ def build_backup(qc_data: dict, pedal_channel: int, program_mode_switch: int = N
         "version": 1,
         "midi": {"channel": pedal_channel},
         "programs": programs,
+        "setlists": setlists,
+    }
+
+
+# --- TocataStage user file (--stage) -----------------------------------------
+#
+# Instead of restoring to the pedal, `sync-quad-cortex --stage` writes a
+# TocataStage `User` (TocataStage/Model/User.swift, as JSONEncoder writes it).
+# Dropped into TocataStage's Users folder, the app pushes it to the pedal itself
+# -- with the QC's scene names, colors and program-mode switch -- while the
+# presets carry no effects, since the Quad Cortex does the processing.
+
+# AudioUnitId of TocataStage's hardware in/out nodes (Effect.swift's
+# AudioUnitId.hwInput/hwOutput): type 'auou', manufacturer 'appl', subtype
+# 'hwin'/'ahal', as the big-endian FourCharCodes Swift encodes.
+def _four_cc(code: str) -> int:
+    return int.from_bytes(code.encode("ascii"), "big")
+
+
+STAGE_HW_INPUT = {"type": _four_cc("auou"), "subType": _four_cc("hwin"),
+                  "manufacturer": _four_cc("appl")}
+STAGE_HW_OUTPUT = {"type": _four_cc("auou"), "subType": _four_cc("ahal"),
+                   "manufacturer": _four_cc("appl")}
+# TocataStage's own name for a PresetSwitch in `preset` mode (DefaultSwitchModeName).
+STAGE_PRESET_SWITCH_NAME = "..."
+
+
+def _stage_effect(audio_unit_id: dict, position) -> dict:
+    return {
+        "id": str(uuid.uuid4()).upper(),
+        "audioUnitId": audio_unit_id,
+        "stereo": False,
+        "position": list(position),
+        "enabled": [True] * NUM_FOOTSWITCHES,
+        "parameters": [],
+    }
+
+
+def build_stage_preset(preset: dict, program_mode_switch: int = None) -> dict:
+    scenes = preset["scene_labels"]
+    colors = preset["scene_colors"]
+    default_scene = preset["default_scene"]
+    program_mode_fs = program_mode_index(preset, program_mode_switch)
+    switches = []
+    for i in range(NUM_FOOTSWITCHES):
+        if i == program_mode_fs:
+            switches.append({"name": STAGE_PRESET_SWITCH_NAME, "color": "none", "mode": "preset"})
+        elif i < min(len(scenes), len(colors)):
+            # TocataStage uppercases and truncates the name itself when pushing it
+            # to the pedal, so the full label is kept for its own UI.
+            switches.append({
+                "name": scene_name(scenes[i], i == default_scene),
+                "color": nearest_footswitch_color(colors[i]),
+                "mode": "scene",
+            })
+        else:
+            switches.append({"name": "", "color": "none", "mode": "scene"})
+    # No effects: just the hardware in/out nodes TocataStage requires, wired
+    # straight through, like a fresh preset in the app.
+    hw_in = _stage_effect(STAGE_HW_INPUT, (700, 500))
+    hw_out = _stage_effect(STAGE_HW_OUTPUT, (800, 500))
+    return {
+        "id": str(uuid.uuid4()).upper(),
+        "name": preset["name"],
+        "effects": [hw_in, hw_out],
+        "connections": [
+            {"id": str(uuid.uuid4()).upper(), "from": hw_in["id"], "to": hw_out["id"]},
+        ],
+        "scenes": switches,
+        "sceneIndex": default_scene if 0 <= default_scene < NUM_FOOTSWITCHES else 0,
+    }
+
+
+def build_stage_user(qc_data: dict, name: str, program_mode_switch: int = None) -> dict:
+    log.info(
+        "building TocataStage user %r: %d setlist(s) from qc_data",
+        name,
+        len(qc_data["setlists"]),
+    )
+    presets = []
+    setlists = []
+    for setlist in qc_data["setlists"]:
+        preset_ids = []
+        for preset in setlist["presets"]:
+            stage_preset = build_stage_preset(preset, program_mode_switch)
+            presets.append(stage_preset)
+            preset_ids.append(stage_preset["id"])
+        setlists.append({
+            "id": str(uuid.uuid4()).upper(),
+            "name": setlist["name"],
+            "presetIds": preset_ids,
+        })
+    if len(presets) > NUM_PROGRAMS:
+        log.warning(
+            f"{len(presets)} presets exceed the pedal's {NUM_PROGRAMS} program "
+            f"slots; TocataStage won't push the ones past that to the pedal.",
+        )
+    log.info("user built: %d preset(s), %d setlist(s)", len(presets), len(setlists))
+    return {
+        # Derived from the name so regenerating the same file keeps the same
+        # user identity in TocataStage instead of adding a second one.
+        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"tocata-stage-user:{name}")).upper(),
+        "name": name,
+        "presets": presets or [build_stage_preset(
+            {"name": "New Preset", "scene_labels": [], "scene_colors": [], "default_scene": 0})],
         "setlists": setlists,
     }

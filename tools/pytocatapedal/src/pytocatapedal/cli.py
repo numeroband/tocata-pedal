@@ -14,11 +14,18 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 from .api import Api
 from .midi_sysex import ANY_CHANNEL
 from .models import Backup, Config, Program, Setlist, from_wire, to_wire
-from .quad_cortex import QC_PRODUCT_IDS, build_backup, collect_qc_data, configure_logging
+from .quad_cortex import (
+    QC_PRODUCT_IDS,
+    build_backup,
+    build_stage_user,
+    collect_qc_data,
+    configure_logging,
+)
 from .transport_midi import TransportMidi
 from .uf2 import UF2
 
@@ -114,8 +121,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
 
     p = sub.add_parser("sync-quad-cortex")
-    p.add_argument("--channel", type=int, required=True,
-                    help="Quad Cortex MIDI channel (1-16)")
+    p.add_argument("--channel", type=int, default=None,
+                    help="Quad Cortex MIDI channel (1-16); required unless --stage")
     p.add_argument("--pedal-channel", type=int, default=None,
                     help="Tocata pedal's own MIDI channel (1-16); defaults to "
                          "--channel. Every generated action follows this channel "
@@ -137,6 +144,15 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="optionally save the raw Quad Cortex snapshot to this path")
     p.add_argument("--qc-data-in", default=None,
                     help="skip live USB collection, reuse a saved --qc-data-out snapshot")
+    p.add_argument("--stage", default=None, metavar="FILE.json",
+                    help="don't touch the pedal: write a TocataStage user file "
+                         "instead, with one effect-less preset per QC preset "
+                         "(keeping scene names/colors and --program-mode-switch) "
+                         "and one setlist per QC setlist. Loading it in "
+                         "TocataStage re-syncs the pedal from there.")
+    p.add_argument("--stage-user-name", default=None,
+                    help="TocataStage user name for --stage; defaults to the "
+                         "file name without its extension")
     p.add_argument("-v", "--verbose", action="store_true",
                     help="also log per-preset/per-folder DEBUG detail")
 
@@ -212,11 +228,14 @@ def _dispatch(api: Api, args: argparse.Namespace):
             print()
     elif command == "sync-quad-cortex":
         configure_logging(args.verbose)
-        if not (1 <= args.channel <= 16):
-            sys.exit("error: --channel must be 1-16")
-        pedal_channel = args.pedal_channel if args.pedal_channel is not None else args.channel
-        if not (1 <= pedal_channel <= 16):
-            sys.exit("error: --pedal-channel must be 1-16")
+        if not args.stage:
+            if args.channel is None:
+                sys.exit("error: --channel is required unless --stage is given")
+            if not (1 <= args.channel <= 16):
+                sys.exit("error: --channel must be 1-16")
+            pedal_channel = args.pedal_channel if args.pedal_channel is not None else args.channel
+            if not (1 <= pedal_channel <= 16):
+                sys.exit("error: --pedal-channel must be 1-16")
         if args.program_mode_switch is not None and not (0 <= args.program_mode_switch < 8):
             sys.exit("error: --program-mode-switch must be 0-7")
         if args.qc_data_in:
@@ -225,6 +244,13 @@ def _dispatch(api: Api, args: argparse.Namespace):
             qc_data = collect_qc_data(args.collect_timeout, model=args.qc_model)
             if args.qc_data_out:
                 _write_json_or_print(qc_data, args.qc_data_out)
+        if args.stage:
+            name = args.stage_user_name or Path(args.stage).stem
+            user = build_stage_user(qc_data, name,
+                                    program_mode_switch=args.program_mode_switch)
+            _write_json_or_print(user, args.stage)
+            print(f"wrote TocataStage user {name!r} to {args.stage}")
+            return
         backup_dict = build_backup(qc_data, pedal_channel=pedal_channel - 1,
                                     program_mode_switch=args.program_mode_switch)
         api.restore(from_wire(Backup, backup_dict))
@@ -240,7 +266,9 @@ def main():
     api = Api(transport)
     start = time.time()
     try:
-        api.connect()
+        # --stage only writes a file, so it must work with no pedal attached.
+        if not (args.command == "sync-quad-cortex" and args.stage):
+            api.connect()
         _dispatch(api, args)
     except Exception as e:
         print("ERROR!!!", e, file=sys.stderr)
