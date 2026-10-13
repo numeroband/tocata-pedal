@@ -58,6 +58,7 @@ private:
     void changeProgramMode();
     void setlistMode();
     bool selectSetlist(uint8_t setlist_id);
+    int16_t findProgramNumber(uint8_t number) const;
     void displaySetlistSelection();
     void tunerMode();
     void exitTunerMode(bool send_midi);

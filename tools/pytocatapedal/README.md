@@ -85,8 +85,9 @@ implementation ("Incoming MIDI Messages" / "Incoming MIDI CC List" in its
 manual):
 
 - **One program per QC preset** -- its `actions` send the preset-recall
-  sequence `CC#32` (setlist bank), `CC#0` (0-127 vs 128-255 group), then `PC`
-  (preset within that group), and the expression pedal is enabled and mapped
+  sequence `CC#32` (setlist bank) then `PC` (the preset's slot in that
+  setlist; slots past 127, which would need a `CC#0` bank select, are skipped
+  with a warning), and the expression pedal is enabled and mapped
   to the QC's own `CC#1` ("Expression Pedal 1"). All of these follow the
   pedal's global MIDI channel (`--pedal-channel`, which defaults to
   `--channel`) rather than a channel baked into each action, so re-pointing
@@ -120,9 +121,13 @@ instead (`TocataStage/Model/User.swift`'s JSON shape): one preset per QC
 preset with no effects -- only TocataStage's hardware in/out nodes, wired
 straight through, since the Quad Cortex does the processing -- keeping the
 scene names, colors, default scene and `--program-mode-switch` (as a
-`preset`-mode switch), plus one setlist per QC setlist. Loaded into
-TocataStage (copy it into its `Users` folder), the app pushes those presets
-to the pedal itself. The user is named after the file unless
+`preset`-mode switch), plus one setlist per QC setlist, in bank order. Each
+preset records its QC slot as `midiProgram`: TocataStage and the pedal select
+presets the way the QC does -- CC#32 = setlist (TocataStage's setlist *n* is
+QC bank *n*), PC = slot within it -- so selecting a preset or setlist in
+TocataStage, or stepping to one on the pedal, moves all three together. Loaded
+into TocataStage (copy it into its `Users` folder), the app pushes those
+presets to the pedal itself, each recalling its QC setlist and slot. The user is named after the file unless
 `--stage-user-name` says otherwise, and its id is derived from that name, so
 regenerating the file replaces the same TocataStage user instead of adding
 another:

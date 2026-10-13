@@ -100,6 +100,9 @@ public:
 
     void run(MidiSender& midi, uint8_t global_channel) const;
     bool operator==(const Actions& other);
+    // The preset number this list recalls on `global_channel`: its first
+    // Program Change on that channel, or -1 when it sends none.
+    int16_t programNumber(uint8_t global_channel) const;
 
     class Action
     {
@@ -117,6 +120,8 @@ public:
         bool operator==(const Action& other);
 
     private:
+        friend class Actions;
+
         Type type() const { return Type(_channel_and_type & 0x07); }
         bool globalChannel() const { return _channel_and_type & kGlobalChannelMask; }
         // `global_channel` comes from Config::MidiConfig, a full unclamped byte,
@@ -204,6 +209,9 @@ public:
     bool load(uint8_t id);
 
     void run(MidiSender& midi, uint8_t global_channel) const;
+    // See Actions::programNumber: what an incoming Program Change has to carry
+    // to select this program from within a stored setlist.
+    int16_t programNumber(uint8_t global_channel) const { return _actions.programNumber(global_channel); }
     void sendExpression(MidiSender& midi, uint8_t value, uint8_t global_channel) const;
     Footswitch& footswitch(uint8_t id) { return _switches[id]; }
     const Footswitch& footswitch(uint8_t id) const { return _switches[id]; }

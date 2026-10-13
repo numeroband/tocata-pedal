@@ -214,6 +214,20 @@ void Actions::run(MidiSender& midi, uint8_t global_channel) const
     }
 }
 
+int16_t Actions::programNumber(uint8_t global_channel) const
+{
+    const uint8_t channel = global_channel & 0x0F;
+    for (uint8_t i = 0; i < _num_actions && i < kMaxActions; ++i)
+    {
+        const Action& action = _actions[i];
+        if (action.type() == Action::kProgramChange && action.channel(global_channel) == channel)
+        {
+            return action._values[0];
+        }
+    }
+    return -1;
+}
+
 bool Actions::operator==(const Actions& other)
 {
     if (_num_actions != other._num_actions)

@@ -34,8 +34,10 @@ QC_PRODUCT_IDS = {
 FACTORY_BANK = 0
 
 SCENE_SELECT_CC = 43
-BANK_MSB_CC = 0
 BANK_LSB_CC = 32
+# A QC setlist has 256 slots, but the Tocata side selects presets with a bare
+# Program Change (no CC#0 bank MSB), so only slots below this are synced.
+MAX_QC_SLOT = 127
 EXPRESSION_1_CC = 1
 
 MAX_PRG_NAME_SIZE = 30
@@ -353,12 +355,25 @@ def program_mode_footswitch() -> dict:
 
 
 def preset_recall_actions(index: int, bank: int) -> list:
-    group, pc = (0, index) if index < 128 else (1, index - 128)
     return [
         {"type": "CC", "globalChannel": 1, "values": [BANK_LSB_CC, bank]},
-        {"type": "CC", "globalChannel": 1, "values": [BANK_MSB_CC, group]},
-        {"type": "PC", "globalChannel": 1, "values": [pc, 0]},
+        {"type": "PC", "globalChannel": 1, "values": [index, 0]},
     ]
+
+
+def addressable_presets(setlist: dict) -> list:
+    """The setlist's presets a bare Program Change can select (see MAX_QC_SLOT)."""
+    presets = []
+    for preset in setlist["presets"]:
+        if preset["index"] > MAX_QC_SLOT:
+            log.warning(
+                f"skipping preset {preset['name']!r} in {setlist['name']!r}: QC slot "
+                f"{preset['index']} is past {MAX_QC_SLOT}, which a Program Change "
+                f"without CC#0 can't select.",
+            )
+            continue
+        presets.append(preset)
+    return presets
 
 
 def program_mode_index(preset: dict, program_mode_switch: int = None):
@@ -437,7 +452,7 @@ def build_backup(qc_data: dict, pedal_channel: int, program_mode_switch: int = N
         log.debug("processing setlist %r (bank=%d, %d preset(s))",
                    setlist["name"], bank, len(setlist["presets"]))
         program_ids = []
-        for preset in setlist["presets"]:
+        for preset in addressable_presets(setlist):
             if len(programs) >= NUM_PROGRAMS:
                 log.warning(
                     f"dropping preset {preset['name']!r} from "
@@ -477,6 +492,13 @@ def build_backup(qc_data: dict, pedal_channel: int, program_mode_switch: int = N
 # Dropped into TocataStage's Users folder, the app pushes it to the pedal itself
 # -- with the QC's scene names, colors and program-mode switch -- while the
 # presets carry no effects, since the Quad Cortex does the processing.
+#
+# TocataStage, the pedal and the QC all select presets the QC's way: CC#32 =
+# setlist, PC = the preset's slot within it (below 128 -- see MAX_QC_SLOT). TocataStage numbers its
+# setlists from 1 in file order, so setlist i of the file must be QC bank i + 1
+# -- every QC setlist is written, empty or not, in bank order -- and each
+# preset carries its QC slot as `midiProgram`, since slots can have gaps that
+# a position in the setlist wouldn't reproduce.
 
 # AudioUnitId of TocataStage's hardware in/out nodes (Effect.swift's
 # AudioUnitId.hwInput/hwOutput): type 'auou', manufacturer 'appl', subtype
@@ -505,6 +527,7 @@ def _stage_effect(audio_unit_id: dict, position) -> dict:
 
 
 def build_stage_preset(preset: dict, program_mode_switch: int = None) -> dict:
+    """A TocataStage Preset mirroring one QC preset (its slot is `midiProgram`)."""
     scenes = preset["scene_labels"]
     colors = preset["scene_colors"]
     default_scene = preset["default_scene"]
@@ -536,6 +559,7 @@ def build_stage_preset(preset: dict, program_mode_switch: int = None) -> dict:
         ],
         "scenes": switches,
         "sceneIndex": default_scene if 0 <= default_scene < NUM_FOOTSWITCHES else 0,
+        "midiProgram": preset["index"],
     }
 
 
@@ -547,9 +571,16 @@ def build_stage_user(qc_data: dict, name: str, program_mode_switch: int = None) 
     )
     presets = []
     setlists = []
-    for setlist in qc_data["setlists"]:
+    for position, setlist in enumerate(qc_data["setlists"]):
+        bank = setlist.get("bank")
+        if bank != FACTORY_BANK + 1 + position:
+            log.warning(
+                f"setlist {setlist['name']!r} is QC bank {bank} but will be "
+                f"TocataStage setlist {position + 1}: selecting it from "
+                f"TocataStage or the pedal will select another QC setlist.",
+            )
         preset_ids = []
-        for preset in setlist["presets"]:
+        for preset in addressable_presets(setlist):
             stage_preset = build_stage_preset(preset, program_mode_switch)
             presets.append(stage_preset)
             preset_ids.append(stage_preset["id"])

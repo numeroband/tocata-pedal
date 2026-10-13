@@ -195,21 +195,23 @@ void Controller::midiCallback(std::span<const uint8_t> packet, std::span<uint8_t
         uint8_t msg_channel = packet[0] & 0x0F;
         uint8_t msg_type = packet[0] & 0xF0;
         if (msg_channel == channel && msg_type == 0xC0) {
-            // The value is an absolute program id. A program outside the active
-            // setlist switches the pedal to the "All" setlist (which holds every
-            // program) instead of being dropped.
-            uint8_t value = packet[1];
-            int16_t pos = _setlist.find(value);
+            // Quad Cortex addressing: the number names a program within the
+            // active setlist -- see findProgramNumber. One the active setlist
+            // doesn't hold falls back to the "All" setlist and is read as an
+            // absolute program id there, instead of being dropped.
+            const uint8_t number = packet[1];
+            int16_t pos = findProgramNumber(number);
             if (pos < 0) {
                 selectSetlist(kAllSetlist);
-                pos = _setlist.find(value);
+                pos = findProgramNumber(number);
             }
             if (pos < 0) {
                 // Still not a valid program id: leave the pedal exactly as it is.
             } else if (_tuner_mode) {
+                const uint8_t id = _setlist.program(uint8_t(pos));
                 Program target;
-                target.load(value);
-                _saved_program_id = value;
+                target.load(id);
+                _saved_program_id = id;
                 _saved_setlist_pos = uint8_t(pos);
                 defaultSwitchesState(target, _saved_switches_state);
                 _restore_state = true;
@@ -440,6 +442,35 @@ bool Controller::selectSetlist(uint8_t setlist_id)
     _saved_program_id = _setlist.program(_setlist_pos);
 
     return true;
+}
+
+// Position within the active setlist of the program an incoming Program Change
+// names, or -1. Under "All" the number is simply the program id. A stored
+// setlist is addressed the way a Quad Cortex addresses one of its own: each
+// program answers to the Program Change it sends itself when loaded
+// (Program::programNumber), so a program synced from the Quad Cortex answers
+// to its slot within the QC setlist and every device on the bus agrees on what
+// a number means. A program that sends no Program Change answers to its id,
+// which is also what a host recalling programs by id writes into them.
+int16_t Controller::findProgramNumber(uint8_t number) const
+{
+    if (_setlist_id == kAllSetlist)
+    {
+        return (number < Program::kMaxPrograms) ? _setlist.find(number) : -1;
+    }
+
+    const uint8_t channel = _config.midi().channel();
+    Program program;
+    for (uint8_t pos = 0; pos < _setlist.numPrograms(); ++pos)
+    {
+        const uint8_t id = _setlist.program(pos);
+        const int16_t own = program.load(id) ? program.programNumber(channel) : -1;
+        if ((own < 0 ? int16_t(id) : own) == int16_t(number))
+        {
+            return int16_t(pos);
+        }
+    }
+    return -1;
 }
 
 void Controller::displaySetlistSelection()
