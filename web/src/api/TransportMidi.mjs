@@ -1,4 +1,5 @@
-import { toSysEx, fromSysEx, kSysExAnyChannel } from "./MidiSysEx.mjs"
+import { toSysEx, fromSysEx, lastSysEx, kSysExAnyChannel } from "./MidiSysEx.mjs"
+import MessageQueue from "./MessageQueue.mjs"
 
 export default class TransportMidi {
   constructor(navigator, connectionEvent) {
@@ -8,9 +9,7 @@ export default class TransportMidi {
     this.midi = null
     this.input = null
     this.output = null
-    this.queue = []
-    this.resolve = null
-    this.reject = null
+    this.queue = new MessageQueue()
   }
 
   get connected() {
@@ -40,18 +39,12 @@ export default class TransportMidi {
     }
     this.input.onmidimessage = e => {
       console.log('Received midi message', e.data)
-      const buffer = fromSysEx(e.data, this.midiChannel)
+      const buffer = fromSysEx(lastSysEx(e.data), this.midiChannel)
       if (!buffer) {
         console.log('Invalid sysex')
         return
       }
-      const data = new DataView(buffer.buffer)
-      this.queue.push(data)
-      if (this.resolve) {
-        this.resolve(this.queue.shift())
-        this.resolve = null
-        this.reject = null
-      }
+      this.queue.push(new DataView(buffer.buffer))
     }
     this.connectionEvent(true);
   }
@@ -67,13 +60,11 @@ export default class TransportMidi {
     await this.output.send(Array.from(sysex))
   };
 
-  async receive() {
-    if (this.queue.length > 0) {
-      return this.queue.shift();
-    }
-    return new Promise((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
-  };
+  receive(timeout) {
+    return this.queue.pop(timeout)
+  }
+
+  flush() {
+    this.queue.clear()
+  }
 }

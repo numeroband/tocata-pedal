@@ -1,5 +1,6 @@
 import UF2 from "./UF2.mjs"
 import Protocol from "./Protocol.mjs";
+import { TimeoutError } from "./MessageQueue.mjs";
 import {
   parseConfig, 
   serializeConfig,
@@ -30,6 +31,24 @@ const MEM_READ = 0x10;
 const MEM_WRITE = 0x11;
 const FLASH_ERASE = 0x12;
 
+// A request or its response is sometimes lost (typically the first one after
+// the board has been idle), so requests that time out are sent again, up to
+// this many attempts in total. That is safe for every command except BOOT_ROM:
+// - GET_* and MEM_READ only read.
+// - SET_*/DEL_* write or delete the same file again, ending in the same state.
+// - FLASH_ERASE erases the same range again.
+// - MEM_WRITE writes the same bytes to the same address again. In RAM that is
+//   trivially the same; in flash, programming can only clear bits, so
+//   programming a page again with identical data leaves it unchanged.
+// - RESTART: if the first one went through, the board is gone and the retry
+//   just times out, so it restarts at most once.
+// BOOT_ROM is not retried: the board leaves for the BOOTSEL bootloader and may
+// not answer, and there is nothing to gain from asking again.
+const MAX_ATTEMPTS = 3;
+const NO_RETRY = new Set([BOOT_ROM]);
+// RP2040/RP2350 flash erases at most ~400 ms per 4 KB sector.
+const eraseTimeout = length => 3000 + Math.ceil(length / 4096) * 400;
+
 const NUM_PROGRAMS = 99;
 // Setlist 0 on the pedal is the built-in "All" setlist and is not stored, so
 // these ids address the 26 editable setlists (files /64../7D).
@@ -54,11 +73,11 @@ export default class Api {
   version = _ => this.protocol.version();
   connect = reconnect => this.protocol.connect(reconnect);
 
-  sendRequest(command, buffer) {
+  sendRequest(command, buffer, options = {}) {
     if (!this.connected) {
       throw new Error('Not connected');
     }
-    const request = {command, data: new Uint8Array(buffer)};
+    const request = {command, data: new Uint8Array(buffer), options};
     const promise = new Promise((resolve, reject) => {
       request.resolve = resolve;
       request.reject = reject;
@@ -71,7 +90,7 @@ export default class Api {
       }
       const req = this.requestQueue[0];
       try {
-        const {data} = await this.protocol.sendRequest(req.command, req.data);
+        const {data} = await this.sendWithRetry(req.command, req.data, req.options);
         req.resolve(data.buffer);  
       } catch(e) {
         req.reject(e);
@@ -85,6 +104,23 @@ export default class Api {
     }
 
     return promise;
+  }
+
+  async sendWithRetry(command, data, options) {
+    const attempts = NO_RETRY.has(command) ? 1 : MAX_ATTEMPTS;
+    for (let attempt = 1; ; ++attempt) {
+      try {
+        return await this.protocol.sendRequest(command, data, options);
+      } catch (e) {
+        if (!(e instanceof TimeoutError)) {
+          throw e;
+        }
+        if (attempt >= attempts) {
+          throw new TimeoutError(`Command 0x${command.toString(16)}: no response after ${attempt} attempt(s)`);
+        }
+        console.log(`Command 0x${command.toString(16)}: no response, retrying (${attempt + 1}/${attempts})`);
+      }
+    }
   }
 
   async getConfig() {
@@ -177,7 +213,11 @@ export default class Api {
   async memRead(address, length) {
     console.log(`memRead ${address.toString(16)} - ${length}`);
     const req = serializeAddrLength({address, length});
-    const res = await this.sendRequest(MEM_READ, req);
+    // A late response to an earlier read has the same command, so also check
+    // it is for this address.
+    const accept = ({data}) => data.byteLength >= 4 &&
+      new DataView(data.buffer, data.byteOffset).getUint32(0, true) === address;
+    const res = await this.sendRequest(MEM_READ, req, {accept});
     const {payload} = parseAddrPayload(res);
     return payload;
   }
@@ -191,7 +231,7 @@ export default class Api {
   async flashErase(address, length) {
     console.log(`flashErase ${address.toString(16)} - ${length}`);
     const data = serializeAddrLength({address, length});
-    await this.sendRequest(FLASH_ERASE, data);
+    await this.sendRequest(FLASH_ERASE, data, {timeout: eraseTimeout(length)});
   }
 
   async restart() {
@@ -276,6 +316,12 @@ export default class Api {
 
   async verifyFirmware(uf2) {
     for (const block of uf2.blocks) {
+      // flashFirmware doesn't write the RP2350-E10 absolute block. Its address
+      // (0x10ffff00) wraps to the last page of a 2 MB flash, which holds
+      // whatever was there before, so there's nothing to compare it against.
+      if (block.familyId === UF2.FAMILY_RP2XXX_ABSOLUTE) {
+        continue;
+      }
       const payload = await this.memRead(block.address, block.payload.byteLength);
       if (payload.byteLength !== block.payload.byteLength) {
         throw new Error(`Payload length does not match: local ${block.payload.byteLength} != remote ${payload.byteLength}`);

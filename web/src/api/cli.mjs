@@ -8,6 +8,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// fs.readFileSync returns a Buffer that, for small files, is a view into
+// Node's shared allocation pool, so its .buffer is the whole pool rather
+// than the file. Copy out exactly the file's bytes.
+function readFileBytes(path) {
+  const content = fs.readFileSync(path);
+  return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+}
+
 async function main() {
   const command = process.argv[2];
   const transport = process.env['TOCATA_TRANSPORT'] || 'midi';
@@ -29,11 +37,14 @@ async function main() {
 
   const connect = _ => new Promise((resolve, reject) => {
     api.connectionEvent = connected => connected && resolve();
-    api.connect();
+    api.connect().catch(reject);
   });
 
   try {
-    await connect();
+    // uf2-info only looks at a local file.
+    if (command !== 'uf2-info') {
+      await connect();
+    }
     switch(command) {
       case 'get-config':
       {
@@ -166,8 +177,7 @@ async function main() {
       case 'flash':
       {
         const path = process.argv[3];
-        const content = fs.readFileSync(path);
-        const uf2 = new UF2(content.buffer);
+        const uf2 = new UF2(readFileBytes(path));
         console.log('Flashing firmware');
         await api.flashFirmware(uf2);
         console.log('Verifying firmware');
@@ -190,8 +200,7 @@ async function main() {
       {
         const addr = Number(process.argv[3]);
         const path = process.argv[4];
-        const content = fs.readFileSync(path);
-        await api.writeMemory(addr, content.buffer);
+        await api.writeMemory(addr, readFileBytes(path));
         break;
       }
       case 'erase':
@@ -204,8 +213,7 @@ async function main() {
       case 'uf2-info':
       {
         const path = process.argv[3];
-        const content = fs.readFileSync(path);
-        const uf2 = new UF2(content.buffer);
+        const uf2 = new UF2(readFileBytes(path));
         for (const [index, block] of uf2.blocks.entries()) {
           console.log(`--- Block ${index}:`)
           console.log(`flags=0x${block.flags.toString(16)}`);

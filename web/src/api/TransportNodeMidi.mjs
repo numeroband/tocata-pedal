@@ -1,4 +1,5 @@
-import { toSysEx, fromSysEx, kSysExAnyChannel } from "./MidiSysEx.mjs"
+import { toSysEx, fromSysEx, lastSysEx, kSysExAnyChannel } from "./MidiSysEx.mjs"
+import MessageQueue from "./MessageQueue.mjs"
 
 export default class TransportNodeMidi {
   constructor(midi, connectionEvent) {
@@ -8,9 +9,7 @@ export default class TransportNodeMidi {
     this.midi = midi
     this.input = null
     this.output = null
-    this.queue = []
-    this.resolve = null
-    this.reject = null
+    this.queue = new MessageQueue()
   }
 
   get connected() {
@@ -48,22 +47,21 @@ export default class TransportNodeMidi {
 
     this.input.on('message', (_, message) => {
       // console.log('Received midi message', message)
-      const buffer = fromSysEx(message, this.midiChannel)
+      const buffer = fromSysEx(lastSysEx(message), this.midiChannel)
       if (!buffer) {
-        console.log('Invalid sysex')
+        // e.g. the MIDI Identity Reply the board sends after a restart.
+        console.log('Ignoring non-Tocata MIDI message', Array.from(message.slice(0, 8)))
         return
       }
-      const data = new DataView(buffer.buffer)
-      this.queue.push(data)
-      if (this.resolve) {
-        this.resolve(this.queue.shift())
-        this.resolve = null
-        this.reject = null
-      }
+      this.queue.push(new DataView(buffer.buffer))
     })
-    this.input.openPort(inputIndex)
+    // Enable SysEx before opening so nothing arriving early is filtered out.
     this.input.ignoreTypes(false, true, true)
+    this.input.openPort(inputIndex)
     this.output.openPort(outputIndex)
+    // Give the freshly opened ports a moment to settle before the first
+    // request, so its reply isn't missed.
+    await new Promise(resolve => setTimeout(resolve, 100))
     this.connectionEvent(true);
   }
 
@@ -78,13 +76,11 @@ export default class TransportNodeMidi {
     await this.output.send(Array.from(sysex))
   };
 
-  async receive() {
-    if (this.queue.length > 0) {
-      return this.queue.shift();
-    }
-    return new Promise((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
-  };
+  receive(timeout) {
+    return this.queue.pop(timeout)
+  }
+
+  flush() {
+    this.queue.clear()
+  }
 }

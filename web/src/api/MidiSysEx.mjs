@@ -39,6 +39,14 @@ export function toSysEx(buffer, channel = kSysExAnyChannel) {
   return sysex
 }
 
+// A SysEx that was cut short (e.g. the device reset or dropped a reply halfway)
+// leaves no F7, so the host's MIDI stack prepends the stale bytes to the next
+// message. A data byte is never 0xF0, so the last F0 starts the real message.
+export function lastSysEx(message) {
+  const start = message.lastIndexOf(0xF0)
+  return start > 0 ? message.slice(start) : message
+}
+
 export function fromSysEx(sysex, channel = kSysExAnyChannel) {
   const hasChannel = channel !== kSysExNoChannel
   const channelSize = hasChannel ? 1 : 0
