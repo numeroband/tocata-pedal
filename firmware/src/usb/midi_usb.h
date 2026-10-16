@@ -21,13 +21,14 @@ public:
 private:
   void sendBytes();
   size_t writePending() { return _write_size - _write_offset; }
-  size_t readAvailable() { return _buffer.size() - _read_offset; }
 
   Callback _callback{};
   size_t _write_size{0};
   size_t _write_offset{0};
   size_t _read_offset{0};
-  std::array<uint8_t, kMidiSysExMaxSize> _buffer;
+  // Separate so an incoming SysEx can't overwrite a reply still being sent.
+  std::array<uint8_t, kMidiSysExMaxSize> _read_buffer;
+  std::array<uint8_t, kMidiSysExMaxSize> _write_buffer;
 };
 
 }
